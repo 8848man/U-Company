@@ -9,6 +9,7 @@ For each change:
 5. Implement in a focused step. Keep structural refactors separate from new behavior and validate each step.
 6. Run mechanical checks, behavior tests, cross-area checks, then update the owning documents and index. Record any drift and its resolution.
 7. Update WORKLOG.md with evidence and the next action. Record a release only after a real deployment.
+8. Open a pull request for the milestone following the [PR workflow](pr-workflow.md): one milestone per branch, a plain-language title and a three-depth summary.
 
 For UI work, read the [UI/UX 구현 철학](ux-principles.md) first and design each screen at one of its three depths; check the result against its screen checklist before recording the milestone. Inspect existing components and their call sites before adding a screen. Reuse an existing component when its behavior and ownership fit. Keep data loading and commands in a controller, and give replaceable screen components explicit typed inputs and callbacks. A menu or panel should be replaceable without copying backend commands, approval rules, or persistence logic. If an existing component mixes those concerns, extract the smallest useful boundary before changing its presentation. Record any deliberate duplication and its removal path in WORKLOG.
 

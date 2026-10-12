@@ -10,3 +10,4 @@ src-tauri/gen/schemas/
 *.sqlite-shm
 *.sqlite-wal
 .DS_Store
+.pr/
