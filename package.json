@@ -1,0 +1,31 @@
+{
+  "name": "ai-organization-os",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:v2": "tsc --noEmit -p v2/tsconfig.json && vite build --config v2/vite.config.ts",
+    "build:v3": "tsc --noEmit -p v3/tsconfig.json && vite build --config v3/vite.config.ts",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "test": "vitest run",
+    "provider:test": "cargo run --locked --manifest-path src-tauri/Cargo.toml --bin provider-harness --"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.0",
+    "@tauri-apps/plugin-notification": "2.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.3.6",
+    "vitest": "^3.0.0"
+  }
+}

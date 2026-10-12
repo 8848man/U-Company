@@ -1,0 +1,15 @@
+# Goal conversation acceptance criteria
+
+## Acceptance
+
+1. A CEO asks a goal-specific understanding question, receives a real connected AI response, closes/restarts the app, and sees the exact saved exchange and provider identity.
+2. A CEO submits guidance during analysis, planning, execution, and approval wait. Each message says whether it is queued or waiting for revision, and where the old goal stopped. A running provider call is not falsely shown as updated.
+3. A scope-changing pivot cannot use an old approval or silently add files. Denial preserves prior data and explains the next action.
+4. CEO, Office, and board show the same goal revision, owner, stage, next action, and conversation count from persisted state. Keyboard and narrow-window operation are verified.
+5. No model's prose, repository text, or adapter output can grant approval or change the CEO's guidance status without the engine's validated transition. A validated direction classification only routes the exact CEO message to the guidance transaction.
+6. For blocked goals from every entry point, the CEO can inspect the exact saved reason and perform the allowed next action in the same flow. A pre-write retry, pending approval, approved-plan resume, and post-write linked revision are distinguished; no UI path claims to resume an unsupported session.
+7. From any tab, the CEO can open unfinished work, select a task in another project, and speak to its actual assigned teammate through a saved real AI turn; a clear CEO instruction can enter a state-safe resolution route. No completed/superseded item is presented as a live task, and no answer alone changes execution state.
+8. A first-time CEO sees one message input and one send action without opening technical panels. Approval/recovery remains reachable as one current action; full progress evidence remains inspectable under one disclosure. An AI-routed message records whether it was answered, needs clarification, or entered the direction-change workflow. The visible conversation separates real AI replies from deterministic workflow status text.
+9. An ordinary question receives a direct answer in the CEO's language without a mandatory report scaffold. A request for a draft or plan can receive appropriate detail. Neither style falsely claims work was performed or converts discussion into an execution command.
+10. A CEO direction change addressed to a worker is saved with routing provenance, reaches a safe checkpoint, and is reviewed by CTO then PM for the linked revision. The engine rejects a reuse proposal without matching integration proof/current bytes; only new file tasks receive new write approval, and QA covers the revised outcome even when every implementation task is reused.
+11. The CEO sends one natural-language message. The connected teammate interprets its purpose with a read-only model call; an unambiguous instruction enters the existing checkpoint and revision workflow without a second mode or confirmation button. The exact CEO message and route survive restart. Ambiguous messages never authorize a transition. Approval for project writes remains separate.

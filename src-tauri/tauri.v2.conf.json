@@ -1,0 +1,14 @@
+{
+  "productName": "Utopia Company v2",
+  "build": {
+    "beforeBuildCommand": "npm run build:v2",
+    "frontendDist": "../v2/dist"
+  },
+  "app": {
+    "windows": [{ "title": "Utopia Company v2", "width": 1440, "height": 900, "minWidth": 1080, "minHeight": 700 }]
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"]
+  }
+}

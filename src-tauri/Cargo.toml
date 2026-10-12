@@ -1,0 +1,32 @@
+[package]
+name = "ai-organization-os"
+default-run = "ai-organization-os"
+version = "0.1.0"
+description = "Local-first AI organization orchestrator"
+authors = ["AI Organization OS"]
+edition = "2021"
+rust-version = "1.89"
+
+[lib]
+name = "ai_organization_os_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "=2.11.6", features = [] }
+tauri-plugin-notification = "=2.3.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.37", features = ["bundled"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+ureq = { version = "3", features = ["json"] }
+sha2 = "0.10"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "=0.61.3", features = ["Win32_Foundation", "Win32_System_Com", "Win32_UI_Shell"] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

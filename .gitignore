@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.npm-cache/
+.run-data/
+.vendor-pixel-agents/
+.e2e-project/
+src-tauri/target/
+src-tauri/gen/schemas/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.DS_Store
