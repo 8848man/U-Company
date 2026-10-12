@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { ListDisclosure, useLimitedItems } from './ContentDensity';
+import SddOriginCard from './SddOriginCard';
 import type { Agent, Project, SpecDraft, SpecProfile, SpecSource } from './types';
 
 const template = JSON.stringify({
@@ -153,10 +154,11 @@ export default function SpecImportPanel({ project, agents, profile, savedDraft, 
   return <section className="card spec-import-card">
     <div className="card-kicker">PROJECT SDD</div>
     <h2>외부 명세 가져오기</h2>
-    <p>프로젝트·팀원·업무 흐름을 미리보고 적용합니다. 기존 하네스 파일과 연결된 AI는 변경하지 않습니다.</p>
+    <p>프로젝트·팀원·업무 흐름을 미리보고 적용합니다. 가져오기는 기존 하네스 파일과 연결된 AI를 변경하지 않습니다. 구조 잡기·절차 추가·바꾸기는 아래 카드에서 따로 확인한 뒤에만 파일을 씁니다.</p>
     <p>명세 원본은 프로젝트 폴더에 둡니다. DB에는 기본 프리셋, 검토 후 적용한 읽기용 사본, 실행 기록만 저장합니다. AI에게 자동 전달하거나 현재 실행 중인 목표의 절차를 바꾸지 않습니다.</p>
     <p>자격 증명과 API 키는 제거한 사본을 선택하세요. 앱은 알려진 비밀 값 형식을 일부 차단하지만 모든 비밀 값을 식별할 수는 없습니다.</p>
     <p><strong>대상:</strong> {project?.name ?? '프로젝트를 먼저 선택하세요'} · 현재 명세 v{profile?.revision ?? 0}</p>
+    {project && !backendOutdated && <SddOriginCard key={project.id} project={project} blocked={blocked} onError={onError} />}
     {project && <div className="spec-preview">
       <h3>도구 간 공통 명세</h3>
       <p><strong>.ucompany/spec.json</strong> · {portable?.detail ?? '파일 상태를 확인하는 중입니다'}</p>

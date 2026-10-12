@@ -45,3 +45,4 @@
 | [ADR-0041](ADR-0041.md) | Goal squads proposed by the planner, and goal-only external staff from character files | Accepted; extends ADR-0038 |
 | [ADR-0042](ADR-0042.md) | UI/UX philosophy: three depths, summary first, control always visible | Accepted; refines content-density long-text rule |
 | [ADR-0043](ADR-0043.md) | Goal archive (hide) and permanent delete from 설정 › 백업 삭제 | Accepted; refines DM-04 |
+| [ADR-0044](ADR-0044.md) | Consent-gated SDD origin: detect, follow, or bootstrap a project structure | Accepted; narrows the harness-entry rule in SI-02/Security, refines ADR-0021 |

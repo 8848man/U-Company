@@ -1,0 +1,63 @@
+{
+  "_comment": "SDD 오리진 사양이 정해지면 이 파일만 고치면 됩니다. 판정 스크립트는 모두 이 설정을 읽습니다.",
+  "sdd_dir": ".ucompany/sdd",
+  "entry_file": "AGENTS.md",
+  "index_file": ".ucompany/sdd/00_index.md",
+  "managed_start": "<!-- U-SDD:START -->",
+  "managed_end": "<!-- U-SDD:END -->",
+  "claude_bridge": {"file": "CLAUDE.md", "must_reference": "AGENTS.md"},
+  "bootstrap_required_files": [
+    ".ucompany/sdd/00_index.md",
+    ".ucompany/sdd/graph.json",
+    ".ucompany/sdd/constitution.md",
+    ".ucompany/sdd/handoff.md"
+  ],
+  "bootstrap_required_dirs": [
+    ".ucompany/sdd/features",
+    ".ucompany/sdd/decisions"
+  ],
+  "tasks_glob": ".ucompany/sdd/features/*/tasks.md",
+
+  "_ontology": "결정 3 (2026-10-12): 관계 기반 인덱싱 온톨로지. 구조는 v0이며 확정 아님. graph.json이 기계용 인덱스, index.md가 사람·AI용 안내.",
+  "ontology": {
+    "graph_file": ".ucompany/sdd/graph.json",
+    "node_types": ["constitution", "feature", "requirement", "plan", "task", "decision", "component"],
+    "_required_types": "부트스트랩 직후에는 헌법 노드만 있다. 기능·요구사항·계획·작업은 첫 기능을 추가할 때 생기며 아래 필수 관계로 검사한다.",
+    "required_types": ["constitution"],
+    "relations": {
+      "governed_by":     ["feature", "constitution"],
+      "has_requirement": ["feature", "requirement"],
+      "planned_by":      ["feature", "plan"],
+      "implements":      ["task", "requirement"],
+      "decided_by":      ["plan", "decision"],
+      "touches":         ["task", "component"]
+    },
+    "must_have_outgoing": {"task": ["implements"], "feature": ["has_requirement", "planned_by", "governed_by"]},
+    "must_have_incoming": {"requirement": ["has_requirement"]}
+  },
+
+  "_scan": "결정 2 (2026-10-12): 하위 폴더까지 정적으로 먼저 스캔하고, AI는 스캔 보고서와 애매한 후보만 읽는다.",
+  "scan": {
+    "max_depth": 4,
+    "ignore_dirs": [".git", "node_modules", "vendor", "dist", "build", ".venv", "venv", "__pycache__", "target", ".next", ".gradle", "Pods"]
+  },
+
+  "_conflict": "결정 4 (2026-10-12): AGENTS.md와 다른 지침이 충돌하면 더 범용인 AGENTS.md를 따른다.",
+  "conflict_priority": ["AGENTS.md", "CLAUDE.md", "GEMINI.md", ".cursor/rules", ".cursorrules", ".github/copilot-instructions.md"],
+
+  "signals": {
+    "priority1": ["AGENTS.md", "CLAUDE.md"],
+    "priority2_files": ["GEMINI.md", ".cursorrules", ".github/copilot-instructions.md"],
+    "priority2_dirs": [".cursor/rules"],
+    "_external": "결정 1 (2026-10-12): 외부 SDD 도구 폴더도 기존 SDD로 본다.",
+    "external_sdd_dirs": ["specs", ".specify", "openspec", ".kiro/specs"]
+  },
+  "_workflow_keywords": "지침 파일에 이 단어가 하나도 없으면 '스펙 워크플로우 없는 지침'으로 보고 사용자에게 확인(ask)",
+  "workflow_keywords": ["spec", "스펙", "rfc", "설계 문서", "design/", "tasks", "요구사항", "수용 기준", "acceptance", "requirement"],
+  "guideline_paths": [
+    "AGENTS.md", "CLAUDE.md", "GEMINI.md", ".cursorrules",
+    ".github/copilot-instructions.md", ".cursor/rules"
+  ],
+  "min_signal_chars": 80,
+  "init_tag": "fixture-init"
+}
