@@ -57,7 +57,7 @@ PR은 squash merge로 합친다. 그러면 PR 제목이 `main`의 커밋 제목�
 | --- | --- |
 | 브랜치 생성, 커밋, 시험 | Claude (또는 작업자) |
 | PR 제목·본문 작성 | Claude가 `.pr/<브랜치의 />를 -로 바꾼 이름>.md`에 저장. 첫 줄이 제목, 빈 줄 다음부터 본문이다. `.pr/`은 커밋하지 않는다. |
-| push, PR 생성 | CEO: `git push -u origin <브랜치>` 후 `gh pr create --title "<제목>" --body-file <본문 파일>` 또는 GitHub 웹 |
+| push, PR 생성 | CEO가 Windows에서 `powershell -ExecutionPolicy Bypass -File .\scripts\open-pr.ps1` 실행. 스크립트는 현재 브랜치를 push하고, `gh`가 있으면 PR을 만들고, 없거나 실패하면 제목을 채운 GitHub PR 작성 페이지를 열고 본문을 클립보드에 넣는다(붙여 넣고 `Create pull request`). 작업 브랜치가 아니거나 커밋하지 않은 변경이 있거나 PR 본문 파일이 없으면 아무것도 보내지 않고 멈춘다. |
 | 리뷰, squash merge | CEO |
 | 기록 | merge 후 WORKLOG 해당 마일스톤에 PR 번호와 merge 여부를 남긴다. |
 

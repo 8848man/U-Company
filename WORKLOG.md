@@ -94,8 +94,8 @@
 ### M12 — Git 저장소와 PR 워크플로우 명세 (완료, 문서만)
 
 - [x] 저장소: 프로젝트 폴더에 Git을 만들고 첫 커밋(`5b6c67d`, 332개 파일, 기존 `.gitignore` 적용, 비밀값 검사)을 했다. 저장소 설정 `core.autocrlf=false`·`core.fileMode=false`. CEO가 `main`을 GitHub(`8848man/U-Company`)에 push했고 원격 `main`이 같은 커밋임을 확인했다.
-- [x] 명세: 새 [PR 워크플로우](sdd/pr-workflow.md)(마일스톤 1개 = PR 1개, 브랜치 이름, `[영역] 결과 문장` 제목, 한눈에·흐름 요약·자세히 세 깊이 본문, 검증하지 못한 것 필수, 공개 저장소 보안 금지 목록, 역할, 점검표). `sdd/workflow.md` 8단계, SDD 색인 행, `.github/pull_request_template.md`, `.gitignore`에 `.pr/`.
-- [x] 검증: 문서 변경만. 상대 링크는 수동 확인. 앱·시험 실행 없음.
+- [x] 명세: 새 [PR 워크플로우](sdd/pr-workflow.md)(마일스톤 1개 = PR 1개, 브랜치 이름, `[영역] 결과 문장` 제목, 한눈에·흐름 요약·자세히 세 깊이 본문, 검증하지 못한 것 필수, 공개 저장소 보안 금지 목록, 역할, 점검표). `sdd/workflow.md` 8단계, SDD 색인 행, `.github/pull_request_template.md`, `.gitignore`에 `.pr/`, PR 올리기 스크립트 `scripts/open-pr.ps1`(push → `gh` PR 생성, 없으면 웹 양식 + 본문 클립보드).
+- [x] 검증: 상대 링크 수동 확인. `open-pr.ps1`은 Linux PowerShell 7.4에서 임시 저장소와 로컬 원격으로 실행해 브랜치 push, `gh` 실패 시 웹 양식 대체(한글 제목 URL 인코딩, 본문 클립보드)를 확인했다. Windows PowerShell 5.1과 실제 GitHub에서는 실행하지 않았다.
 - 남은 위험: 이 세션에는 GitHub 로그인 정보가 없어 push·PR 생성은 CEO가 한다. squash merge는 GitHub 저장소 설정에서 켜야 한다.
 
 ### 실제 앱에서 아직 검증하지 못한 범위
