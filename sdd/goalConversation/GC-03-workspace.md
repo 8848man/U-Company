@@ -22,6 +22,16 @@ Render saved questions and CEO direction changes in one chronological conversati
 
 Move the phase graph, full task list, QA evidence, token usage, and operational event detail behind one `진행 정보` disclosure. The summary retains the key counts and provenance; opening it reveals saved facts without a new AI call. Default conversation history follows the five-item density rule with a clear older-turn expansion. Critical pending approval and recovery actions stay visible. The dialog scrolls its conversation content while header and composer remain usable in a narrow window and with keyboard navigation.
 
+## v3 대화 한 줄기 (ADR-0046)
+
+v3에서는 실행 목표 하나가 대화 하나다([ADR-0046](../architecture/decisions/ADR-0046.md)). 위의 규칙은 그대로 두고, 표시 위치만 바꾼다.
+
+- **결정 카드는 대화 안에 둔다.** 계획 카드(요약, 작업 수·담당·파일 수, 작업 구조 질문, 통제 한 줄, `승인`·`개선`·`거부`)와 복구 카드(`지금 할 일`)는 대화 흐름의 해당 시점에 놓인다. 지금 결정이 필요한 카드 하나만 버튼이 살아 있고, 끝난 카드는 한 줄 요약으로 접힌다. 승인 범위 전문, 산출물별 기준, 팀 구성과 바꾸기는 카드의 펼침 안에서 그대로 확인한다. v3에는 승인 모달이 없다.
+- **단계가 바뀔 때만 한 줄을 남긴다.** "계획이 나왔어요", "작업 3개를 시작했어요", "검토를 통과했어요"처럼 저장된 단계 전환마다 한 줄. CTO 분석과 PM 계획 원문은 대화에 올리지 않고 `진행 정보`와 카드 펼침에 둔다.
+- **진행 줄.** 입력칸 바로 위에 한 줄이 떠 있고 제자리에서 바뀐다. 문구 규칙은 [진행 표시 정책](../progress-visibility.md)의 "대화 진행 줄"을 따른다. 누르면 Office 창이 열린다.
+- **개선 입력.** `개선`을 누르면 입력칸이 "어떻게 고칠까요?"로 바뀌고, 다음 메시지가 개선 방침으로 저장된다. 보낸 방침은 CEO 메시지로 대화에 남는다. 취소하면 일반 대화로 돌아간다.
+- **보내면 시작.** 새 목표를 보내면 바로 팀 실행을 시작한다. 실행할 수 없으면 대화에 이유와 해결 버튼을 보인다.
+
 ## 관계와 소유 경계
 
 | 관계 | 대상 | 의미 |

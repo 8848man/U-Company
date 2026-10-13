@@ -47,3 +47,4 @@
 | [ADR-0043](ADR-0043.md) | Goal archive (hide) and permanent delete from 설정 › 백업 삭제 | Accepted; refines DM-04 |
 | [ADR-0044](ADR-0044.md) | Consent-gated SDD origin: detect, follow, or bootstrap a project structure | Accepted; narrows the harness-entry rule in SI-02/Security, refines ADR-0021 |
 | [ADR-0045](ADR-0045.md) | SDD origin in onboarding and planning: folder first, development goals only | Accepted, implemented (protocol 34); refines ADR-0044 |
+| [ADR-0046](ADR-0046.md) | One conversation per goal: plan card, revise, cancel, and an in-app Office window | Accepted (v3); refines ADR-0042, ADR-0045 |
