@@ -83,12 +83,25 @@ CLAUDE.md                      @AGENTS.md
 | GPT (Codex CLI) | 실측 대상 | `AGENTS.md` | 없음 |
 | Gemini CLI, Cursor, GitHub Copilot | placeholder, 미검증 | 미확인 | 만들지 않음 |
 
+## 후속 결정 (2026-10-13, 구현 전)
+
+[ADR-0045](../architecture/decisions/ADR-0045.md)가 미뤄 둔 질문을 정했다. 다음 구현 묶음 전까지 위 계약은 그대로다.
+
+1. 폴더 먼저: 등록·감지·세 동작은 AI 연결 없이 된다. 튜토리얼은 같은 단계를 다시 보여준다.
+2. 개발 목표만: CTO 분석이 목표마다 `development`·`other`를 판단하고, `development`일 때만 구조를 제안한다. 판단이 없거나 불분명하면 `other`로 보고 아무것도 제안하지 않는다.
+3. 계획 승인 카드에서 구조 잡기와 부족한 AI 연결을 함께 묻는다. 답은 따로 기록하고, 계획 승인과 구조 쓰기 확인은 서로를 대신하지 않는다.
+4. 애매한 후보는 첫 개발 목표의 CTO 분석에서 목록에 있는 파일만 읽고, 판단은 카드에 조언으로만 보인다.
+5. 화면 문구의 원본은 구현(`src/sddOrigin.ts`)이다.
+6. 확인 창은 덧붙이거나 바꾸는 진입 파일의 전후를 보여준다. "이 폴더는 묻지 않기"는 프로젝트별 앱 설정이고 프로젝트 파일에 남기지 않는다.
+7. 구조 v0는 고정한다. 바꿀 때는 D1~D3 실측 근거와 새 ADR이 필요하다.
+
 ## 관계와 소유 경계
 
 | 관계 | 대상 | 의미 |
 | --- | --- | --- |
 | previews | [SI-01 검토 초안](SI-01-import.md) | `existing` 분류에서 찾은 파일을 기존 미리보기로 연다. |
 | references | [SI-02 공통 파일](SI-02-portable.md) | 같은 `.ucompany/` 폴더를 쓰지만 `spec.json`은 만들거나 바꾸지 않는다. |
+| refined_by | [ADR-0045](../architecture/decisions/ADR-0045.md) | 온보딩 순서, 개발 목표 한정, 계획 카드, 미리보기, v0 고정. |
 | constrains | [보안](../security.md) | 확인·digest·경로·심볼릭 링크 검사와 하네스 수정 승인. |
 
 ## 검증 참조

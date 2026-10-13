@@ -4,6 +4,11 @@
 
 작업 중 파일(다른 작업자는 동시에 수정하지 말 것): `src-tauri/src/sdd_origin.rs`, `src-tauri/src/spec_import.rs`(`project_root` 공개만), `src-tauri/src/lib.rs`(명령 3개·프로토콜), `src/sddOrigin.ts`, `src/SddOriginCard.tsx`, `src/SpecImportPanel.tsx`, `src/ux.css`, `tests/sdd-origin/` 및 아래 소유 문서.
 
+### M2 — 미정 항목 결정 기록 (완료, 문서만)
+
+- [x] CEO 결정(2026-10-13)을 [ADR-0045](sdd/architecture/decisions/ADR-0045.md)(신규, 색인)와 SI-03 "후속 결정" 절에 기록했다. 폴더 먼저, 개발 목표에만 구조 제안(CTO가 목표마다 판단), 계획 승인 카드에서 구조 잡기와 부족한 AI 연결을 함께 묻기, 애매한 후보는 첫 개발 목표의 CTO 분석에서 읽기, 화면 문구 원본은 구현, 진입 파일 전후 미리보기와 프로젝트별 "묻지 않기", 구조 v0 고정. ADR-0044 결과 절에 연결 한 줄.
+- 남은 것: 엔진(CTO 업무 종류, 계획 카드 구조·연결 절), 확인 창 전후 비교, "묻지 않기" 설정, 하네스의 비개발 픽스처, 프로토콜 상향, 새 수동 점검. 툴 전용 지침의 "연결하기"(P11)는 아직 설계 전.
+
 ### M1 — 감지·확인 후 구조 동작·오프라인 하네스 (완료, 오프라인 검증)
 
 - [x] 배경: CEO 결정(2026-10-12)으로 정리한 UX·동작 정책 P1~P15를 현행 명세와 대조했다. 충돌 두 가지를 확인했다. (1) SI-02와 Security가 "앱은 `AGENTS.md`/`CLAUDE.md`를 절대 고치지 않는다"고 정했지만, 정책은 부트스트랩·절차 추가·백업 후 바꾸기로 이 파일을 쓴다. Security의 "기존 하네스 수정은 CEO 승인 필요"와는 맞는다. (2) 정책 초안의 `.sdd/` 폴더와 앱이 이미 쓰는 `.ucompany/`가 갈린다. 둘 다 [ADR-0044](sdd/architecture/decisions/ADR-0044.md)로 해소했다: 확인한 세 동작만 관리 구간 안에서 쓰고, 구조는 `.ucompany/sdd/`에 둔다. ADR-0021이 열어 둔 "도구 간 Markdown SDD 참조 스키마" 질문에는 구조(색인·그래프)로 답하고, 산문 동기화는 하지 않는다.
