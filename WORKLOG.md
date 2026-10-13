@@ -1,5 +1,15 @@
 # Active work checklist
 
+## 대화형 목표 흐름 (2026-10-14, Claude Cowork)
+
+작업 중 파일(다른 작업자는 동시에 수정하지 말 것): v3 화면(`v3/src/`), `src/GoalConversationChat.tsx`와 새 대화 부품, Office 창, 그리고 M3에서 `src-tauri/src/engine.rs`·`lib.rs`·`model.rs`(개선·취소).
+
+### M0 — 결정 기록과 소유 명세 (완료, 문서만)
+
+- [x] CEO 결정(2026-10-14, 계획 문서의 권장안 여섯 가지)을 [ADR-0046](sdd/architecture/decisions/ADR-0046.md)(신규, 색인)으로 기록했다: 목표 하나 = 대화 하나, 보내면 시작, 계획 중에는 진행 줄만, 계획 카드의 승인·개선(같은 목표 재계획)·거부(취소됨), 승인은 버튼으로만, 홈 = 목표 목록 + 대화, Office는 앱 안 떠 있는 창, v3만, 회의는 범위 밖.
+- [x] 소유 문서: GC-03(v3 대화 한 줄기 절), UF-03, UF-05, DM-04(`cancelled`, `superseded`, 계획 판 번호), 진행 표시 정책(대화 진행 줄), Security(개선·취소의 승인 경계), QA-45(신규).
+- 다음: M1 대화 한 줄기(화면만).
+
 ## 프로젝트 작업 규칙 감지와 구조 잡기 (2026-10-12, Claude Cowork)
 
 작업 중 파일(다른 작업자는 동시에 수정하지 말 것): `src-tauri/src/sdd_origin.rs`, `src-tauri/src/spec_import.rs`(`project_root` 공개만), `src-tauri/src/lib.rs`(명령 3개·프로토콜), `src/sddOrigin.ts`, `src/SddOriginCard.tsx`, `src/SpecImportPanel.tsx`, `src/ux.css`, `tests/sdd-origin/` 및 아래 소유 문서.
