@@ -221,3 +221,4 @@
 button.danger{background:#b3402f;color:#fff;border:1px solid #b3402f;border-radius:7px;padding:10px 16px;font-weight:700;font-size:12px}
 button.danger:disabled{opacity:.5}
 .danger-text{color:#c0503d}
+.sdd-origin .button-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}.sdd-origin small.muted{display:block;margin-top:6px}.sdd-origin-files{max-height:220px;overflow:auto;margin:10px 0;padding-left:18px;font-size:12px;color:#c7d9c0}.sdd-origin-files li{margin:4px 0}.sdd-origin-files span{color:#cceb9f}.sdd-origin-files code{overflow-wrap:anywhere;font:11px/1.5 ui-monospace,monospace}.sdd-origin .dialog-actions .secondary{white-space:nowrap;flex-shrink:0}

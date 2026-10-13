@@ -1,0 +1,61 @@
+{
+  "F0": {
+    "desc": "빈 저장소",
+    "expected_mode": "bootstrap"
+  },
+  "F1": {
+    "desc": "일반 프로젝트, SDD 신호 없음",
+    "expected_mode": "bootstrap"
+  },
+  "F2": {
+    "desc": "AGENTS.md만 (docs/rfc 규칙)",
+    "expected_mode": "existing",
+    "spec_dir": "docs/rfc"
+  },
+  "F3": {
+    "desc": "CLAUDE.md만 (design/ 규칙)",
+    "expected_mode": "existing",
+    "spec_dir": "design"
+  },
+  "F4": {
+    "desc": "AGENTS.md + CLAUDE.md 충돌 (결정 4: AGENTS.md 우선)",
+    "expected_mode": "existing",
+    "spec_dir": "docs/rfc",
+    "manual": "AGENTS.md 우선이므로 docs/rfc에 작성. 충돌 사실을 사용자에게 알렸는지는 대화로 판정(B4)"
+  },
+  "F5": {
+    "desc": "외부 SDD 도구(spec-kit 형) specs/ + .specify/",
+    "expected_mode": "existing",
+    "spec_dir": "specs"
+  },
+  "F6": {
+    "desc": "다른 툴 지침만 (.cursor/rules)",
+    "expected_mode": "existing",
+    "spec_dir": "docs/specs"
+  },
+  "F7": {
+    "desc": "U 컴퍼니 SDD 진행 중",
+    "expected_mode": "continue"
+  },
+  "F8": {
+    "desc": "하위 폴더에만 신호 (모노레포)",
+    "expected_mode": "existing",
+    "spec_dir": "packages/api/docs/rfc",
+    "manual": "결정 2: 하위 폴더 신호는 그 범위의 기존 SDD. 루트에 .ucompany/sdd/를 만들지 않음(A5)"
+  },
+  "F9": {
+    "desc": "내용이 조금 있는 AGENTS.md",
+    "expected_mode": "ask",
+    "manual": "결정: 내용이 조금이라도 있으면 기존 파일 유지, 덮어쓰기 여부를 물었는지 대화로 판정(A6)"
+  },
+  "F10": {
+    "desc": "코드 스타일만 있는 AGENTS.md (스펙 워크플로우 없음)",
+    "expected_mode": "ask",
+    "manual": "SDD 구간을 추가할지 사용자에게 확인했는지 대화로 판정(A7)"
+  },
+  "F11": {
+    "desc": "빈 AGENTS.md (0바이트)",
+    "expected_mode": "bootstrap",
+    "manual": "결정: 빈 지침은 없는 것으로 간주 → 부트스트랩(A8)"
+  }
+}

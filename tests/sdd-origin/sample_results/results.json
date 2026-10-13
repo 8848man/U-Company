@@ -1,0 +1,3995 @@
+[
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F0",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['001-due-date']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F0",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 감지 bootstrap"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['001-due-date']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F1",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['001-due-date']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F1",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 감지 bootstrap"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['001-due-date']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F2",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['.claude', '.specify', 'specs']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F2",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F3",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['.claude', '.specify', 'specs']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F3",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F4",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['.claude', '.specify', 'specs']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F4",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F5",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 own / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "own-content-kept",
+  "status": "PASS",
+  "msg": "기존 헌법·스펙 원문 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F5",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 own / 감지 own"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "own-content-kept",
+  "status": "PASS",
+  "msg": "기존 헌법·스펙 원문 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F6",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['.claude', '.specify', 'specs']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F6",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F7",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['.claude', '.specify', 'specs']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F7",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F8",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['.claude', '.specify', 'specs']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F8",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F9",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 ask / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F9",
+  "check": "no-change-before-consent",
+  "status": "FAIL",
+  "msg": "확인 없이 변경: ['.claude/skills/speckit-analyze/SKILL.md(A)', '.claude/skills/speckit-checklist/SKILL.md(A)', '.claude/skills/speckit-clarify/SKILL.md(A)', '.claude/skills/speckit-constitution/SKILL.md(A)']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F9",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 ask / 감지 ask"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F9",
+  "check": "no-change-before-consent",
+  "status": "PASS",
+  "msg": "확인 전 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F10",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 ask / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F10",
+  "check": "no-change-before-consent",
+  "status": "FAIL",
+  "msg": "확인 없이 변경: ['.claude/skills/speckit-analyze/SKILL.md(A)', '.claude/skills/speckit-checklist/SKILL.md(A)', '.claude/skills/speckit-clarify/SKILL.md(A)', '.claude/skills/speckit-constitution/SKILL.md(A)']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F10",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 ask / 감지 ask"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "B-existing",
+  "fixture": "F10",
+  "check": "no-change-before-consent",
+  "status": "PASS",
+  "msg": "확인 전 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F11",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['001-due-date']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "AGENTS.md에 관리 표식 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "A-routing",
+  "fixture": "F11",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 감지 bootstrap"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['001-due-date']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "AGENTS.md에 관리 표식 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "rerun",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C5-rerun",
+  "fixture": "F0",
+  "check": "C5-done-tasks-kept",
+  "status": "PASS",
+  "msg": "완료 표시 유지",
+  "note": ""
+ },
+ {
+  "exp": "rerun",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C5-rerun",
+  "fixture": "F0",
+  "check": "C5-filled-content-kept",
+  "status": "PASS",
+  "msg": "작성한 내용 유지",
+  "note": ""
+ },
+ {
+  "exp": "rerun",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "C5-rerun",
+  "fixture": "F0",
+  "check": "C5-nothing-deleted",
+  "status": "PASS",
+  "msg": "삭제 없음",
+  "note": ""
+ },
+ {
+  "exp": "handoff",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "D-continuity",
+  "fixture": "F0",
+  "check": "D1-next-task-from-files",
+  "status": "PASS",
+  "msg": "specs/001-due-date/tasks.md: T3 overdue(today) 구현"
+ },
+ {
+  "exp": "handoff",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "D-continuity",
+  "fixture": "F0",
+  "check": "D2-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "handoff",
+  "sample": "speckit",
+  "grade": "상",
+  "case": "D-continuity",
+  "fixture": "F0",
+  "check": "D3-multi-tool",
+  "status": "PASS",
+  "msg": "공식 연동 툴 42개"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F0",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['add-due-date']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F0",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 감지 bootstrap"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['add-due-date']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F1",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['add-due-date']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F1",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 감지 bootstrap"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['add-due-date']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F2",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['.claude', 'openspec']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F2",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F3",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['.claude', 'openspec']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F3",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F4",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['.claude', 'openspec']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F4",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F5",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['.claude', 'openspec']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F5",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F6",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['.claude', 'openspec']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F6",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F7",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['.claude', 'openspec']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F7",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F8",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['.claude', 'openspec']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F8",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F9",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 ask / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F9",
+  "check": "no-change-before-consent",
+  "status": "FAIL",
+  "msg": "확인 없이 변경: ['.claude/commands/opsx/apply.md(A)', '.claude/commands/opsx/archive.md(A)', '.claude/commands/opsx/explore.md(A)', '.claude/commands/opsx/propose.md(A)']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F9",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 ask / 감지 ask"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F9",
+  "check": "no-change-before-consent",
+  "status": "PASS",
+  "msg": "확인 전 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F10",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 ask / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F10",
+  "check": "no-change-before-consent",
+  "status": "FAIL",
+  "msg": "확인 없이 변경: ['.claude/commands/opsx/apply.md(A)', '.claude/commands/opsx/archive.md(A)', '.claude/commands/opsx/explore.md(A)', '.claude/commands/opsx/propose.md(A)']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F10",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 ask / 감지 ask"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "B-existing",
+  "fixture": "F10",
+  "check": "no-change-before-consent",
+  "status": "PASS",
+  "msg": "확인 전 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F11",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['add-due-date']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "AGENTS.md에 관리 표식 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "A-routing",
+  "fixture": "F11",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 감지 bootstrap"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['add-due-date']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "AGENTS.md에 관리 표식 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "rerun",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C5-rerun",
+  "fixture": "F0",
+  "check": "C5-done-tasks-kept",
+  "status": "PASS",
+  "msg": "완료 표시 유지",
+  "note": ""
+ },
+ {
+  "exp": "rerun",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C5-rerun",
+  "fixture": "F0",
+  "check": "C5-filled-content-kept",
+  "status": "PASS",
+  "msg": "작성한 내용 유지",
+  "note": ""
+ },
+ {
+  "exp": "rerun",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "C5-rerun",
+  "fixture": "F0",
+  "check": "C5-nothing-deleted",
+  "status": "PASS",
+  "msg": "삭제 없음",
+  "note": ""
+ },
+ {
+  "exp": "handoff",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "D-continuity",
+  "fixture": "F0",
+  "check": "D1-next-task-from-files",
+  "status": "PASS",
+  "msg": "openspec/changes/add-due-date/tasks.md: T3 overdue(today) 구현"
+ },
+ {
+  "exp": "handoff",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "D-continuity",
+  "fixture": "F0",
+  "check": "D2-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "handoff",
+  "sample": "openspec",
+  "grade": "중",
+  "case": "D-continuity",
+  "fixture": "F0",
+  "check": "D3-multi-tool",
+  "status": "PASS",
+  "msg": "공식 연동 툴 50개"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F0",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['(루트)']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C4-feature-isolation",
+  "status": "WARN",
+  "msg": "기능 구분 없이 루트 단일 파일 → 기능이 둘 이상이면 섞임"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F0",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 감지 bootstrap"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['(루트)']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C4-feature-isolation",
+  "status": "WARN",
+  "msg": "기능 구분 없이 루트 단일 파일 → 기능이 둘 이상이면 섞임"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F1",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['(루트)']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C4-feature-isolation",
+  "status": "WARN",
+  "msg": "기능 구분 없이 루트 단일 파일 → 기능이 둘 이상이면 섞임"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F1",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 감지 bootstrap"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['(루트)']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C4-feature-isolation",
+  "status": "WARN",
+  "msg": "기능 구분 없이 루트 단일 파일 → 기능이 둘 이상이면 섞임"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F2",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['prompt_plan.md', 'spec.md', 'todo.md']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F2",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F3",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['prompt_plan.md', 'spec.md', 'todo.md']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F3",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F4",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['prompt_plan.md', 'spec.md', 'todo.md']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F4",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F5",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['prompt_plan.md', 'spec.md', 'todo.md']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F5",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F6",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['prompt_plan.md', 'spec.md', 'todo.md']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F6",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F7",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['prompt_plan.md', 'spec.md', 'todo.md']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F7",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F8",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 existing / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "no-origin-artifacts",
+  "status": "FAIL",
+  "msg": "기존 프로젝트에 표본 산출물 생성: ['prompt_plan.md', 'spec.md', 'todo.md']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F8",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F9",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 ask / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F9",
+  "check": "no-change-before-consent",
+  "status": "FAIL",
+  "msg": "확인 없이 변경: ['prompt_plan.md(A)', 'spec.md(A)', 'todo.md(A)']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F9",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 ask / 감지 ask"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F9",
+  "check": "no-change-before-consent",
+  "status": "PASS",
+  "msg": "확인 전 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F10",
+  "check": "A-mode",
+  "status": "FAIL",
+  "msg": "기대 ask / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F10",
+  "check": "no-change-before-consent",
+  "status": "FAIL",
+  "msg": "확인 없이 변경: ['prompt_plan.md(A)', 'spec.md(A)', 'todo.md(A)']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F10",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 ask / 감지 ask"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "B-existing",
+  "fixture": "F10",
+  "check": "no-change-before-consent",
+  "status": "PASS",
+  "msg": "확인 전 변경 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F11",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 실제 bootstrap (감지 절차 없음)"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['(루트)']"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C4-feature-isolation",
+  "status": "WARN",
+  "msg": "기능 구분 없이 루트 단일 파일 → 기능이 둘 이상이면 섞임"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "AGENTS.md에 관리 표식 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp1",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "A-routing",
+  "fixture": "F11",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 감지 bootstrap"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['(루트)']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C4-feature-isolation",
+  "status": "WARN",
+  "msg": "기능 구분 없이 루트 단일 파일 → 기능이 둘 이상이면 섞임"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C3-single-entry",
+  "status": "FAIL",
+  "msg": "AGENTS.md에 관리 표식 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C6-claude-bridge",
+  "status": "FAIL",
+  "msg": "CLAUDE.md 없음 또는 AGENTS.md 참조 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "rerun",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C5-rerun",
+  "fixture": "F0",
+  "check": "C5-done-tasks-kept",
+  "status": "FAIL",
+  "msg": "완료 표시 사라짐: ['T1 Todo 모델에 due 필드 추가', 'T2 create()에 due 인자 추가']",
+  "note": "재실행 절차가 문서에 없음 → 계획 단계를 문서대로 다시 수행"
+ },
+ {
+  "exp": "rerun",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C5-rerun",
+  "fixture": "F0",
+  "check": "C5-filled-content-kept",
+  "status": "PASS",
+  "msg": "작성한 내용 유지",
+  "note": "재실행 절차가 문서에 없음 → 계획 단계를 문서대로 다시 수행"
+ },
+ {
+  "exp": "rerun",
+  "sample": "harper",
+  "grade": "하",
+  "case": "C5-rerun",
+  "fixture": "F0",
+  "check": "C5-nothing-deleted",
+  "status": "PASS",
+  "msg": "삭제 없음",
+  "note": "재실행 절차가 문서에 없음 → 계획 단계를 문서대로 다시 수행"
+ },
+ {
+  "exp": "handoff",
+  "sample": "harper",
+  "grade": "하",
+  "case": "D-continuity",
+  "fixture": "F0",
+  "check": "D1-next-task-from-files",
+  "status": "PASS",
+  "msg": "todo.md: T3 overdue(today) 구현"
+ },
+ {
+  "exp": "handoff",
+  "sample": "harper",
+  "grade": "하",
+  "case": "D-continuity",
+  "fixture": "F0",
+  "check": "D2-single-entry",
+  "status": "FAIL",
+  "msg": "루트 AGENTS.md 없음 → 명령 없이 들어온 툴이 SDD를 찾을 곳 없음"
+ },
+ {
+  "exp": "handoff",
+  "sample": "harper",
+  "grade": "하",
+  "case": "D-continuity",
+  "fixture": "F0",
+  "check": "D3-multi-tool",
+  "status": "FAIL",
+  "msg": "툴 연동도 툴 중립 진입점도 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "A-routing",
+  "fixture": "F0",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 감지 bootstrap"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['due-date']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C3-single-entry",
+  "status": "PASS",
+  "msg": "AGENTS.md 관리 구간 → .ucompany/sdd/00_index.md"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C6-claude-bridge",
+  "status": "PASS",
+  "msg": "CLAUDE.md가 AGENTS.md를 불러옴"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F0",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "A-routing",
+  "fixture": "F1",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 감지 bootstrap"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['due-date']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C3-single-entry",
+  "status": "PASS",
+  "msg": "AGENTS.md 관리 구간 → .ucompany/sdd/00_index.md"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C6-claude-bridge",
+  "status": "PASS",
+  "msg": "CLAUDE.md가 AGENTS.md를 불러옴"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F1",
+  "check": "C2-originals-untouched",
+  "status": "PASS",
+  "msg": "기존 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "A-routing",
+  "fixture": "F2",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F2",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "A-routing",
+  "fixture": "F3",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F3",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "A-routing",
+  "fixture": "F4",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F4",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "A-routing",
+  "fixture": "F5",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F5",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "A-routing",
+  "fixture": "F6",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F6",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "A-routing",
+  "fixture": "F7",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 own / 감지 own"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "originals-not-deleted",
+  "status": "PASS",
+  "msg": "기존 파일 삭제 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "sdd-not-deleted",
+  "status": "PASS",
+  "msg": ".ucompany/sdd/ 파일 삭제 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "done-tasks-kept",
+  "status": "PASS",
+  "msg": "완료 작업 유지(재부트스트랩 없음)"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "no-second-sdd",
+  "status": "PASS",
+  "msg": "다른 SDD 폴더 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "human-text-kept",
+  "status": "PASS",
+  "msg": "관리 구간 유지, 사람이 쓴 내용 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "progress-recorded",
+  "status": "PASS",
+  "msg": "진행 기록 갱신: ['.ucompany/sdd/features/due-date/tasks.md', '.ucompany/sdd/handoff.md']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F7",
+  "check": "ontology-integrity",
+  "status": "PASS",
+  "msg": "작업 후에도 그래프 무결성 유지"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "A-routing",
+  "fixture": "F8",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 existing / 감지 existing"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "no-origin-artifacts",
+  "status": "PASS",
+  "msg": "표본 산출물 생성 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "guidelines-untouched",
+  "status": "PASS",
+  "msg": "지침 파일 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F8",
+  "check": "existing-intact",
+  "status": "PASS",
+  "msg": "기존 파일·진행 상태 보존"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "A-routing",
+  "fixture": "F9",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 ask / 감지 ask"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F9",
+  "check": "no-change-before-consent",
+  "status": "PASS",
+  "msg": "확인 전 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "A-routing",
+  "fixture": "F10",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 ask / 감지 ask"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "B-existing",
+  "fixture": "F10",
+  "check": "no-change-before-consent",
+  "status": "PASS",
+  "msg": "확인 전 변경 없음"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "A-routing",
+  "fixture": "F11",
+  "check": "A-mode",
+  "status": "PASS",
+  "msg": "기대 bootstrap / 감지 bootstrap"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C1-structure",
+  "status": "PASS",
+  "msg": "필수 구조 생성"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C4-spec-plan-tasks",
+  "status": "PASS",
+  "msg": "스펙·계획·작업 문서 완비: ['due-date']"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C4-feature-isolation",
+  "status": "PASS",
+  "msg": "기능별 폴더로 분리"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C3-single-entry",
+  "status": "PASS",
+  "msg": "AGENTS.md 관리 구간 → .ucompany/sdd/00_index.md"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C6-claude-bridge",
+  "status": "PASS",
+  "msg": "CLAUDE.md가 AGENTS.md를 불러옴"
+ },
+ {
+  "exp": "exp2",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C-bootstrap",
+  "fixture": "F11",
+  "check": "C2-originals-untouched",
+  "status": "FAIL",
+  "msg": "기존 파일 변경: ['AGENTS.md(M)']"
+ },
+ {
+  "exp": "rerun",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C5-rerun",
+  "fixture": "F0",
+  "check": "C5-done-tasks-kept",
+  "status": "PASS",
+  "msg": "완료 표시 유지",
+  "note": ""
+ },
+ {
+  "exp": "rerun",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C5-rerun",
+  "fixture": "F0",
+  "check": "C5-filled-content-kept",
+  "status": "PASS",
+  "msg": "작성한 내용 유지",
+  "note": ""
+ },
+ {
+  "exp": "rerun",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C5-rerun",
+  "fixture": "F0",
+  "check": "C5-nothing-deleted",
+  "status": "PASS",
+  "msg": "삭제 없음",
+  "note": ""
+ },
+ {
+  "exp": "rerun",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "C5-rerun",
+  "fixture": "F0",
+  "check": "C5-human-text-kept",
+  "status": "PASS",
+  "msg": "관리 구간 밖 팀 메모 보존",
+  "note": ""
+ },
+ {
+  "exp": "handoff",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "D-continuity",
+  "fixture": "F0",
+  "check": "D1-next-task-from-files",
+  "status": "PASS",
+  "msg": ".ucompany/sdd/features/due-date/tasks.md: T-003 overdue(today) 구현 (implements: REQ-002)"
+ },
+ {
+  "exp": "handoff",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "D-continuity",
+  "fixture": "F0",
+  "check": "D2-single-entry",
+  "status": "PASS",
+  "msg": "AGENTS.md 관리 구간 → .ucompany/sdd/00_index.md"
+ },
+ {
+  "exp": "handoff",
+  "sample": "uref",
+  "grade": "참조",
+  "case": "D-continuity",
+  "fixture": "F0",
+  "check": "D3-multi-tool",
+  "status": "PASS",
+  "msg": "툴 중립 진입점(AGENTS.md) + CLAUDE.md 연결"
+ }
+]

@@ -20,7 +20,7 @@ This index is the entry point for a new contributor or AI agent. Read the affect
 | Goal-centered improvement delivery | [Workflow improvement plan](workflow-improvement-plan.md) |
 | Planned Office current-goal layout | [Office goal visibility plan](office-goal-visibility-plan.md) |
 | AI discovery and adapter contract | [Integrations](aiIntegration/00_index.md) |
-| External SDD, team, workflow, and exception import | [External SDD import](specImport/00_index.md) |
+| External SDD, team, workflow, and exception import; SDD origin detection and consent-gated structure bootstrap | [External SDD import](specImport/00_index.md) |
 | Provider/runtime failure investigation | [Investigation note](provider-runtime-investigation.md) |
 | Persistence and operating-system boundary | [Architecture](architecture.md) |
 | Privileges, approvals, trust boundaries | [Security](security.md) |

@@ -13,7 +13,7 @@ pub struct PortableStatus {
     pub detail: String,
 }
 
-fn project_root(project: &crate::model::Project) -> Result<PathBuf, String> {
+pub(crate) fn project_root(project: &crate::model::Project) -> Result<PathBuf, String> {
     let root = Path::new(&project.path).canonicalize().map_err(|e| format!("프로젝트 폴더를 열 수 없습니다: {e}"))?;
     if !root.is_dir() || !root.to_string_lossy().eq_ignore_ascii_case(&project.path) {
         return Err("등록된 프로젝트 경로가 변경되었습니다. 프로젝트를 다시 확인해 주세요".into());

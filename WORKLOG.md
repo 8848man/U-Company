@@ -1,5 +1,26 @@
 # Active work checklist
 
+## 프로젝트 작업 규칙 감지와 구조 잡기 (2026-10-12, Claude Cowork)
+
+작업 중 파일(다른 작업자는 동시에 수정하지 말 것): `src-tauri/src/sdd_origin.rs`, `src-tauri/src/spec_import.rs`(`project_root` 공개만), `src-tauri/src/lib.rs`(명령 3개·프로토콜), `src/sddOrigin.ts`, `src/SddOriginCard.tsx`, `src/SpecImportPanel.tsx`, `src/ux.css`, `tests/sdd-origin/` 및 아래 소유 문서.
+
+### M2 — 미정 항목 결정 기록 (완료, 문서만)
+
+- [x] CEO 결정(2026-10-13)을 [ADR-0045](sdd/architecture/decisions/ADR-0045.md)(신규, 색인)와 SI-03 "후속 결정" 절에 기록했다. 폴더 먼저, 개발 목표에만 구조 제안(CTO가 목표마다 판단), 계획 승인 카드에서 구조 잡기와 부족한 AI 연결을 함께 묻기, 애매한 후보는 첫 개발 목표의 CTO 분석에서 읽기, 화면 문구 원본은 구현, 진입 파일 전후 미리보기와 프로젝트별 "묻지 않기", 구조 v0 고정. ADR-0044 결과 절에 연결 한 줄.
+- 남은 것: 엔진(CTO 업무 종류, 계획 카드 구조·연결 절), 확인 창 전후 비교, "묻지 않기" 설정, 하네스의 비개발 픽스처, 프로토콜 상향, 새 수동 점검. 툴 전용 지침의 "연결하기"(P11)는 아직 설계 전.
+
+### M1 — 감지·확인 후 구조 동작·오프라인 하네스 (완료, 오프라인 검증)
+
+- [x] 배경: CEO 결정(2026-10-12)으로 정리한 UX·동작 정책 P1~P15를 현행 명세와 대조했다. 충돌 두 가지를 확인했다. (1) SI-02와 Security가 "앱은 `AGENTS.md`/`CLAUDE.md`를 절대 고치지 않는다"고 정했지만, 정책은 부트스트랩·절차 추가·백업 후 바꾸기로 이 파일을 쓴다. Security의 "기존 하네스 수정은 CEO 승인 필요"와는 맞는다. (2) 정책 초안의 `.sdd/` 폴더와 앱이 이미 쓰는 `.ucompany/`가 갈린다. 둘 다 [ADR-0044](sdd/architecture/decisions/ADR-0044.md)로 해소했다: 확인한 세 동작만 관리 구간 안에서 쓰고, 구조는 `.ucompany/sdd/`에 둔다. ADR-0021이 열어 둔 "도구 간 Markdown SDD 참조 스키마" 질문에는 구조(색인·그래프)로 답하고, 산문 동기화는 하지 않는다.
+- [x] 소유 문서: ADR-0044(신규, 색인), [SI-03](sdd/specImport/SI-03-origin.md)(신규 엔티티, 주제 색인), SI-02·Security(하네스 진입점 규칙을 세 동작으로 좁힘), specImport 수용 기준, UF-07(첫 카드 단계)·UF-01(연결 조건), Validation(SDD 구조 항목), QA-43(신규), implementation-map 행, SDD 색인 행.
+- [x] 변경: `sdd_origin.rs` — 정적 감지(링크 미추적, 의존성 폴더 제외, 깊이 4, 키워드 분류, 하위 폴더 범위, AGENTS.md 우선과 충돌 표시, 애매한 후보 목록, 진행 중 구조의 다음 작업), `plan`(바뀔 파일 목록·내용 digest), `apply`(`confirmed`와 digest 재계산, 링크·루트 밖·512 KiB·기존 구조 거절, 백업→새 파일→진입 파일 순서, `create_new`, 관리 구간만 교체, 삭제 없음). `lib.rs` 명령 `get_sdd_origin_status`·`plan_sdd_origin`·`apply_sdd_origin`, 백엔드 프로토콜 33(프런트 최소값은 그대로; 옛 백엔드면 카드에 재시작 안내만). 화면: `SpecImportPanel` 맨 위 `SddOriginCard`(v1/v2/v3 공통) — 상태 한 문장, 통제 한 줄, 권장 1개 포함 최대 2개 동작, 파일 목록 확인 창(5개 + 모두 보기).
+- [x] 하네스: 앞서 만든 오프라인 하네스를 `tests/sdd-origin/`에 옮기고 경로를 `.ucompany/sdd/00_index.md`·`graph.json`으로 맞췄다. 판정 모드 `add_section`·`convert`(원문 앞 보존, 백업 바이트 일치, AGENTS.md 원문 보존, 다른 툴 규칙 무변경)를 더했다. 관리 구간 문구를 앱과 한 상수로 맞췄다. `app_conformance.py`가 옵트인 Rust 시험 `harness_conformance`로 실제 백엔드를 픽스처에 돌려 채점한다.
+- [x] 검증(Linux 클라우드 작업 공간, Tauri 빌드 의존성 설치): `cargo test --locked --lib` 110 통과·2 무시(기준선 100 + 새 `sdd_origin` 10; 무시는 기존 실제 Codex 시험과 새 옵트인 대조 시험). `cargo check --locked --all-targets` 경고는 기존 `runtime.rs` import 1건뿐. 세 프런트 `tsc` 통과, `vitest` 67 통과(기준선 56 + `sddOrigin.test.ts` 11), `npm run build`·`build:v2`·`build:v3` 통과. `tests/sdd-origin/selftest.py` 62건 실패 0. `app_conformance.py` 실패 0: 실제 백엔드가 F0~F11 12개를 모두 기대대로 분류(F8 범위 `packages/api`, F4 AGENTS.md 우선·충돌 표시, F7 다음 작업 T-003), 관리 구간 문구 일치, 실제로 쓴 F0·F1·F11(bootstrap), F9·F10(add_section), F2·F4·F6(convert) 결과가 판정 전 항목 통과. 표본 비교 재실행 결과는 경로 변경 전과 같음(참조 오리진 30/30, Spec Kit·OpenSpec 27, 3파일 워크플로우 25). 수정 전후 상대 링크 깨짐 0.
+- [x] 화면 점검표(모의 Tauri 브리지 + headless Chromium, 5개 상태와 확인 창): 1 첫 문장으로 상태와 할 일 이해 가능 · 2 카드는 깊이 1, 파일 목록은 확인 창 · 3 AI 요약 없음 · 4 통제 한 줄 "확인 전에는 프로젝트 파일을 바꾸지 않아요 · AI 호출 없음"이 첫 깊이에 있음 · 5 동작 최대 2개, 권장 1개(바꾸기는 권장하지 않음), 실행은 사용자가 누름 · 6 새 AI 호출·전송 없음 · 7 깊이 1·2에 ID·해시 없음(다음 작업의 `T-###` 번호를 화면에서 뺌) · 8 이 대상을 보이는 화면은 하나. 렌더링 중 확인 창의 `취소` 줄바꿈과 충돌 파일 중복 표시를 고쳤다. 모의 렌더링은 오프라인 증거일 뿐이다.
+- 남은 위험: 실제 Windows 앱에서 감지·확인 창·쓰기 결과(QA-43) 미확인. Windows 경로(`\\?\` 접두사, 대소문자)는 기존 `project_root`의 같은 비교를 쓰지만 이 경로로 실행해 보지 않았다. Claude Code와 Codex가 명령 없이 `AGENTS.md` → `00_index.md`를 실제로 따라가는지, 단계 관문 문장(P14)을 지키는지 미확인. 파일 쓰기는 여러 파일에 걸쳐 원자적이지 않다(중간 실패 시 쓴 파일 수를 알리고 원본은 백업 순서로 보호). 그래프 무결성은 앱이 아니라 하네스만 검사한다.
+- 미룬 것: 폴더를 여는 순간 묻기, "이 폴더는 묻지 않기" 설정, 애매한 후보를 AI가 읽는 3단계 감지 — 온보딩·튜토리얼 흐름 설계(테스트 이후 ToDo)와 함께 정한다. 툴 전용 지침만 있을 때 "다른 툴도 같은 규칙을 보도록 연결" 버튼은 이번에 만들지 않았다(바꾸기로만 가능). 런북에서 QA-40~42가 다른 문서에서 참조되지만 본문이 없는 기존 차이를 발견했다(이번 변경과 무관, 수정하지 않음).
+- 다음: CEO가 앱을 재시작하고 QA-43 실행. PR은 `.pr/feature-sdd-origin.md` 본문으로 `scripts/open-pr.ps1`(docs/pr-workflow 브랜치에 있음) 또는 GitHub 화면에서 연다.
+
 ## v3 1차 개선 패키지 구현 (2026-10-10, Claude Cowork)
 
 작업 중 파일(다른 작업자는 동시에 수정하지 말 것): `v3/` 전체, `v2/src/V2Navigation.tsx`, `src/office/`, `src-tauri/src/squad.rs`, `src-tauri/src/archive.rs`, `src/archive.ts`, `src/ArchiveGoalButton.tsx`, `src/BackupSettings.tsx`, `src-tauri/src/delegation.rs`, `src-tauri/src/meeting.rs`, `src/MeetingPanel.tsx`, `src/meetingStatus.ts`, `src/plainText.ts`, `src/SummaryText.tsx`, `v2/src/V2Work.tsx`, `src/squad.ts`, `src/SquadPanel.tsx`, `src/ExternalStaffPanel.tsx`, `src-tauri/src/engine.rs`, `src-tauri/src/model.rs`, `src-tauri/src/storage.rs`, `src-tauri/src/lib.rs`, `src/types.ts`, `src/goalBrief.ts`, `src/goalRecovery.ts`, `src/GoalConversationChat.tsx`, `src/OfficeGoalRail.tsx`, `v2/src/App.tsx` 및 아래 소유 문서.

@@ -10,6 +10,7 @@ mod provider;
 pub mod provider_harness;
 mod runtime;
 mod spec_import;
+mod sdd_origin;
 mod squad;
 mod archive;
 mod storage;
@@ -23,7 +24,7 @@ use tauri::{Emitter, Manager};
 struct BackendInfo { protocol_version: u32, build_id: String }
 
 #[tauri::command]
-fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 32, build_id: meeting::meeting_build() } }
+fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 33, build_id: meeting::meeting_build() } }
 
 #[tauri::command]
 fn get_snapshot(store: tauri::State<'_, Store>) -> Result<Snapshot, String> { store.snapshot() }
@@ -108,6 +109,26 @@ fn create_portable_spec(project_id: String, store: tauri::State<'_, Store>, app:
     let project: Project = store.get("project_entry", &project_id)?.ok_or("등록된 프로젝트를 선택해 주세요")?;
     let profile = store.get::<spec_import::SpecProfile>("spec_profile", &project_id)?.ok_or("먼저 프로젝트 명세를 적용해 주세요")?;
     let status = spec_import::create_portable(&project, &profile)?;
+    let _ = app.emit("state-changed", ());
+    Ok(status)
+}
+
+#[tauri::command]
+fn get_sdd_origin_status(project_id: String, store: tauri::State<'_, Store>) -> Result<sdd_origin::OriginStatus, String> {
+    let project: Project = store.get("project_entry", &project_id)?.ok_or("등록된 프로젝트를 선택해 주세요")?;
+    sdd_origin::status(&project)
+}
+
+#[tauri::command]
+fn plan_sdd_origin(project_id: String, action: String, store: tauri::State<'_, Store>) -> Result<sdd_origin::OriginPlan, String> {
+    let project: Project = store.get("project_entry", &project_id)?.ok_or("등록된 프로젝트를 선택해 주세요")?;
+    sdd_origin::plan(&project, &action)
+}
+
+#[tauri::command]
+fn apply_sdd_origin(project_id: String, action: String, digest: String, confirmed: bool, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<sdd_origin::OriginStatus, String> {
+    let project: Project = store.get("project_entry", &project_id)?.ok_or("등록된 프로젝트를 선택해 주세요")?;
+    let status = sdd_origin::apply(&project, &action, &digest, confirmed)?;
     let _ = app.emit("state-changed", ());
     Ok(status)
 }
@@ -651,7 +672,7 @@ pub fn run() {
             engine::resume_auto_guidance(app.handle());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
+        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
         .run(tauri::generate_context!())
         .expect("error while running AI Organization OS");
 }

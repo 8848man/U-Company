@@ -1,0 +1,4 @@
+# 픽스처는 각자 git 저장소라 이 저장소에 넣지 않는다. `python make_fixtures.py`로 다시 만든다.
+fixtures/
+__pycache__/
+*.zip

@@ -1,0 +1,57 @@
+{
+  "_comment": "결정 5 (2026-10-12): 실제 테스트는 Claude와 GPT. 나머지는 구조만 잡은 placeholder이며 실제로 검증하지 않았다.",
+  "tools": [
+    {
+      "key": "claude",
+      "name": "Claude Code",
+      "status": "testable",
+      "reads_by_default": "CLAUDE.md",
+      "adapter": {"file": "CLAUDE.md", "content": "@AGENTS.md", "generated_by_bootstrap": true},
+      "test_command": "claude",
+      "notes": "CLAUDE.md 한 줄로 AGENTS.md를 불러온다. 실측 대상."
+    },
+    {
+      "key": "gpt",
+      "name": "OpenAI Codex CLI (GPT)",
+      "status": "testable",
+      "reads_by_default": "AGENTS.md",
+      "adapter": {"file": null, "content": null, "generated_by_bootstrap": false},
+      "test_command": "codex",
+      "notes": "AGENTS.md를 직접 읽는 것으로 알려져 있어 별도 연결 파일 없음. 실측에서 확인할 항목."
+    },
+    {
+      "key": "gemini",
+      "name": "Gemini CLI",
+      "status": "placeholder",
+      "reads_by_default": "TBD (GEMINI.md로 추정, 미검증)",
+      "adapter": {"file": "TBD", "template": "origin_templates/adapters/gemini.md", "generated_by_bootstrap": false},
+      "test_command": "TBD",
+      "notes": "구조만 정의. 실제 테스트 전까지 부트스트랩이 파일을 만들지 않는다."
+    },
+    {
+      "key": "cursor",
+      "name": "Cursor",
+      "status": "placeholder",
+      "reads_by_default": "TBD (.cursor/rules/ 또는 AGENTS.md, 미검증)",
+      "adapter": {"file": "TBD", "template": "origin_templates/adapters/cursor.md", "generated_by_bootstrap": false},
+      "test_command": "TBD (IDE, 화면 조작 필요)",
+      "notes": "구조만 정의."
+    },
+    {
+      "key": "copilot",
+      "name": "GitHub Copilot",
+      "status": "placeholder",
+      "reads_by_default": "TBD (.github/copilot-instructions.md로 추정, 미검증)",
+      "adapter": {"file": "TBD", "template": "origin_templates/adapters/copilot.md", "generated_by_bootstrap": false},
+      "test_command": "TBD (IDE)",
+      "notes": "구조만 정의."
+    }
+  ],
+  "continuity_pairs": [
+    {"from": "claude", "to": "gpt", "status": "testable", "cases": ["D1", "D2", "D3"]},
+    {"from": "gpt", "to": "claude", "status": "testable", "cases": ["D1", "D2", "D3"]},
+    {"from": "claude", "to": "gemini", "status": "placeholder"},
+    {"from": "claude", "to": "cursor", "status": "placeholder"},
+    {"from": "claude", "to": "copilot", "status": "placeholder"}
+  ]
+}

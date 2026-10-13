@@ -269,6 +269,14 @@ try { node --test } finally { Pop-Location }
 - [ ] 승인 거절, 실행 중 앱 종료, 파일 충돌, QA 실패 각각에서 목표 카드·작업공간·Office 레일이 같은 이유·마지막 확인 사실·담당자·다음 행동을 보이고, 자동 재전송·자동 재요청이 없어야 한다.
 - [ ] 완료 화면에 산출물별 QA 판정, 기준별 충족과 근거, 미확인 항목이 보이고, 근거 없는 내용이 확정 사실로 표시되지 않아야 한다. 세 파일이 승인된 경로에만 생겼는지 확인한다.
 
+### QA-43 프로젝트 작업 규칙 감지와 구조 잡기
+
+- [ ] 오프라인 기준선: 저장소 루트에서 `python tests/sdd-origin/selftest.py`와 `python tests/sdd-origin/app_conformance.py`가 각각 "실패 0건"이어야 한다. 앱 실행 결과를 판정할 때 쓸 픽스처는 `python tests/sdd-origin/make_fixtures.py`로 만든다(`tests/sdd-origin/fixtures/`, 커밋하지 않음).
+- [ ] 새 백엔드로 앱을 재시작하고 픽스처 F0을 프로젝트로 등록한다. 등록만으로 폴더에 아무 파일도 생기지 않아야 한다. 설정 › 프로젝트 명세의 첫 카드에 "프로젝트 구조를 잡아드릴까요?"와 `구조 잡기`가 보여야 한다. 누르면 만들 파일 목록이 나오고, 취소하면 아무 파일도 생기지 않아야 한다. 확인하면 카드가 "U 컴퍼니 구조로 작업 중"으로 바뀐다. `python tests/sdd-origin/judge.py check tests/sdd-origin/fixtures/F0 --mode bootstrap`이 통과해야 한다.
+- [ ] F2, F4, F6, F8, F10, F11을 차례로 등록한다. F2는 "작업 규칙(AGENTS.md)을 찾았어요", F4는 CLAUDE.md에도 규칙이 있지만 AGENTS.md를 따른다는 문장, F6은 Cursor 규칙, F8은 하위 폴더 `packages/api`와 버튼 없음, F10은 `절차 추가`(권장)와 `U 컴퍼니 구조로 바꾸기`, F11은 `구조 잡기`가 보여야 한다. 깊이 1·2에 영어 기술 용어·ID·해시가 없어야 한다.
+- [ ] F10에서 `절차 추가`, F2에서 `U 컴퍼니 구조로 바꾸기`를 실행하고 각각 `judge.py check … --mode add_section`, `--mode convert`로 채점한다. F2의 `.ucompany/legacy/<시각>/AGENTS.md`가 원본과 같아야 한다. 미리보기를 연 채 다른 편집기로 AGENTS.md를 바꾸고 확인하면 거절되고 파일이 그대로여야 한다.
+- [ ] F0에서 만든 구조를 Claude Code와 Codex로 각각 새 세션으로 연다. 명령 없이 "이어서 해줘"만 입력했을 때 두 툴 모두 `AGENTS.md` → `.ucompany/sdd/00_index.md`를 찾아 읽고, 단계를 넘기 전 확인을 묻는지(P14) 기록한다. 한 툴에서 기능 하나를 절반 진행한 뒤 다른 툴이 `judge.py next-task`가 가리키는 작업을 집어야 한다. Gemini·Cursor·Copilot은 placeholder라 이 단계에 포함하지 않는다.
+
 ## 결과 기록
 
 각 항목을 `PASS`, `FAIL`, `BLOCKED`, `NOT RUN` 중 하나로 표시한다. 실패 시 목표 ID, 화면의 오류 문구, `.run-data/startup-logs`의 해당 실행 로그, 시험 저장소의 `git status --short`, 기대 결과와 실제 결과를 함께 남긴다. QA-09 이후 실패했다면 저장된 worktree를 조사할 수 있도록 시험 디렉터리를 보존한다. 이 기록만으로 Ubuntu 지원 또는 미구현 복구 기능을 통과 처리하지 않는다.
