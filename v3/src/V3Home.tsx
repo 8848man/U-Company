@@ -22,6 +22,8 @@ type Props = {
   intent: string; busy: boolean; teamBlock: BlockReason | null; runBlock: (goal: Goal) => BlockReason | null;
   onIntent: (value: string) => void; onSubmit: () => void; onRun: (id: string) => void; onOpen: (id: string) => void;
   onSettings: () => void; onConnections: () => void; onOffice: () => void; onExplain: (title: string, reason: string, next: string) => void;
+  /** ADR-0046: the chat home lists goals on the left, so this pane shows only the new-goal box and decisions. */
+  hideGoalList?: boolean;
 };
 
 function stageLabel(goal: Goal): string {
@@ -30,7 +32,7 @@ function stageLabel(goal: Goal): string {
 
 /** Home of the v3 shell: readiness, one command box, a decision inbox and per-deliverable goal cards. */
 export function V3Home(props: Props) {
-  const { project, goals, tasks, approvals, agents, connections, guidance, events, reviews, mode, onMode, readiness, readinessError, onStartMeeting, draftSource, onClearDraftSource, meetingStatus, intent, busy, teamBlock, runBlock, onIntent, onSubmit, onRun, onOpen, onSettings, onConnections, onOffice, onExplain } = props;
+  const { project, goals, tasks, approvals, agents, connections, guidance, events, reviews, mode, onMode, readiness, readinessError, onStartMeeting, draftSource, onClearDraftSource, meetingStatus, intent, busy, teamBlock, runBlock, onIntent, onSubmit, onRun, onOpen, onSettings, onConnections, onOffice, onExplain, hideGoalList = false } = props;
   const [showGraph, setShowGraph] = useState<string | null>(null);
   const decisions = goals.filter(goal => goal.kind === 'deliberation' ? meetingStatus(goal).needsDecision : Boolean(blockFacts(goal, tasks, approvals, guidance, agents, events)));
   const ordered = [...goals].sort((a, b) => Number(decisions.includes(b)) - Number(decisions.includes(a)) || b.createdAt.localeCompare(a.createdAt));
@@ -60,7 +62,7 @@ export function V3Home(props: Props) {
         <ListDisclosure label="결정할 일" total={inbox.total} hidden={inbox.hidden} expanded={inbox.expanded} onToggle={inbox.toggle}/>
       </section>}
 
-      <div className="section-head"><h2>목표</h2><span className="count">{goals.length} GOALS</span></div>
+      {!hideGoalList && <><div className="section-head"><h2>목표</h2><span className="count">{goals.length} GOALS</span></div>
       <div className="v2-stack">{window.visible.map(goal => {
         const isMeeting = goal.kind === 'deliberation';
         const rows = deliverableRows(goal, tasks, reviews, agents);
@@ -80,6 +82,6 @@ export function V3Home(props: Props) {
           </div>
           {!isMeeting && showGraph === goal.id && <GoalGraph goal={goal} tasks={tasks}/>}
         </article>;
-      })}{!goals.length && <div className="empty-state compact">아직 목표가 없습니다. 위에서 첫 목표를 전달해 주세요. 출시 준비 예시로 시작할 수 있습니다.</div>}<ListDisclosure label="목표" total={window.total} hidden={window.hidden} expanded={window.expanded} onToggle={window.toggle}/></div>
+      })}{!goals.length && <div className="empty-state compact">아직 목표가 없습니다. 위에서 첫 목표를 전달해 주세요. 출시 준비 예시로 시작할 수 있습니다.</div>}<ListDisclosure label="목표" total={window.total} hidden={window.hidden} expanded={window.expanded} onToggle={window.toggle}/></div></>}
     </div></div>;
 }
