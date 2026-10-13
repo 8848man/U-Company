@@ -49,3 +49,35 @@
 .v3 .v3-chat-main > .gc-panel{height:100%;max-height:none;border:0;border-radius:0;background:#17221d}
 @media (max-width:860px){.v3 .v3-chat-home{grid-template-columns:1fr;height:auto}.v3 .v3-goal-list{border-right:0;border-bottom:1px solid #26303e;max-height:220px}.v3 .v3-chat-main > .gc-panel{height:calc(100dvh - 300px)}}
 .v3 .gc .chat-workspace-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.v3 .gc .chat-workspace-header .button-row{flex:none;flex-wrap:nowrap}
+/* ADR-0046 in-app Office window */
+.office-window{position:fixed;z-index:60;display:flex;flex-direction:column;min-width:320px;min-height:44px;background:#17221d;border:1px solid #4b6953;border-radius:12px;box-shadow:0 18px 50px #000a;color:#e5eee3;overflow:hidden}
+.office-window.is-floating{resize:both}
+.office-window.is-docked{top:71px;right:0;bottom:0;width:min(440px,90vw);border-radius:0;border-width:0 0 0 1px}
+.office-window.is-minimized{left:16px;bottom:16px;width:228px;height:auto}
+.office-window-bar{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 8px 14px;background:#1d2d24;border-bottom:1px solid #3c5843;cursor:move;user-select:none;touch-action:none}
+.office-window.is-docked .office-window-bar,.office-window.is-minimized .office-window-bar{cursor:default}
+.office-window-bar strong{min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.office-window-controls{display:flex;gap:4px;flex:none}
+.office-window-controls button{width:28px;height:26px;padding:0;border:1px solid #3c5843;border-radius:6px;background:none;color:#cfe0d2;font:inherit;font-size:14px;line-height:1;cursor:pointer}
+.office-window-controls button:hover{border-color:#8fd694;color:#fff}
+.office-window-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:10px 12px 12px;overflow-y:auto}
+.office-stages{display:flex;gap:4px;margin:0;padding:0;list-style:none}
+.office-stages li{flex:1;padding:4px 0;border-radius:6px;background:#203028;color:#7f948a;font-size:11.5px;text-align:center;white-space:nowrap}
+.office-stages li.is-done{color:#cfe0d2}
+.office-stages li.is-current{background:#2f5a3d;color:#fff;font-weight:700;box-shadow:inset 0 -2px 0 #8fd694}
+.office-stages li.is-waiting{background:#5a4524;color:#ffd38a;font-weight:700}
+.office-stages li.is-blocked{background:#5a2a2a;color:#ffb4ab;font-weight:700}
+.office-window-status{margin:0;font-size:12.5px;color:#cceb9f}
+.office-window-room{position:relative;flex:1 1 220px;min-height:200px;border-radius:8px;overflow:hidden;background:linear-gradient(90deg,#1f3527 0 15%,transparent 15% 85%,#1f3527 85%),#294032}
+.office-window-room .office-avatar{transform:scale(.8);transform-origin:center top}
+.office-avatar.dimmed{opacity:.35}
+.office-members{display:grid;gap:4px;margin:0;padding:0;list-style:none}
+.office-members li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:5px 8px;border-radius:6px;background:#1b2a22;font-size:12.5px}
+.office-members li span{color:#cfe0d2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.office-members li small{color:#98ab9f}
+.office-members li.is-active small{color:#8fd694;font-weight:700}
+.office-members li.is-blocked small{color:#ffb4ab;font-weight:700}
+@media (prefers-reduced-motion:reduce){.office-window *{animation:none!important;transition:none!important}}
+body.office-docked .v3 .main{margin-right:min(440px,90vw)}
+.office-window.is-docked .office-window-room{flex:0 0 320px}
+.office-window.is-minimized{min-width:0}

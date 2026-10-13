@@ -14,6 +14,8 @@ type Props = {
   /** Squad slot / external staff label per character, from saved squads (ADR-0041). */
   badges?: Record<string, string>;
   selectedId: string | null;
+  /** ADR-0046 Office window: members of the watched goal stay clear, everyone else is dimmed. */
+  focusIds?: string[];
   onSelect: (id: string) => void;
   onMove: (id: string, x: number, y: number) => void;
 };
@@ -22,7 +24,7 @@ type Drag = { id: string; startX: number; startY: number; moved: boolean };
 
 const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
 
-export default function OfficeCanvas({ agents, connections, activities, events, badges, selectedId, onSelect, onMove }: Props) {
+export default function OfficeCanvas({ agents, connections, activities, events, badges, selectedId, focusIds, onSelect, onMove }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<Drag | null>(null);
@@ -127,7 +129,7 @@ export default function OfficeCanvas({ agents, connections, activities, events, 
       return <button
         type="button"
         key={agent.id}
-        className={`office-avatar ${selectedId === agent.id ? 'selected' : ''} ${working ? 'working' : ''} ${blocked ? 'blocked' : ''} ${recipient ? 'interacting' : ''}`}
+        className={`office-avatar ${selectedId === agent.id ? 'selected' : ''} ${working ? 'working' : ''} ${blocked ? 'blocked' : ''} ${recipient ? 'interacting' : ''} ${focusIds && !focusIds.includes(agent.id) ? 'dimmed' : ''}`}
         style={{ left: `${8 + visualX * 0.84}%`, top: `${10 + visualY * 0.78}%` }}
         title={`${agent.name}: 클릭해 활동 보기, 드래그해 위치 변경`}
         aria-label={`${agent.name}, ${state}${badges?.[agent.id] ? `, ${badges[agent.id]}` : ''}. 클릭해 활동을 보거나 드래그해 이동`}
