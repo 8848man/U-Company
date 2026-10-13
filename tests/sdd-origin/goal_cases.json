@@ -1,0 +1,9 @@
+[
+  {"id": "G1", "kind": "development", "note": "앱 기능 추가", "analysis": "요약: 할 일에 마감일을 넣을 수 있게 해요\n업무: 개발\n범위: todo 모델과 화면, 시험"},
+  {"id": "G2", "kind": "development", "note": "코드 버그 수정, 조언 포함", "analysis": "요약: 저장이 안 되는 문제를 고쳐요\n업무: 개발\n구조 조언: AGENTS.md는 코드 스타일만 있어 작업 절차는 없어요\n범위: storage.ts"},
+  {"id": "G3", "kind": "other", "note": "출시 안내문 작성", "analysis": "요약: 출시 안내문 세 편을 써요\n업무: 기타\n범위: docs/launch/"},
+  {"id": "G4", "kind": "other", "note": "시장 조사 정리", "analysis": "요약: 경쟁 서비스를 비교해요\n업무: 기타"},
+  {"id": "G5", "kind": "other", "note": "업무 줄 없음 → 묻지 않음", "analysis": "요약: 회의록을 정리해요\n범위: notes/"},
+  {"id": "G6", "kind": "other", "note": "불분명한 답 → 묻지 않음", "analysis": "요약: 설정 화면을 다듬어요\n업무: 개발 또는 문서"},
+  {"id": "G7", "kind": "other", "note": "본문의 '개발'이라는 단어만으로는 개발 아님", "analysis": "요약: 개발 일정표를 문서로 만들어요\n업무: 기타\n개발 팀 일정 정리"}
+]

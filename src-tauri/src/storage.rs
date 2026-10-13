@@ -225,6 +225,7 @@ impl Store {
         let mut squads = self.list::<crate::model::Squad>("squad")?;
         for squad in squads.iter_mut() { squad.digest = crate::squad::digest(squad); }
         let goal_summaries = self.list::<crate::model::GoalSummary>("goal_summary")?;
+        let mut goal_origins = self.list::<crate::model::GoalOrigin>("goal_origin")?;
         let approvals = self.list("approval")?;
         let usage: Vec<TokenUsageRecord> = self.list("usage")?;
         let spec_profiles: Vec<SpecProfile> = self.list::<SpecProfile>("spec_profile")?.into_iter().filter(|item| project.as_ref().is_some_and(|selected: &Project| selected.id == item.project_id)).collect();
@@ -256,10 +257,11 @@ impl Store {
             deliverable_reviews.retain(|item| !hidden.contains(&item.goal_id));
             squads.retain(|item| !hidden.contains(&item.goal_id));
             goal_summaries.retain(|item| !hidden.contains(&item.goal_id));
+            goal_origins.retain(|item| !hidden.contains(&item.goal_id));
             approvals.retain(|item: &Approval| !item.goal_id.as_ref().is_some_and(|id| hidden.contains(id)));
             events.retain(|item| !item.goal_id.as_ref().is_some_and(|id| hidden.contains(id)));
         }
-        Ok(Snapshot { project, projects, agents, connections, goals, meetings, meeting_packets, transmission_approvals, meeting_contributions, goal_lineage, goal_turns, goal_guidance, tasks, deliverable_reviews, squads, goal_summaries, archived_goals, events, approvals, usage, spec_profiles, spec_drafts })
+        Ok(Snapshot { project, projects, agents, connections, goals, meetings, meeting_packets, transmission_approvals, meeting_contributions, goal_lineage, goal_turns, goal_guidance, tasks, deliverable_reviews, squads, goal_summaries, goal_origins, archived_goals, events, approvals, usage, spec_profiles, spec_drafts })
     }
 
     pub fn stage_spec_import(&self, draft: &SpecDraft) -> Result<(), String> {

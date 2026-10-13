@@ -36,7 +36,7 @@ pub struct ArchivedGoal {
 /// Object kinds that belong to a goal through `goalId`, `replacementGoalId` or `meetingId`.
 const OWNED_KINDS: [&str; 12] = ["task", "task_proof", "approval", "goal_turn", "goal_guidance", "deliverable_review", "meeting", "meeting_packet", "meeting_contribution", "meeting_rejected_output", "transmission_approval", "goal_lineage"];
 /// Object kinds keyed by the goal id itself.
-const KEYED_KINDS: [&str; 5] = ["goal", "goal_analysis", "goal_summary", "squad", "goal_archive"];
+const KEYED_KINDS: [&str; 6] = ["goal", "goal_analysis", "goal_summary", "goal_origin", "squad", "goal_archive"];
 
 pub fn archived_ids(tx: &rusqlite::Transaction<'_>) -> Result<BTreeSet<String>, String> {
     Ok(tx_list::<GoalArchive>(tx, "goal_archive")?.into_iter().map(|item| item.goal_id).collect())
