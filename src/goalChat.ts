@@ -59,6 +59,7 @@ const STAGE_LINES: Record<string, string> = {
   'All implementation tasks completed; integration started': '작업을 마치고 결과를 합치고 있어요',
   'Changes integrated; QA review started': '결과를 합쳤어요. 검토를 시작했어요',
   'QA repair tasks delegated': '검토에서 고칠 점이 나와 다시 작업해요',
+  'CEO requested a plan revision; planning lead started': '개선 방침으로 계획을 다시 세우고 있어요',
 };
 
 export type StreamLine = { id: string; at: string; text: string };
@@ -72,7 +73,8 @@ export function stageLines(goal: Goal, events: Event[]): StreamLine[] {
     if (event.kind === 'goal_started') text = '팀이 목표를 받아 분석을 시작했어요';
     else if (event.kind === 'goal_stage') text = STAGE_LINES[event.message] ?? null;
     else if (event.kind === 'goal_completed') text = '검토를 통과했어요. 결과를 확인해 주세요';
-    else if (event.kind === 'approval_decided' && /^project_write: /.test(event.message)) text = event.message.endsWith('approved') ? 'CEO가 계획을 승인했어요' : event.message.endsWith('denied') ? 'CEO가 계획을 거부했어요' : null;
+    else if (event.kind === 'goal_cancelled') text = '계획을 거부해 목표를 취소했어요';
+    else if (event.kind === 'approval_decided' && /^project_write: /.test(event.message)) text = event.message.endsWith('approved') ? 'CEO가 계획을 승인했어요' : null;
     if (text) lines.push({ id: `event:${event.id}`, at: event.at, text });
   }
   return lines.sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id));

@@ -4,7 +4,7 @@ import { goalRecovery } from './goalRecovery';
 const operationalKinds = new Set(['goal_started', 'goal_stage', 'goal_blocked', 'task_delegated', 'task_started', 'task_agent_finished', 'task_failed', 'task_interrupted', 'runtime_progress', 'qa_review', 'review_rework_started', 'approval_requested', 'approval_decided', 'goal_completed', 'goal_interrupted', 'goal_guidance_review_required']);
 
 export function goalStageLabel(status: string): string {
-  return ({ new: '시작 전', analyzing: '목표 분석', planning: '업무 계획', awaiting_approval: 'CEO 승인 대기', executing: '구현 중', integrating: '결과 통합', validating: 'QA 검증', deliberating: '다관점 회의', awaiting_decision: '회의 결정 대기', completed: '완료', blocked: '확인 필요' } as Record<string, string>)[status] ?? '상태 확인 필요';
+  return ({ new: '시작 전', analyzing: '목표 분석', planning: '업무 계획', awaiting_approval: 'CEO 승인 대기', executing: '구현 중', integrating: '결과 통합', validating: 'QA 검증', deliberating: '다관점 회의', awaiting_decision: '회의 결정 대기', completed: '완료', blocked: '확인 필요', cancelled: '취소됨' } as Record<string, string>)[status] ?? '상태 확인 필요';
 }
 
 export function taskStageLabel(status: string): string {

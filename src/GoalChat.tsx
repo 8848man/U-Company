@@ -32,6 +32,8 @@ type Props = {
   onOpenGoal: (id: string) => void;
   onRetry: () => Promise<boolean>; onResume: () => Promise<boolean>;
   onDecide: (approvalId: string, approved: boolean, squadDigest: string | null) => Promise<boolean>;
+  /** ADR-0046 M3: `개선` (same goal, new plan) and `거부` (cancel the goal); `다시 시작` sends the same goal again. */
+  onRevise: (approvalId: string, note: string) => Promise<boolean>; onCancel: (approvalId: string) => Promise<boolean>; onRestart: (intent: string) => Promise<boolean>;
   onSwapSquad: (from: string, to: string) => void; onAddSquad: (slot: 'writer' | 'reviewer', agentId: string, taskId: string | null) => void;
   onOpenConnections: () => void; onOpenOffice: () => void; onOpenTeam: () => void; onOpenProject: () => void;
   onError: (message: string) => void;
@@ -53,10 +55,10 @@ type StreamItem =
 
 /** v3 goal conversation (ADR-0046): the goal, stage lines, plan cards and recovery in one stream, with a progress line. */
 export function GoalChat(props: Props) {
-  const { goal, projectKind, focusTaskId = null, turns, guidance, agents, connections, tasks, approvals, events, usage, reviews, runBlock, squad, squads, summary, goalOrigins, projects, layout = 'dialog', onClose, onSend, onArchive, onRevision, onOpenGoal, onRetry, onResume, onDecide, onSwapSquad, onAddSquad, onOpenConnections, onOpenOffice, onOpenTeam, onOpenProject, onError, onPreviewGit, onBootstrapGit } = props;
+  const { goal, projectKind, focusTaskId = null, turns, guidance, agents, connections, tasks, approvals, events, usage, reviews, runBlock, squad, squads, summary, goalOrigins, projects, layout = 'dialog', onClose, onSend, onArchive, onRevision, onOpenGoal, onRetry, onResume, onDecide, onRevise, onCancel, onRestart, onSwapSquad, onAddSquad, onOpenConnections, onOpenOffice, onOpenTeam, onOpenProject, onError, onPreviewGit, onBootstrapGit } = props;
   const focusTask = tasks.find(task => task.id === focusTaskId && task.goalId === goal.id);
   const [draft, setDraft] = useState(focusTask ? `"${focusTask.title.slice(0, 120)}" 업무는 지금 어디까지 했고, 막힌 점이 있나요? 제 결정이 필요하면 알려 주세요.` : '');
-  const [improving, setImproving] = useState(false);
+  const [improving, setImproving] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [working, setWorking] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -105,18 +107,18 @@ export function GoalChat(props: Props) {
     try { await operation(); } finally { setWorking(false); }
   }
   async function decide(card: PlanCard, approved: boolean) {
-    await guarded(() => onDecide(card.approval.id, approved, squad?.digest ?? null));
+    await guarded(() => approved ? onDecide(card.approval.id, true, squad?.digest ?? null) : onCancel(card.approval.id));
     scrollDown();
   }
-  function startImproving() { setImproving(true); setDraft(''); requestAnimationFrame(focusComposer); }
+  function startImproving(card: PlanCard) { setImproving(card.approval.id); setDraft(''); requestAnimationFrame(focusComposer); }
   async function sendMessage() {
     const text = draft.trim();
-    if (sending || text.length < 4 || text.length > 4000 || pending || !selectedAgent) return;
+    if (sending || text.length < 4 || text.length > 4000 || pending || (!improving && !selectedAgent)) return;
     setSending(true);
     try {
-      // Until revise is in the engine (ADR-0046 M3) an improvement note goes through the existing direction route.
-      const message = improving ? `계획 개선 요청: ${text}` : text;
-      if (await onSend(message, selectedAgent.id)) { setDraft(''); setImproving(false); scrollDown(); }
+      // `개선` is its own command: the note goes to the PM of this goal, never through AI interpretation.
+      const ok = improving ? await onRevise(improving, text) : await onSend(text, selectedAgent!.id);
+      if (ok) { setDraft(''); setImproving(null); scrollDown(); }
     } finally { setSending(false); }
   }
 
@@ -134,7 +136,7 @@ export function GoalChat(props: Props) {
       <small className="muted">승인 전에는 프로젝트 파일을 바꾸지 않아요 · 승인은 이 버튼으로만 해요</small>
       <div className="gc-plan-actions">
         <button type="button" className={improving ? 'secondary' : 'primary'} disabled={working} onClick={() => void decide(card, true)}>승인</button>
-        <button type="button" className="secondary" disabled={working} onClick={startImproving}>개선</button>
+        <button type="button" className="secondary" disabled={working} onClick={() => startImproving(card)}>개선</button>
         <button type="button" className="secondary" disabled={working} onClick={() => void decide(card, false)}>거부</button>
       </div>
       <div className="gc-plan-extra"><PlanningOriginPanel goalId={goal.id} goalOrigins={goalOrigins} projects={projects} squads={squads} onOpenConnections={onOpenConnections} onError={onError} /></div>
@@ -143,8 +145,8 @@ export function GoalChat(props: Props) {
 
   function turnView(turn: GoalTurn) {
     return <div className="chat-exchange" key={`turn:${turn.id}`}>
-      <div className="chat-bubble ceo"><div className="chat-bubble-meta"><strong>CEO → {turn.agentName || agents.find(agent => agent.id === turn.agentId)?.name || '팀원'}</strong><time>{new Date(turn.askedAt).toLocaleString()}</time></div><ContentPreview><p>{turn.question}</p></ContentPreview></div>
-      <div className="chat-bubble worker"><div className="chat-bubble-meta"><strong>{turn.route === 'direction' || turn.route === 'continue' ? `시스템 · ${turn.route === 'direction' ? '작업 지시 접수' : '실행 시작'}` : `${turn.agentName || '팀원'} · ${turn.status === 'pending' ? '의도 확인 중…' : turn.status === 'answered' ? '답변' : turn.status === 'interrupted' ? '중단됨' : '답변 실패'}`}</strong></div>{turn.answer ? <ContentPreview><p>{turn.answer}</p></ContentPreview> : <p>{turn.status === 'pending' ? '메시지를 확인하고 있습니다.' : '저장된 답변이 없습니다.'}</p>}</div>
+      <div className="chat-bubble ceo"><div className="chat-bubble-meta"><strong>{turn.route === 'plan_revision' ? 'CEO · 계획 개선 방침' : `CEO → ${turn.agentName || agents.find(agent => agent.id === turn.agentId)?.name || '팀원'}`}</strong><time>{new Date(turn.askedAt).toLocaleString()}</time></div><ContentPreview><p>{turn.question}</p></ContentPreview></div>
+      <div className="chat-bubble worker"><div className="chat-bubble-meta"><strong>{turn.route === 'plan_revision' ? '시스템 · 계획 다시 세우기' : turn.route === 'direction' || turn.route === 'continue' ? `시스템 · ${turn.route === 'direction' ? '작업 지시 접수' : '실행 시작'}` : `${turn.agentName || '팀원'} · ${turn.status === 'pending' ? '의도 확인 중…' : turn.status === 'answered' ? '답변' : turn.status === 'interrupted' ? '중단됨' : '답변 실패'}`}</strong></div>{turn.answer ? <ContentPreview><p>{turn.answer}</p></ContentPreview> : <p>{turn.status === 'pending' ? '메시지를 확인하고 있습니다.' : '저장된 답변이 없습니다.'}</p>}</div>
     </div>;
   }
 
@@ -181,6 +183,7 @@ export function GoalChat(props: Props) {
         </div>
         {decision.kind === 'guidance' && activeGuidance?.status === 'review_required' && (!activeGuidance.autoContinue || autoContinuationFailure) && <div ref={revisionRef}><RevisionForm key={activeGuidance.id} goal={goal} guidance={activeGuidance} onRevision={onRevision} /></div>}
       </section>}
+      {goal.status === 'cancelled' && <section className="chat-context gc-cancelled" aria-label="취소됨"><strong>이 목표를 취소했어요</strong><p>계획을 거부해 프로젝트 파일은 바뀌지 않았어요. 같은 내용으로 다시 맡기려면 다시 시작하세요.</p><div className="chat-decision-actions"><button type="button" className="secondary" disabled={working} onClick={() => void guarded(() => onRestart(goal.intent))}>같은 내용으로 다시 시작</button></div></section>}
       {goal.status === 'completed' && <section className="chat-context gc-result" aria-label="결과"><strong>결과</strong>{deliverables.length > 0 && <DeliverablePanel rows={deliverables} mode="result" />}{goal.report && <ContentPreview><pre className="report">{goal.report}</pre></ContentPreview>}<p>후속 작업은 새 목표로 보내 주세요.</p></section>}
       {gitBootstrapRelevant && projectKind === 'folder' && <GitBootstrapPanel onPreview={onPreviewGit} onApply={onBootstrapGit} />}
       {gitBootstrapCompleted && projectKind === 'git' && <section className="chat-context" role="status"><strong>Git 저장소 초기화 완료</strong><p>{gitBootstrapCompleted.message}</p></section>}
@@ -190,9 +193,9 @@ export function GoalChat(props: Props) {
     </div>
 
     {progress && <button type="button" className="gc-progress" onClick={onOpenOffice} aria-label={`진행 중: ${progress}. Office 열기`}><span className="gc-progress-dot" aria-hidden="true" />{progress}</button>}
-    <div className="chat-composer"><div className="chat-composer-top"><strong>{improving ? '계획을 어떻게 고칠까요?' : '팀원에게 메시지'}</strong>{improving ? <button type="button" className="text-button" onClick={() => { setImproving(false); setDraft(''); }}>개선 취소</button> : <label>받는 팀원 <select value={selectedAgentId} onChange={event => setSelectedAgentId(event.target.value)}>{routable.length ? routable.map(agent => <option value={agent.id} key={agent.id}>{agent.name} · {agent.role}{eligible.some(ready => ready.id === agent.id) ? '' : ' · 연결 확인 필요'}</option>) : <option value="">활성 팀원 없음</option>}</select></label>}</div>
+    <div className="chat-composer"><div className="chat-composer-top"><strong>{improving ? '계획을 어떻게 고칠까요?' : '팀원에게 메시지'}</strong>{improving ? <button type="button" className="text-button" onClick={() => { setImproving(null); setDraft(''); }}>개선 취소</button> : <label>받는 팀원 <select value={selectedAgentId} onChange={event => setSelectedAgentId(event.target.value)}>{routable.length ? routable.map(agent => <option value={agent.id} key={agent.id}>{agent.name} · {agent.role}{eligible.some(ready => ready.id === agent.id) ? '' : ' · 연결 확인 필요'}</option>) : <option value="">활성 팀원 없음</option>}</select></label>}</div>
       <label className="chat-input-label" htmlFor="goal-chat-input">메시지</label><textarea id="goal-chat-input" ref={inputRef} value={draft} maxLength={4000} placeholder={improving ? '예: 파일을 하나로 합쳐 주세요. 시험도 같이 추가해 주세요.' : '팀원에게 질문하거나 원하는 일을 말해 주세요.'} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) void sendMessage(); }} />
-      <div className="chat-composer-bottom"><small>{!selectedAgent ? '선택한 팀원의 AI 연결을 확인해 주세요.' : pending ? '이전 메시지의 AI 해석이 끝나면 다음 메시지를 보낼 수 있습니다.' : improving ? '보낸 방침으로 팀이 계획을 다시 세웁니다. 새 계획은 다시 승인받습니다.' : goal.status === 'completed' ? '완료된 목표의 후속 작업은 새 목표가 필요합니다.' : '대화는 승인이 아니에요. 새 파일 작업은 계획 카드에서 승인해요.'}</small><div className="chat-send-actions">{!selectedAgent && <button type="button" className="secondary" onClick={onOpenConnections}>AI 연결 확인 →</button>}<button type="button" className={cards.some(card => card.current) && !improving ? 'secondary' : 'primary'} disabled={sending || pending || !selectedAgent || draft.trim().length < 4} onClick={() => void sendMessage()}>{improving ? '개선 방침 보내기' : '전송'}</button></div></div>
+      <div className="chat-composer-bottom"><small>{improving ? '보낸 방침으로 팀이 같은 목표에서 계획을 다시 세웁니다. 새 계획은 다시 승인받습니다.' : goal.status === 'cancelled' ? '취소한 목표예요. 새 일은 새 목표로 보내 주세요.' : !selectedAgent ? '선택한 팀원의 AI 연결을 확인해 주세요.' : pending ? '이전 메시지의 AI 해석이 끝나면 다음 메시지를 보낼 수 있습니다.' : goal.status === 'completed' ? '완료된 목표의 후속 작업은 새 목표가 필요합니다.' : '대화는 승인이 아니에요. 새 파일 작업은 계획 카드에서 승인해요.'}</small><div className="chat-send-actions">{!selectedAgent && <button type="button" className="secondary" onClick={onOpenConnections}>AI 연결 확인 →</button>}<button type="button" className={cards.some(card => card.current) && !improving ? 'secondary' : 'primary'} disabled={sending || pending || (!improving && !selectedAgent) || draft.trim().length < 4} onClick={() => void sendMessage()}>{improving ? '개선 방침 보내기' : '전송'}</button></div></div>
     </div>
   </section>;
   return layout === 'dialog' ? <div className="dialog-backdrop" onClick={onClose}>{body}</div> : body;

@@ -160,7 +160,7 @@ pub fn busy_reasons(agents: &[Agent], goals: &[Goal], tasks: &[Task], squads: &[
     }
     crate::squad::external_busy(agents, goals, &mut busy);
     for task in tasks.iter().filter(|task| ["pending", "running", "awaiting_integration"].contains(&task.status.as_str())) {
-        if goals.iter().any(|goal| goal.id == task.goal_id && !["completed", "blocked"].contains(&goal.status.as_str())) {
+        if goals.iter().any(|goal| goal.id == task.goal_id && !["completed", "blocked", "cancelled"].contains(&goal.status.as_str())) {
             busy.entry(task.assignee_id.clone()).or_insert_with(|| "실행 업무를 맡고 있습니다".to_string());
         }
     }

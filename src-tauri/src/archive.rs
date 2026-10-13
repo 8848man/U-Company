@@ -49,7 +49,7 @@ fn archivable(goal: &Goal, tasks: &[Task], meeting: Option<&Meeting>) -> Result<
         if goal.status == "completed" || ["decision_recorded", "legacy_closed", "blocked", "stopped"].contains(&stage) { return Ok(()); }
         return Err("진행 중인 회의는 보관할 수 없습니다. 회의를 중단하거나 결정을 기록한 뒤 보관해 주세요".into());
     }
-    if !["new", "completed", "blocked"].contains(&goal.status.as_str()) { return Err("진행 중이거나 승인을 기다리는 목표는 보관할 수 없습니다. 끝나거나 멈춘 뒤 보관해 주세요".into()); }
+    if !["new", "completed", "blocked", "cancelled"].contains(&goal.status.as_str()) { return Err("진행 중이거나 승인을 기다리는 목표는 보관할 수 없습니다. 끝나거나 멈춘 뒤 보관해 주세요".into()); }
     if tasks.iter().any(|task| task.goal_id == goal.id && ["running", "awaiting_integration"].contains(&task.status.as_str())) { return Err("실행 중인 업무가 있어 보관할 수 없습니다".into()); }
     Ok(())
 }

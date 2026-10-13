@@ -568,8 +568,15 @@ fn run(app: &tauri::AppHandle, goal_id: &str) -> Result<(), String> {
     planning_goal.report = analysis.clone();
     store.put("goal", goal_id, &planning_goal, None)?;
     check_goal_guidance(app, goal_id, "CTO 분석 후")?;
+    // ADR-0046: `개선` sends the plan back to the PM on the same goal; each pass ends at a new approval.
+    let base_context = change_context.clone();
+    let mut plan_revision: Option<String> = None;
+    let mut replans = 0usize;
+    loop {
+    let change_context = match &plan_revision { Some(extra) => format!("{base_context}{extra}"), None => base_context.clone() };
+    let stage_message = if plan_revision.is_some() { "CEO requested a plan revision; planning lead started" } else { "CTO analysis completed; planning lead started" };
     // ADR-0041: the planning lead is chosen when planning starts and reserved only for that stage.
-    let planner_id = enter_stage(app, goal_id, "planning", "CTO analysis completed; planning lead started", |tx, busy| {
+    let planner_id = enter_stage(app, goal_id, "planning", stage_message, |tx, busy| {
         let agents: Vec<Agent> = crate::storage::tx_list(tx, "agent")?;
         let connections: Vec<AiConnection> = crate::storage::tx_list(tx, "connection")?;
         let lead = match squad::pick_lead("planning", &agents, &connections, busy) {
@@ -597,7 +604,7 @@ fn run(app: &tauri::AppHandle, goal_id: &str) -> Result<(), String> {
     validate_plan(&proposed)?;
     delegation::validate_contract(&proposed.tasks.iter().map(ProposedTask::contract).collect::<Vec<_>>(), &root)?;
     validate_continuation(&store, &root, &source_tasks, &proposed, revision.is_some())?;
-    if let Some(mut guidance) = revision {
+    if let Some(mut guidance) = revision.clone() {
         guidance.continuation = Some(ContinuationDecision { source_goal_id: guidance.goal_id.clone(), reused_task_ids: proposed.reused_task_ids.clone(), new_task_count: proposed.tasks.len(), reviewed_at: crate::model::now() });
         store.put("goal_guidance", &guidance.id, &guidance, Some(NewEvent { kind: "revision_continuation_planned".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: Some(pm.id.clone()), message: format!("CTO/PM reviewed revision; {} verified old tasks reused, {} new tasks", proposed.reused_task_ids.len(), proposed.tasks.len()) }))?;
         let _ = app.emit("state-changed", ());
@@ -643,18 +650,30 @@ fn run(app: &tauri::AppHandle, goal_id: &str) -> Result<(), String> {
     store.put("approval", &approval.id, &approval, Some(NewEvent { kind: "approval_requested".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: None, message: approval.reason.clone() }))?;
     transition_goal(app, goal_id, "awaiting_approval", "CEO approval requested before implementation")?;
     let deadline = Instant::now() + Duration::from_secs(24 * 60 * 60);
+    let mut revise = false;
     loop {
         check_goal_guidance(app, goal_id, "승인 대기 중")?;
         let current: Approval = store.get("approval", &approval.id)?.ok_or("Approval disappeared")?;
         match current.status.as_str() {
             "approved" => break,
+            // ADR-0046: `거부` closed the goal as cancelled in the same transaction; nothing else to do.
+            "denied" if store.get::<Goal>("goal", goal_id)?.is_some_and(|goal| goal.status == "cancelled") => { let _ = app.emit("state-changed", ()); return Ok(()); }
             "denied" => return Err(delegation::mark("approval_denied", "CEO가 프로젝트 변경 승인을 거절했습니다. 자동으로 다시 요청하지 않습니다")),
+            crate::plan_review::REVISE_REQUESTED => { revise = true; break; }
             "pending" if Instant::now() < deadline => thread::sleep(Duration::from_millis(300)),
             "pending" => return Err("Project write approval expired".into()),
             _ => return Err("Unknown approval status".into()),
         }
     }
-    execute_planned(app, goal_id, &project, &goal, &analysis, &store.snapshot()?)
+    if revise {
+        let note = crate::plan_review::take_revision(&store, goal_id, &approval.id)?;
+        replans += 1;
+        plan_revision = Some(crate::plan_review::revision_context(&note, &approval.reason, replans + 1));
+        let _ = app.emit("state-changed", ());
+        continue;
+    }
+    return execute_planned(app, goal_id, &project, &goal, &analysis, &store.snapshot()?);
+    }
 }
 
 fn execute_planned(app: &tauri::AppHandle, goal_id: &str, project: &Project, goal: &Goal, analysis: &str, snapshot: &Snapshot) -> Result<(), String> {
