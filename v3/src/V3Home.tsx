@@ -27,7 +27,7 @@ type Props = {
 };
 
 function stageLabel(goal: Goal): string {
-  return ({ new: '시작 전', analyzing: '목표 분석', planning: '산출물 계획', awaiting_approval: 'CEO 승인 대기', executing: '팀 작업 중', integrating: '결과 합치는 중', validating: 'QA 검증', completed: '인수 확인', blocked: '확인 필요' } as Record<string, string>)[goal.status] ?? goal.status;
+  return ({ new: '시작 전', analyzing: '목표 분석', planning: '산출물 계획', awaiting_approval: 'CEO 승인 대기', executing: '팀 작업 중', integrating: '결과 합치는 중', validating: 'QA 검증', completed: '인수 확인', blocked: '확인 필요', cancelled: '취소됨' } as Record<string, string>)[goal.status] ?? goal.status;
 }
 
 /** Home of the v3 shell: readiness, one command box, a decision inbox and per-deliverable goal cards. */

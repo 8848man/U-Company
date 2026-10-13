@@ -53,6 +53,15 @@ describe('stage lines', () => {
     ]).map(line => line.text);
     expect(lines).toEqual(['팀이 목표를 받아 분석을 시작했어요', 'CEO가 계획을 승인했어요', '계획대로 작업을 시작했어요']);
   });
+  it('shows a revision as a new planning pass and a rejection as a cancelled goal', () => {
+    const lines = stageLines(goal('cancelled'), [
+      event(1, 'approval_decided', 'project_write: revise_requested'),
+      event(2, 'goal_stage', 'CEO requested a plan revision; planning lead started'),
+      event(3, 'approval_decided', 'project_write: denied'),
+      event(4, 'goal_cancelled', 'CEO rejected the plan'),
+    ]).map(line => line.text);
+    expect(lines).toEqual(['개선 방침으로 계획을 다시 세우고 있어요', '계획을 거부해 목표를 취소했어요']);
+  });
 });
 
 describe('plan cards', () => {
