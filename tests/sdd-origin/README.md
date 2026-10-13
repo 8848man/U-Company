@@ -9,7 +9,7 @@
 | 명령 (이 폴더에서) | 확인하는 것 | 결과 기준 |
 | --- | --- | --- |
 | `python selftest.py` | 판정 도구 자체: 정상 동작은 통과, 위반 동작은 정확히 그 항목에서 실패 | "실패 0건" |
-| `python app_conformance.py` | **앱의 실제 코드**(`src-tauri/src/sdd_origin.rs`): 픽스처 F0~F11 분류, 관리 구간 문구 일치, 실제로 쓴 파일을 판정 도구로 채점 | "실패 0건" |
+| `python app_conformance.py` | **앱의 실제 코드**(`src-tauri/src/sdd_origin.rs`): 픽스처 F0~F11 분류, 관리 구간 문구 일치, 실제로 쓴 파일을 판정 도구로 채점, 업무 종류별 제안(개발이 아닌 목표·묻지 않기 프로젝트에는 제안 없음)과 `goal_cases.json`의 CTO 분석 예시 판독 | "실패 0건" |
 | `python samples/run_matrix.py && python samples/summarize.py` | 공개 SDD 표본 3종(Spec Kit, OpenSpec, 3파일 워크플로우)과 참조 오리진의 비교 기록 | `sample_results/` 갱신. 합격 기준이 아니라 설계 근거 |
 
 표본 비교에는 `pip install git+https://github.com/github/spec-kit.git`와 `npm install -g @fission-ai/openspec`가 필요하다.
@@ -25,6 +25,7 @@
 | `ontology.py` | 구조 v0의 예시 생성, 그래프 무결성 검사(`validate`), 다음 작업 찾기(`next`). `MANAGED_BLOCK`은 앱과 같은 문구 |
 | `selftest.py` | 판정 도구 자체 검증 (62건) |
 | `app_conformance.py` | 앱 코드와 하네스 대조 (옵트인 Rust 시험 `harness_conformance` 실행) |
+| `goal_cases.json` | CTO 분석 예시 G1~G7과 기대 업무 종류([ADR-0045](../../sdd/architecture/decisions/ADR-0045.md)). 업무 줄이 없거나 불분명하면 `other` |
 | `tools.json`, `origin_templates/adapters/` | 실측 툴(Claude, GPT)과 placeholder 툴(Gemini, Cursor, Copilot)의 연결 정의. placeholder 템플릿은 앱이 만들지 않는다 |
 | `samples/`, `sample_results/` | 표본 비교 실행기와 결과 |
 | `results_template.csv` | 실제 툴로 수동 실행할 때의 결과 기록표 |

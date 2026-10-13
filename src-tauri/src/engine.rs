@@ -550,7 +550,11 @@ fn run(app: &tauri::AppHandle, goal_id: &str) -> Result<(), String> {
             }
         }
     }
-    let analysis_prompt = format!("You are {} ({}) in an AI company. Analyze the CEO goal and project. Start your reply with one line `요약: <what this goal will do, one short Korean sentence a primary-school child understands, at most 80 characters>`; it is shown to the CEO as a display-only summary. Then state scope, constraints, risks, and acceptance criteria. For a linked revision, explain which prior outcomes remain relevant and what needs rework; do not claim reuse solely from old task text. Do not modify files.\nRole instructions:\n{}\nCEO goal: {}\nProject context:\n{}\nRevision context:\n{}", cto.name, cto.role, cto.instructions, goal.intent, context, change_context);
+    // ADR-0045: static detection runs before the analysis so the CTO reads only the listed candidates.
+    let origin_muted = crate::sdd_origin::muted(&store, &project.id);
+    let origin_status = crate::sdd_origin::status(&project).ok();
+    let origin_lines = crate::sdd_origin::analysis_instructions(origin_status.as_ref(), origin_muted);
+    let analysis_prompt = format!("You are {} ({}) in an AI company. Analyze the CEO goal and project. Start your reply with one line `요약: <what this goal will do, one short Korean sentence a primary-school child understands, at most 80 characters>`; it is shown to the CEO as a display-only summary. {} Then state scope, constraints, risks, and acceptance criteria. For a linked revision, explain which prior outcomes remain relevant and what needs rework; do not claim reuse solely from old task text. Do not modify files.\nRole instructions:\n{}\nCEO goal: {}\nProject context:\n{}\nRevision context:\n{}", cto.name, cto.role, origin_lines, cto.instructions, goal.intent, context, change_context);
     record_progress(app, goal_id, None, &cto.id, "CTO가 목표와 프로젝트를 분석하고 있습니다");
     let analysis = execute_tracked(app, &project.id, goal_id, None, &cto.id, &cto_connection, &analysis_prompt, &root, false)?.text;
     // Kept apart from the goal report, which a later block overwrites, so a resumed plan's QA still
@@ -559,6 +563,7 @@ fn run(app: &tauri::AppHandle, goal_id: &str) -> Result<(), String> {
     // ADR-0042: a display-only summary from the reply that already happened; absent means the UI shows an excerpt.
     let summary = summary_line(&analysis);
     if !summary.is_empty() { store.put("goal_summary", goal_id, &crate::model::GoalSummary { goal_id: goal_id.into(), text: summary, created_at: crate::model::now() }, None)?; }
+    record_goal_origin(&store, goal_id, &project.id, &analysis, origin_status.as_ref(), origin_muted)?;
     let mut planning_goal = goal.clone();
     planning_goal.report = analysis.clone();
     store.put("goal", goal_id, &planning_goal, None)?;
@@ -859,6 +864,26 @@ fn connection(connections: &[AiConnection], agent: &Agent) -> Result<AiConnectio
     }
     if !agent.model_id.is_empty() { connection.model_id = agent.model_id.clone(); }
     Ok(connection)
+}
+
+/// ADR-0045: save the work kind and whether the planning card asks about the structure. A rerun keeps
+/// an earlier CEO answer; the structure write itself is a separate, confirmed command.
+fn record_goal_origin(store: &Store, goal_id: &str, project_id: &str, analysis: &str, status: Option<&crate::sdd_origin::OriginStatus>, muted: bool) -> Result<(), String> {
+    let work_kind = crate::sdd_origin::work_kind(analysis);
+    let previous: Option<crate::model::GoalOrigin> = store.get("goal_origin", goal_id)?;
+    let record = crate::model::GoalOrigin {
+        goal_id: goal_id.into(),
+        project_id: project_id.into(),
+        work_kind: work_kind.into(),
+        offered: status.is_some_and(|status| crate::sdd_origin::offer(work_kind, status, muted)),
+        mode: status.map(|status| status.mode.clone()).unwrap_or_default(),
+        advice: crate::sdd_origin::advice(analysis),
+        decision: previous.as_ref().and_then(|item| item.decision.clone()),
+        decided_at: previous.as_ref().and_then(|item| item.decided_at.clone()),
+        created_at: previous.map(|item| item.created_at).unwrap_or_else(crate::model::now),
+    };
+    let message = format!("CTO judged work kind {}{}", record.work_kind, if record.offered { "; structure question added to the planning card" } else { "" });
+    store.put("goal_origin", goal_id, &record, Some(NewEvent { kind: "goal_origin_recorded".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: None, message }))
 }
 
 fn project_for_goal(snapshot: &Snapshot, goal: &Goal) -> Result<Project, String> {

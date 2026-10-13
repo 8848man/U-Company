@@ -17,8 +17,13 @@ export type OriginStatus = {
   nextTask: string | null;
   scopes: { dir: string; mode: OriginMode; signals: OriginSignal[] }[];
   review: { path: string; reason: string }[];
+  /** "이 폴더는 묻지 않기" (ADR-0045); absent on an older backend. */
+  muted?: boolean;
 };
-export type OriginPlan = { action: OriginAction; changes: { path: string; change: OriginChange }[]; digest: string };
+export type OriginPlanChange = { path: string; change: OriginChange; before?: string; after?: string };
+export type OriginPlan = { action: OriginAction; changes: OriginPlanChange[]; digest: string };
+/** The CTO's work-kind judgement for one goal and the CEO's answer to the planning card's question (ADR-0045). */
+export type GoalOrigin = { goalId: string; projectId: string; workKind: 'development' | 'other' | string; offered: boolean; mode: string; advice?: string | null; decision?: string | null; decidedAt?: string | null; createdAt: string };
 
 export type OriginMessage = { headline: string; detail: string | null; notes: string[] };
 export type OriginChoice = { action: OriginAction; label: string; primary: boolean };
@@ -55,6 +60,37 @@ export function originMessage(status: OriginStatus): OriginMessage {
   if (others.length) notes.push(`함께 찾은 파일: ${others.join(', ')}`);
   notes.push('찾은 파일은 아래 "외부 명세 가져오기"에서 골라 미리볼 수 있어요.');
   return { headline, detail: 'U 컴퍼니 구조로 바꾸면 기존 파일은 .ucompany/legacy 폴더에 먼저 백업돼요.', notes };
+}
+
+/** Control line on the planning card: the two answers never stand in for each other. */
+export const PLANNING_CONTROL_LINE = '구조 답과 계획 승인은 따로예요 · 답하지 않아도 계획은 그대로 진행돼요';
+
+/** Lead sentence of the planning card's structure section. */
+export function planningLead(origin: GoalOrigin): string {
+  return origin.mode === 'bootstrap'
+    ? 'CTO가 이 목표를 개발 작업으로 봤어요. 다른 AI 툴도 이어서 일할 수 있게 프로젝트 구조를 잡을까요?'
+    : 'CTO가 이 목표를 개발 작업으로 봤어요. 이 프로젝트의 작업 규칙을 함께 확인해 주세요.';
+}
+
+/** What the CEO already answered, in plain words; null while the question is open. */
+export function answerLabel(decision: string | null | undefined): string | null {
+  if (!decision) return null;
+  if (decision.startsWith('applied:')) return `구조 질문에 답했어요: ${LABELS[decision.slice(8) as OriginAction] ?? '적용'}`;
+  if (decision === 'muted') return '이 폴더는 앞으로 구조를 묻지 않아요. 설정 › 프로젝트 명세에서 되돌릴 수 있어요.';
+  if (decision === 'declined') return '이번 목표에서는 구조를 잡지 않기로 했어요.';
+  return null;
+}
+
+/** One line when the planned roles lack a usable AI, from the engine's squad shortfall. */
+export function connectionGap(shortfall: string[] | undefined): string | null {
+  return shortfall && shortfall.length > 0 ? `계획에 필요한 역할에 쓸 수 있는 AI가 부족해요. AI를 연결할까요? (${shortfall.join(' · ')})` : null;
+}
+
+/** Entry files whose text changes, with before and after, for the confirmation's comparison view. */
+export function changePreviews(plan: OriginPlan): { path: string; label: string; before: string; after: string }[] {
+  return plan.changes
+    .filter(item => (item.change === 'append' || item.change === 'replace') && item.before !== undefined && item.after !== undefined)
+    .map(item => ({ path: item.path, label: CHANGE_LABELS[item.change], before: item.before ?? '', after: item.after ?? '' }));
 }
 
 const LABELS: Record<OriginAction, string> = { bootstrap: '구조 잡기', add_section: '절차 추가', convert: 'U 컴퍼니 구조로 바꾸기' };

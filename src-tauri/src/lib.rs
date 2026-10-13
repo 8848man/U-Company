@@ -24,7 +24,7 @@ use tauri::{Emitter, Manager};
 struct BackendInfo { protocol_version: u32, build_id: String }
 
 #[tauri::command]
-fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 33, build_id: meeting::meeting_build() } }
+fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 34, build_id: meeting::meeting_build() } }
 
 #[tauri::command]
 fn get_snapshot(store: tauri::State<'_, Store>) -> Result<Snapshot, String> { store.snapshot() }
@@ -116,7 +116,9 @@ fn create_portable_spec(project_id: String, store: tauri::State<'_, Store>, app:
 #[tauri::command]
 fn get_sdd_origin_status(project_id: String, store: tauri::State<'_, Store>) -> Result<sdd_origin::OriginStatus, String> {
     let project: Project = store.get("project_entry", &project_id)?.ok_or("등록된 프로젝트를 선택해 주세요")?;
-    sdd_origin::status(&project)
+    let mut status = sdd_origin::status(&project)?;
+    status.muted = sdd_origin::muted(&store, &project.id);
+    Ok(status)
 }
 
 #[tauri::command]
@@ -126,11 +128,50 @@ fn plan_sdd_origin(project_id: String, action: String, store: tauri::State<'_, S
 }
 
 #[tauri::command]
-fn apply_sdd_origin(project_id: String, action: String, digest: String, confirmed: bool, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<sdd_origin::OriginStatus, String> {
+fn apply_sdd_origin(project_id: String, action: String, digest: String, confirmed: bool, goal_id: Option<String>, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<sdd_origin::OriginStatus, String> {
     let project: Project = store.get("project_entry", &project_id)?.ok_or("등록된 프로젝트를 선택해 주세요")?;
-    let status = sdd_origin::apply(&project, &action, &digest, confirmed)?;
+    // ADR-0045: from the planning card, check the question is still open before writing anything.
+    let origin = match &goal_id { Some(id) => Some(open_goal_origin(&store, id, &project.id)?), None => None };
+    let mut status = sdd_origin::apply(&project, &action, &digest, confirmed)?;
+    status.muted = sdd_origin::muted(&store, &project.id);
+    if let Some(origin) = origin { record_origin_answer(&store, origin, &format!("applied:{action}"))?; }
     let _ = app.emit("state-changed", ());
     Ok(status)
+}
+
+fn open_goal_origin(store: &Store, goal_id: &str, project_id: &str) -> Result<model::GoalOrigin, String> {
+    let origin: model::GoalOrigin = store.get("goal_origin", goal_id)?.ok_or("이 목표에는 구조 질문이 없습니다")?;
+    sdd_origin::check_answerable(&origin, project_id)?;
+    Ok(origin)
+}
+
+fn record_origin_answer(store: &Store, mut origin: model::GoalOrigin, decision: &str) -> Result<(), String> {
+    origin.decision = Some(decision.into());
+    origin.decided_at = Some(model::now());
+    let message = format!("CEO answered the structure question: {decision}");
+    store.put("goal_origin", &origin.goal_id.clone(), &origin, Some(storage::NewEvent { kind: "goal_origin_answered".into(), goal_id: Some(origin.goal_id.clone()), task_id: None, agent_id: None, message }))
+}
+
+/// ADR-0045: answer the planning card's structure question without writing project files.
+/// `muted` also turns on "이 폴더는 묻지 않기" for the goal's project. Neither answer touches plan approval.
+#[tauri::command]
+fn decide_goal_origin(goal_id: String, decision: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
+    if decision != "declined" && decision != "muted" { return Err("알 수 없는 답입니다".into()); }
+    let saved: model::GoalOrigin = store.get("goal_origin", &goal_id)?.ok_or("이 목표에는 구조 질문이 없습니다")?;
+    let origin = open_goal_origin(&store, &goal_id, &saved.project_id)?;
+    if decision == "muted" { store.put("sdd_origin_mute", &origin.project_id.clone(), &model::OriginMute { project_id: origin.project_id.clone(), muted: true, changed_at: model::now() }, None)?; }
+    record_origin_answer(&store, origin, &decision)?;
+    let _ = app.emit("state-changed", ());
+    Ok(())
+}
+
+/// 설정 › 프로젝트 명세 shows and can undo "이 폴더는 묻지 않기".
+#[tauri::command]
+fn set_sdd_origin_mute(project_id: String, muted: bool, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
+    let _: Project = store.get("project_entry", &project_id)?.ok_or("등록된 프로젝트를 선택해 주세요")?;
+    store.put("sdd_origin_mute", &project_id, &model::OriginMute { project_id: project_id.clone(), muted, changed_at: model::now() }, Some(storage::NewEvent { kind: "sdd_origin_mute_changed".into(), goal_id: None, task_id: None, agent_id: None, message: if muted { "Structure question muted for this project".into() } else { "Structure question enabled for this project".into() } }))?;
+    let _ = app.emit("state-changed", ());
+    Ok(())
 }
 
 #[tauri::command]
@@ -672,7 +713,7 @@ pub fn run() {
             engine::resume_auto_guidance(app.handle());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
+        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
         .run(tauri::generate_context!())
         .expect("error while running AI Organization OS");
 }

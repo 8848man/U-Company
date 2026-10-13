@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { originChoices, originMessage, planRows, planSummary, type OriginStatus } from './sddOrigin';
+import { PLANNING_CONTROL_LINE, answerLabel, changePreviews, connectionGap, originChoices, originMessage, planRows, planSummary, planningLead, type OriginStatus } from './sddOrigin';
 
 const status = (patch: Partial<OriginStatus> = {}): OriginStatus => ({
   mode: 'bootstrap', scope: '.', evidence: [], followed: null, conflict: false, toolRules: [],
@@ -66,5 +66,33 @@ describe('originMessage notes', () => {
     const notes = originMessage(status({ mode: 'existing', evidence: ['AGENTS.md', 'CLAUDE.md', 'specs/'], followed: 'AGENTS.md', conflict: true, toolRules: ['CLAUDE.md'], actions: ['convert'] })).notes;
     expect(notes.filter(note => note.includes('CLAUDE.md'))).toHaveLength(1);
     expect(notes).toContain('함께 찾은 파일: specs/');
+  });
+});
+
+describe('planning card (ADR-0045)', () => {
+  const origin = { goalId: 'g', projectId: 'p', workKind: 'development', offered: true, mode: 'bootstrap', advice: null, decision: null, decidedAt: null, createdAt: 't' };
+  it('leads with the CTO judgement and never shows IDs', () => {
+    expect(planningLead(origin)).toContain('개발 작업');
+    expect(planningLead({ ...origin, mode: 'ask' })).toContain('작업 규칙');
+    expect(PLANNING_CONTROL_LINE).toContain('계획 승인은 따로');
+  });
+  it('turns a recorded answer into a plain sentence', () => {
+    expect(answerLabel(null)).toBeNull();
+    expect(answerLabel('applied:add_section')).toContain('절차 추가');
+    expect(answerLabel('declined')).toContain('잡지 않기로');
+    expect(answerLabel('muted')).toContain('설정 › 프로젝트 명세');
+  });
+  it('asks to connect an AI only when the squad has a shortfall', () => {
+    expect(connectionGap([])).toBeNull();
+    expect(connectionGap(undefined)).toBeNull();
+    expect(connectionGap(['검토자 1명 중 0명만 가능합니다'])).toContain('AI를 연결할까요?');
+  });
+  it('compares before and after only for changed entry files', () => {
+    const previews = changePreviews({ action: 'add_section', digest: 'd', changes: [
+      { path: 'AGENTS.md', change: 'append', before: '# Style\n', after: '# Style\n<!-- U-SDD:START -->' },
+      { path: '.ucompany/sdd/00_index.md', change: 'create' },
+      { path: 'CLAUDE.md', change: 'create' },
+    ] });
+    expect(previews).toEqual([{ path: 'AGENTS.md', label: '끝에 덧붙임', before: '# Style\n', after: '# Style\n<!-- U-SDD:START -->' }]);
   });
 });

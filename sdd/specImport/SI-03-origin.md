@@ -83,9 +83,9 @@ CLAUDE.md                      @AGENTS.md
 | GPT (Codex CLI) | 실측 대상 | `AGENTS.md` | 없음 |
 | Gemini CLI, Cursor, GitHub Copilot | placeholder, 미검증 | 미확인 | 만들지 않음 |
 
-## 후속 결정 (2026-10-13, 구현 전)
+## 계획 단계 질문 (ADR-0045)
 
-[ADR-0045](../architecture/decisions/ADR-0045.md)가 미뤄 둔 질문을 정했다. 다음 구현 묶음 전까지 위 계약은 그대로다.
+[ADR-0045](../architecture/decisions/ADR-0045.md)가 미뤄 둔 질문을 정했고, 같은 날 구현했다(백엔드 프로토콜 34). 위 쓰기 계약은 바뀌지 않는다. 계획 카드는 같은 미리보기·digest·확인을 거쳐 같은 세 동작을 부른다.
 
 1. 폴더 먼저: 등록·감지·세 동작은 AI 연결 없이 된다. 튜토리얼은 같은 단계를 다시 보여준다.
 2. 개발 목표만: CTO 분석이 목표마다 `development`·`other`를 판단하고, `development`일 때만 구조를 제안한다. 판단이 없거나 불분명하면 `other`로 보고 아무것도 제안하지 않는다.
@@ -95,6 +95,14 @@ CLAUDE.md                      @AGENTS.md
 6. 확인 창은 덧붙이거나 바꾸는 진입 파일의 전후를 보여준다. "이 폴더는 묻지 않기"는 프로젝트별 앱 설정이고 프로젝트 파일에 남기지 않는다.
 7. 구조 v0는 고정한다. 바꿀 때는 D1~D3 실측 근거와 새 ADR이 필요하다.
 
+구현 계약:
+
+- CTO 분석 직전에 정적 감지를 한 번 더 하고, 분석 프롬프트에 `업무:` 줄을 요구한다. 구조를 제안할 수 있고 애매한 후보가 있으면 그 경로와 이유만 넘기고 `구조 조언:` 한 줄을 요구한다. 엔진은 분석 뒤 `goal_origin` 기록(업무 종류, 제안 여부, 감지 분류, 조언, CEO 답)을 남긴다. 다시 실행해도 이미 받은 답은 지우지 않는다.
+- 제안 조건(`offer`): 업무가 `development`이고, 범위가 루트이고, 분류가 `continue`가 아니고, 할 수 있는 동작이 있고, 프로젝트가 "묻지 않기"가 아닐 때만.
+- 답: `apply_sdd_origin`에 `goalId`를 주면 쓰기 전에 그 질문이 열려 있는지(같은 프로젝트, 제안됨, 개발 목표, 미응답) 확인하고, 성공 후 `applied:<동작>`을 기록한다. `decide_goal_origin`은 `declined` 또는 `muted`를 기록하고 파일은 바꾸지 않는다. `muted`는 그 프로젝트의 "묻지 않기"를 켠다. `set_sdd_origin_mute`는 설정 카드에서 되돌린다. 세 명령 모두 계획 승인 상태를 읽거나 바꾸지 않는다.
+- 미리보기: `plan_sdd_origin`의 `append`·`replace` 항목은 전후 내용(`before`, `after`, 각각 6,000자까지 표시용)을 함께 돌려준다. 실제 쓰기는 자르지 않는다.
+- 연결 질문은 엔진이 이미 계산하는 스쿼드 부족(`shortfall`)을 그대로 보여주고 AI 연결 화면으로 안내한다. 연결을 저장하는 일은 기존 연결 기록이 남긴다.
+
 ## 관계와 소유 경계
 
 | 관계 | 대상 | 의미 |
@@ -102,8 +110,9 @@ CLAUDE.md                      @AGENTS.md
 | previews | [SI-01 검토 초안](SI-01-import.md) | `existing` 분류에서 찾은 파일을 기존 미리보기로 연다. |
 | references | [SI-02 공통 파일](SI-02-portable.md) | 같은 `.ucompany/` 폴더를 쓰지만 `spec.json`은 만들거나 바꾸지 않는다. |
 | refined_by | [ADR-0045](../architecture/decisions/ADR-0045.md) | 온보딩 순서, 개발 목표 한정, 계획 카드, 미리보기, v0 고정. |
+| asked_in | [UF-05 범위 승인](../userFlow/UF-05-approval.md) | 개발 목표의 계획 승인 카드에서 구조와 AI 연결을 함께 묻는다. |
 | constrains | [보안](../security.md) | 확인·digest·경로·심볼릭 링크 검사와 하네스 수정 승인. |
 
 ## 검증 참조
 
-[주제 수용 기준](acceptance.md), [Validation](../validation.md)의 SDD 구조 항목, 오프라인 하네스 [`tests/sdd-origin/`](../../tests/sdd-origin/README.md), [QA-43](../../qa/MANUAL-QA.md). 정책 번호(P#)와 화면 문구 초안은 하네스 README의 정책 대응표를 따른다.
+[주제 수용 기준](acceptance.md), [Validation](../validation.md)의 SDD 구조 항목, 오프라인 하네스 [`tests/sdd-origin/`](../../tests/sdd-origin/README.md), [QA-43·QA-44](../../qa/MANUAL-QA.md). 정책 번호(P#)와 화면 문구 초안은 하네스 README의 정책 대응표를 따른다.

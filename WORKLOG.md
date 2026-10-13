@@ -4,6 +4,18 @@
 
 작업 중 파일(다른 작업자는 동시에 수정하지 말 것): `src-tauri/src/sdd_origin.rs`, `src-tauri/src/spec_import.rs`(`project_root` 공개만), `src-tauri/src/lib.rs`(명령 3개·프로토콜), `src/sddOrigin.ts`, `src/SddOriginCard.tsx`, `src/SpecImportPanel.tsx`, `src/ux.css`, `tests/sdd-origin/` 및 아래 소유 문서.
 
+### M3 — 계획 승인 창의 작업 구조 질문 (완료, 오프라인 검증)
+
+작업 중 파일 추가: `src-tauri/src/engine.rs`(CTO 분석 프롬프트·`record_goal_origin`), `src-tauri/src/model.rs`, `src-tauri/src/storage.rs`, `src-tauri/src/archive.rs`, `src/PlanningOriginPanel.tsx`, `src/types.ts`, v1/v2/v3 `App.tsx` 승인 창.
+
+- [x] 변경: [ADR-0045](sdd/architecture/decisions/ADR-0045.md) 구현. CTO 분석이 `업무: 개발|기타` 줄을 내고, 구조를 제안할 수 있을 때만 정적 감지의 애매한 후보 경로를 받아 `구조 조언:` 한 줄을 낸다. 엔진은 분석 뒤 `goal_origin`(업무 종류·제안 여부·분류·조언·CEO 답)을 저장한다. 줄이 없거나 불분명하면 `기타`. 제안은 개발 목표·루트 범위·`continue` 아님·동작 있음·묻지 않기 아님일 때만. 명령 `decide_goal_origin`(건너뛰기·묻지 않기, 파일 무변경), `set_sdd_origin_mute`(설정에서 되돌리기), `apply_sdd_origin`의 `goalId`(쓰기 전 열린 질문인지 확인 후 답 기록). `plan_sdd_origin`이 덧붙이거나 바꾸는 진입 파일의 전후 내용을 함께 돌려준다. 백엔드 프로토콜 34(프런트 최소값 그대로, 옛 백엔드면 새 칸이 안 보일 뿐). 화면: 승인 창에 `작업 구조`(권장 동작은 "(권장)" 글자로만 표시해 승인 버튼만 강조 유지)와 스쿼드 부족 시 `AI 연결` 칸, 확인 창의 "바뀌는 내용 보기", 설정 카드의 "다시 묻기". 승인 창의 `나중에`·`거부` 줄바꿈도 고쳤다.
+- [x] 소유 문서: ADR-0045(구현 상태·결과), SI-03(계획 단계 질문 절과 구현 계약), DM-03(업무 종류 줄), Security, Validation, specImport 수용 기준 3개, UF-05, QA-44(신규), implementation-map 행, 하네스 README, ADR 색인.
+- [x] 하네스: `goal_cases.json`(CTO 분석 예시 G1~G7)과 `app_conformance.py` 4절. 실제 백엔드가 F0~F11 어느 것에도 개발이 아닌 목표·묻지 않기 프로젝트에 구조를 제안하지 않고, 개발 목표에는 F7(진행 중)·F8(하위 폴더)만 빼고 제안하며, G1~G7을 기대한 업무 종류로 읽는다.
+- [x] 검증(Linux 클라우드 작업 공간): `cargo test --locked --lib` 114 통과·2 무시(기준선 110 + 새 `sdd_origin` 4개: 업무 종류·조언 판독, 제안·답 가능 조건, 후보 목록 조건, 전후 미리보기). `cargo check --all-targets` 경고는 기존 `runtime.rs` 1건뿐. 세 프런트 `tsc` 통과, `vitest` 71 통과(기준선 67 + 4), 세 빌드 통과. `selftest.py` 62건 실패 0, `app_conformance.py` 실패 0(1~4절). 상대 링크 깨짐 0.
+- [x] 화면 점검(모의 Tauri 브리지 + headless Chromium, 계획 카드·확인 창 900/390px·건너뛴 뒤·설정의 묻지 않기): 강조 버튼은 `범위 확인 후 승인` 하나, 구조 칸 첫 문장으로 무엇을 묻는지 이해 가능, 통제 한 줄 "구조 답과 계획 승인은 따로예요 · 답하지 않아도 계획은 그대로 진행돼요", 깊이 1·2에 ID 없음, 호출된 명령이 각 버튼과 일치. 첫 렌더에서 구조 버튼이 승인 버튼과 같은 강조색이라 고쳤다. 앱 본문 최소 폭 800px 때문에 390px에서 가로 스크롤이 생기는 것은 기존 동작이다.
+- 남은 위험: 실제 Claude/Codex CTO가 `업무:` 줄을 안정적으로 내는지 미확인(안 내면 `기타`로 보고 묻지 않으므로 안전한 쪽으로 실패). 계획을 먼저 승인하면 창이 닫혀 구조 질문은 답 없이 남는다(설정 카드에서 계속 가능). 승인 대기 중 구조를 적용하면 계획 실행 전에 진입 파일이 생기지만, 작업 통합은 선언된 파일만 다루므로 계획 범위에는 영향이 없다. Windows 실행은 QA-44.
+- 다음: QA-43·QA-44. 툴 전용 지침의 "연결하기"(P11) 설계.
+
 ### M2 — 미정 항목 결정 기록 (완료, 문서만)
 
 - [x] CEO 결정(2026-10-13)을 [ADR-0045](sdd/architecture/decisions/ADR-0045.md)(신규, 색인)와 SI-03 "후속 결정" 절에 기록했다. 폴더 먼저, 개발 목표에만 구조 제안(CTO가 목표마다 판단), 계획 승인 카드에서 구조 잡기와 부족한 AI 연결을 함께 묻기, 애매한 후보는 첫 개발 목표의 CTO 분석에서 읽기, 화면 문구 원본은 구현, 진입 파일 전후 미리보기와 프로젝트별 "묻지 않기", 구조 v0 고정. ADR-0044 결과 절에 연결 한 줄.

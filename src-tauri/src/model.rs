@@ -447,6 +447,37 @@ pub struct GoalSummary {
     pub created_at: String,
 }
 
+/// ADR-0045: what the CTO analysis said about this goal's work kind, whether the planning card asks
+/// about the project structure, and the CEO's answer. Separate from plan approval in both directions.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GoalOrigin {
+    pub goal_id: String,
+    pub project_id: String,
+    /// `development` | `other`
+    pub work_kind: String,
+    pub offered: bool,
+    /// Detection mode when the analysis finished (`bootstrap` | `existing` | `ask` | `continue`).
+    pub mode: String,
+    #[serde(default)]
+    pub advice: Option<String>,
+    /// `applied:<action>` | `declined` | `muted`; absent while unanswered.
+    #[serde(default)]
+    pub decision: Option<String>,
+    #[serde(default)]
+    pub decided_at: Option<String>,
+    pub created_at: String,
+}
+
+/// Per-project "이 폴더는 묻지 않기" (ADR-0045). App state only, never written to project files.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct OriginMute {
+    pub project_id: String,
+    pub muted: bool,
+    pub changed_at: String,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageProvenance {
@@ -765,6 +796,8 @@ pub struct Snapshot {
     pub squads: Vec<Squad>,
     #[serde(default)]
     pub goal_summaries: Vec<GoalSummary>,
+    #[serde(default)]
+    pub goal_origins: Vec<GoalOrigin>,
     #[serde(default)]
     pub archived_goals: Vec<crate::archive::ArchivedGoal>,
     pub events: Vec<Event>,
