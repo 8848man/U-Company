@@ -67,9 +67,8 @@ export const PLANNING_CONTROL_LINE = '구조 답과 계획 승인은 따로예�
 
 /** Lead sentence of the planning card's structure section. */
 export function planningLead(origin: GoalOrigin): string {
-  return origin.mode === 'bootstrap'
-    ? 'CTO가 이 목표를 개발 작업으로 봤어요. 다른 AI 툴도 이어서 일할 수 있게 프로젝트 구조를 잡을까요?'
-    : 'CTO가 이 목표를 개발 작업으로 봤어요. 이 프로젝트의 작업 규칙을 함께 확인해 주세요.';
+  // The headline below already asks the question; this line only says why it is asked now.
+  return origin.mode === 'bootstrap' ? 'CTO가 이 목표를 개발 작업으로 봤어요.' : 'CTO가 이 목표를 개발 작업으로 봤어요. 이 프로젝트의 작업 규칙을 확인해 주세요.';
 }
 
 /** What the CEO already answered, in plain words; null while the question is open. */

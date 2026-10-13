@@ -74,6 +74,7 @@ describe('planning card (ADR-0045)', () => {
   it('leads with the CTO judgement and never shows IDs', () => {
     expect(planningLead(origin)).toContain('개발 작업');
     expect(planningLead({ ...origin, mode: 'ask' })).toContain('작업 규칙');
+    expect(planningLead(origin)).not.toContain('?');
     expect(PLANNING_CONTROL_LINE).toContain('계획 승인은 따로');
   });
   it('turns a recorded answer into a plain sentence', () => {

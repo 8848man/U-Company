@@ -11,3 +11,26 @@
 .v3 .v3-deliverables li.fail{color:#ff8a80}
 .v3 .v3-deliverables small{color:#98ab9f}
 @media (max-width:1120px){.v3 .v2-row{flex-wrap:wrap}}
+/* ADR-0046 one conversation per goal */
+.v3 .gc .gc-goal{align-self:flex-end;max-width:85%}
+.v3 .gc .gc-line{align-self:center;margin:0;padding:2px 10px;font-size:12px;color:#98ab9f;text-align:center}
+.v3 .gc .gc-line::before,.v3 .gc .gc-line::after{content:" — ";color:#4b6953}
+.v3 .gc .gc-plan{display:grid;gap:8px;padding:14px 16px;border:2px solid #8fd694;border-radius:12px;background:#1d2d24}
+.v3 .gc .gc-plan h3{margin:0;font-size:16px}
+.v3 .gc .gc-plan p{margin:0}
+.v3 .gc .gc-plan-counts{color:#cceb9f;font-weight:600}
+.v3 .gc .gc-plan-detail summary{cursor:pointer;color:#cceb9f;font-size:13px}
+.v3 .gc .gc-plan-detail[open]{display:grid;gap:10px}
+.v3 .gc .gc-plan-actions{display:flex;flex-wrap:wrap;gap:8px}
+.v3 .gc .gc-plan-actions button{min-width:76px;white-space:nowrap}
+.v3 .gc .gc-plan.is-closed{display:block;padding:8px 12px;border:1px solid #3c5843;border-radius:10px;background:none;font-size:13px}
+.v3 .gc .gc-plan.is-closed span{color:#98ab9f}
+.v3 .gc .gc-plan.is-closed details{margin-top:4px;font-size:12px}
+.v3 .gc .gc-plan .sdd-origin{margin:0}
+.v3 .gc .gc-result{border-color:#8fd694}
+.v3 .gc .gc-progress{display:flex;align-items:center;gap:8px;margin:0 20px 8px;padding:7px 14px;border:1px solid #3c5843;border-radius:999px;background:#1d2d24;color:#e5eee3;font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.v3 .gc .gc-progress:hover{border-color:#8fd694}
+.v3 .gc .gc-progress-dot{flex:none;width:8px;height:8px;border-radius:50%;background:#8fd694;animation:gc-pulse 1.6s ease-in-out infinite}
+@keyframes gc-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.v3 .gc .gc-progress-dot{animation:none}}
+.v3 .gc .gc-plan-extra{padding-top:6px;border-top:1px solid #3c5843}.v3 .gc .gc-plan-extra .spec-preview{padding:0;border:0;background:none}.v3 .gc .gc-plan-extra h3{font-size:13px;color:#98ab9f}
