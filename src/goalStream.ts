@@ -79,12 +79,17 @@ export function stageLines(goal: Goal, events: Event[]): StreamLine[] {
     else if (event.kind === 'sdd_updated') text = event.message.includes('(plan)') ? 'PM이 SDD에 기능·요구사항·작업 목록을 기록했어요' : 'PM이 SDD에 결과와 다음 작업을 기록했어요';
     else if (event.kind === 'sdd_update_failed') text = `SDD를 갱신하지 못했어요(작업은 계속돼요): ${event.message.replace(/^(plan|close): /, '').slice(0, 120)}`;
     else if (event.kind === 'approval_decided' && /^project_write: /.test(event.message)) text = event.message.endsWith('approved') ? 'CEO가 계획을 승인했어요' : null;
+    else if (event.kind === 'approval_decided' && /^project_write_scope: /.test(event.message)) text = event.message.endsWith('approved') ? 'CEO가 새 파일 추가를 승인했어요' : 'CEO가 새 파일 추가를 거절해 목표가 멈췄어요';
+    else if (event.kind === 'task_unchanged') text = '재작업 담당이 고칠 것이 없다고 판단해 QA가 다시 확인해요';
     if (text) lines.push({ id: `event:${event.id}`, at: event.at, text });
   }
   return lines.sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id));
 }
 
-export type PlanCard = { approval: Approval; current: boolean; status: 'pending' | 'approved' | 'denied' | 'other'; summary: string; counts: string; firstLine: string };
+/** ADR-0053: approval operation for files added to a repair on the same goal. */
+export const SCOPE_OPERATION = 'project_write_scope';
+
+export type PlanCard = { approval: Approval; current: boolean; status: 'pending' | 'approved' | 'denied' | 'other'; summary: string; counts: string; firstLine: string; scope: boolean };
 
 /** Plan cards for this goal's project-write approvals, oldest first. Only the pending one is current. */
 export function planCards(goal: Goal, approvals: Approval[], tasks: Task[], summary: string | null): PlanCard[] {
@@ -93,15 +98,17 @@ export function planCards(goal: Goal, approvals: Approval[], tasks: Task[], summ
   const files = new Set(owned.flatMap(task => task.files)).size;
   const counts = owned.length ? `작업 ${owned.length}개 · 팀원 ${assignees}명 · 파일 ${files}개` : '';
   return approvals
-    .filter(item => item.goalId === goal.id && item.operation === 'project_write')
+    .filter(item => item.goalId === goal.id && (item.operation === 'project_write' || item.operation === SCOPE_OPERATION))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     .map(approval => {
       const status = approval.status === 'pending' || approval.status === 'approved' || approval.status === 'denied' ? approval.status : 'other';
-      return { approval, current: status === 'pending', status, summary: summary ?? '', counts: status === 'pending' || status === 'approved' ? counts : '', firstLine: approval.reason.split('\n')[0] };
+      const scope = approval.operation === SCOPE_OPERATION;
+      return { approval, current: status === 'pending', status, summary: scope ? '' : summary ?? '', counts: !scope && (status === 'pending' || status === 'approved') ? counts : '', firstLine: approval.reason.split('\n')[0], scope };
     });
 }
 
 /** Collapsed label of a decided plan card. */
 export function planCardLabel(card: PlanCard): string {
+  if (card.scope) return card.status === 'pending' ? '고칠 때 새 파일이 필요해요' : card.status === 'approved' ? '파일 추가 · CEO가 승인함' : card.status === 'denied' ? '파일 추가 · CEO가 거절함' : '파일 추가 · 바뀜';
   return card.status === 'pending' ? '계획이 나왔어요' : card.status === 'approved' ? '계획 · CEO가 승인함' : card.status === 'denied' ? '계획 · CEO가 거부함' : '계획 · 바뀜';
 }

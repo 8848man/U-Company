@@ -48,6 +48,7 @@
 | [ADR-0044](ADR-0044.md) | Consent-gated SDD origin: detect, follow, or bootstrap a project structure | Accepted; narrows the harness-entry rule in SI-02/Security, refines ADR-0021 |
 | [ADR-0045](ADR-0045.md) | SDD origin in onboarding and planning: folder first, development goals only | Accepted, implemented (protocol 34); refines ADR-0044 |
 | [ADR-0046](ADR-0046.md) | One conversation per goal: plan card, revise, cancel, and an in-app Office window | Accepted (v3); refines ADR-0042, ADR-0045 |
+| [ADR-0053](ADR-0053.md) | A repair that needs new files asks on the same goal; a repair with nothing to change goes back to QA | Accepted; refines ADR-0048, ADR-0051 |
 | [ADR-0052](ADR-0052.md) | Prove goal completion with a mock AI and close usability gaps in rounds | Accepted; refines ADR-0002, ADR-0048, ADR-0051 |
 | [ADR-0051](ADR-0051.md) | Goal versions read as one conversation | Accepted; refines ADR-0048, ADR-0043, ADR-0046 |
 | [ADR-0050](ADR-0050.md) | The PM maintains the project's U-SDD | Accepted; refines ADR-0044, ADR-0045 |

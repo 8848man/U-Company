@@ -5,7 +5,8 @@
 // 사용: node mock-adapter.mjs [--scenario <json>] [--mode qa-fail-once,plan-form-once,needs-scope-once] [--state <dir>]
 //   qa-fail-once     같은 목표의 첫 QA를 FAIL로 내고 다음 QA부터 통과(재작업 경로)
 //   plan-form-once   첫 PM 계획을 형식 위반(수용 기준 9개)으로 내고 앱의 재요청에 고쳐 냄(ADR-0048)
-//   needs-scope-once 재작업 계획이 README.md를 함께 요구함(승인 범위에 없으면 needs_scope, ADR-0053)
+//   needs-scope-once 재작업 계획이 README.md를 함께 요구함(같은 목표의 파일 추가 승인, ADR-0053)
+//   repair-no-change 재작업 담당이 "고칠 것 없음"으로 파일을 그대로 둠(ADR-0053)
 // 의존성 없음. 진단은 stderr로만 쓴다(앱은 stderr를 버린다).
 
 import { createHash } from 'node:crypto';
@@ -109,7 +110,9 @@ export function respond(prompt, cwd, options, scenario) {
       return JSON.stringify({ tasks, reusedTaskIds: [], squad: { structure: 'standard', reason: '모의 AI: 독립된 파일 묶음 두 개라 기본 팀이면 충분해요' } });
     }
     case 'repair_plan': {
-      const approved = listAfter(prompt, 'You may modify ONLY these CEO-approved files: ', '. Never request');
+      const approved = prompt.includes('Use these CEO-approved files: ')
+        ? listAfter(prompt, 'Use these CEO-approved files: ', '. A new file needs')
+        : listAfter(prompt, 'You may modify ONLY these CEO-approved files: ', '. Never request');
       // The engine lists approved files in lower case; the repair fixes the first task's files.
       const first = scenario.tasks[0];
       const owned = first.files.filter(file => approved.includes(file.toLowerCase()));
@@ -128,6 +131,7 @@ export function respond(prompt, cwd, options, scenario) {
         const base = scenario.files[file] ?? scenario.files[Object.keys(scenario.files).find(name => name.toLowerCase() === file.toLowerCase()) ?? ''];
         let content = base ?? `# ${file}\n\n모의 AI가 만든 파일이에요. 실행 방법: index.html을 브라우저로 열고, 테스트는 \`node --test\`로 돌려요.\n`;
         // A repair changes the file visibly, as a real fix would (the engine rejects a task with no change).
+        if (repair && options.modes.has('repair-no-change') && existsSync(target)) continue;
         if (repair) content += remark(file);
         mkdirSync(dirname(target), { recursive: true });
         writeFileSync(target, content);

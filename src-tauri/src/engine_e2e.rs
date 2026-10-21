@@ -104,6 +104,12 @@ impl Harness {
         }).unwrap();
     }
 
+    /// `거부` on a scope-addition card: the plain approval decision.
+    pub fn deny(&self, goal_id: &str) {
+        let approval = self.pending_approval(goal_id);
+        self.store().transact(|tx| { let mut decided = approval.clone(); decided.status = "denied".into(); crate::storage::tx_put(tx, "approval", &approval.id, &decided) }).unwrap();
+    }
+
     pub fn tasks(&self, goal_id: &str) -> Vec<Task> { self.store().list::<Task>("task").unwrap().into_iter().filter(|task| task.goal_id == goal_id).collect() }
 
     pub fn event_kinds(&self, goal_id: &str) -> Vec<String> {
@@ -168,4 +174,65 @@ fn a_restart_while_waiting_for_approval_keeps_the_approval_pending() {
     let after: Approval = reopened.get("approval", &approval.id).unwrap().unwrap();
     assert_eq!(after.status, "pending", "waiting never silently becomes approval");
     assert!(!h.root.join("todo.js").exists());
+}
+
+/// Waits until a second pending approval (the scope addition) appears for the goal.
+fn wait_scope_approval(h: &Harness, id: &str) -> Approval {
+    let deadline = Instant::now() + Duration::from_secs(60);
+    loop {
+        let found = h.store().list::<Approval>("approval").unwrap().into_iter().find(|item| item.goal_id.as_deref() == Some(id) && item.status == "pending" && item.operation == crate::engine::SCOPE_OPERATION);
+        if let Some(approval) = found { h.wait(id, &["awaiting_approval"]); return approval; }
+        let goal = h.goal(id);
+        assert!(!["completed", "blocked"].contains(&goal.status.as_str()), "goal ended as {} before asking for scope: {}", goal.status, goal.report);
+        assert!(Instant::now() < deadline, "no scope approval");
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+#[test]
+fn a_repair_that_needs_a_new_file_asks_on_the_same_goal_and_completes() {
+    let Some(h) = harness(&["qa-fail-once", "needs-scope-once"]) else { return };
+    let id = h.submit(GOAL);
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    let scope = wait_scope_approval(&h, &id);
+    assert!(scope.reason.contains("README.md"), "the card names the new file: {}", scope.reason);
+    let before = std::fs::read_to_string(h.root.join("README.md")).unwrap();
+    assert_eq!(before, "# 샘플 프로젝트\n", "nothing changes before the CEO decides");
+    h.approve(&id);
+    let goal = h.wait(&id, &["completed"]);
+    assert_eq!(goal.review_loops_used, 1);
+    assert_ne!(std::fs::read_to_string(h.root.join("README.md")).unwrap(), before, "the added file was changed by the repair");
+    let versions = h.store().list::<Goal>("goal").unwrap().len();
+    assert_eq!(versions, 1, "no new goal version");
+}
+
+#[test]
+fn a_denied_scope_addition_blocks_as_needs_scope_without_changing_files() {
+    let Some(h) = harness(&["qa-fail-once", "needs-scope-once"]) else { return };
+    let id = h.submit(GOAL);
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    wait_scope_approval(&h, &id);
+    h.deny(&id);
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let goal = loop {
+        let goal = h.goal(&id);
+        if goal.status == "blocked" { break goal; }
+        assert!(Instant::now() < deadline, "still {}", goal.status);
+        std::thread::sleep(Duration::from_millis(100));
+    };
+    assert_eq!(goal.block_kind, "needs_scope");
+    assert_eq!(std::fs::read_to_string(h.root.join("README.md")).unwrap(), "# 샘플 프로젝트\n");
+}
+
+#[test]
+fn a_repair_with_nothing_to_change_goes_back_to_qa_instead_of_blocking() {
+    let Some(h) = harness(&["qa-fail-once", "repair-no-change"]) else { return };
+    let id = h.submit(GOAL);
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    let goal = h.wait(&id, &["completed"]);
+    assert_eq!(goal.review_loops_used, 1);
+    assert!(h.event_kinds(&id).contains(&"task_unchanged".to_string()));
 }

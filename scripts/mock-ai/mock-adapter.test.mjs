@@ -70,7 +70,7 @@ describe('mock AI adapter', () => {
   });
 
   it('asks for README.md in a repair until it is approved (needs-scope-once)', () => {
-    const repair = approved => `planning repairs after QA rejected the team's integrated work. You may modify ONLY these CEO-approved files: ${approved}. Never request a new file`;
+    const repair = approved => `planning repairs after QA rejected the team's integrated work. Use these CEO-approved files: ${approved}. A new file needs the CEO's approval`;
     const asking = JSON.parse(respond(repair('todo.js, todo.test.js'), tmpdir(), options(['needs-scope-once']), scenario));
     expect(asking.tasks[0].files).toContain('README.md');
     const inScope = JSON.parse(respond(repair('todo.js, todo.test.js, readme.md'), tmpdir(), options(['needs-scope-once']), scenario));

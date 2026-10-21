@@ -27,6 +27,16 @@
 - [x] 명세: Validation "Whole-goal tests with the mock AI".
 - [x] 검증: `cargo test --locked --lib` 153 통과·2 무시(기준선 149 + 4), 앱 데이터 폴더에 시험 흔적 없음.
 
+### R3 — 재작업 범위 추가와 "고칠 것 없음" 재작업 (완료, 오프라인·모의 시험 검증)
+
+- [x] 결정: [ADR-0053](sdd/architecture/decisions/ADR-0053.md)(신규, 색인). 명세: Security(범위 추가 승인 규칙), DM-05(`needs_scope` 의미), UF-05 4단계.
+- [x] 엔진: 재작업 계획이 승인 범위 밖 파일을 요구하면 같은 목표에서 `project_write_scope` 승인(새 파일 목록·재작업 계획)을 만들고 버튼 결정을 기다린다. 승인 → 같은 목표에서 재작업, 다음 재작업의 범위는 목표의 업무 파일에서 읽음. 거절 → `needs_scope` 멈춤(파일 무변경). 최대 8개, `AGENTS.md`·`CLAUDE.md`·`.ucompany/`는 추가 불가. 재작업 요청문을 "승인 파일 사용, 새 파일은 CEO 승인 필요"로 바꿈.
+- [x] 엔진: 바꾼 파일이 없는 재작업 업무는 메모와 함께 완료(`task_unchanged`)하고 다음 QA가 판정. 처음 업무의 무변경은 그대로 통합 실패.
+- [x] 화면: 계획 카드 목록에 범위 추가 카드(`고칠 때 새 파일이 필요해요`, `파일 추가 승인`·`거절`, `개선` 없음). 진행 줄 2종(파일 추가 승인/거절, 고칠 것 없음).
+- [x] 모의 AI: 재작업 요청문 새 문구 지원, 방식 `repair-no-change`.
+- [x] 검증: `cargo test --locked --lib` 156 통과·2 무시(기준선 153 + 3 종단: 범위 추가 승인 후 같은 목표 완주·목표 버전 1개, 거절 시 `needs_scope`·파일 무변경, 무변경 재작업 후 완주; +1 `scope_addition` 규칙, 기존 `validate_repair_scope` 시험 대체), `vitest` 112(+1 범위 카드), 세 프런트 `tsc`.
+- 남은 위험: 범위 승인 대기 중 앱을 재시작하면 목표는 중단되고 `해결 요청`은 새 버전으로 간다. 실제 AI PM이 새 파일을 꼭 필요할 때만 요구하는지는 실제 AI 시험(샘플 앱 흐름 B)에서 본다.
+
 ## 대화형 목표 흐름 (2026-10-14, Claude Cowork)
 
 작업 중 파일(다른 작업자는 동시에 수정하지 말 것): v3 화면(`v3/src/`), `src/GoalConversationChat.tsx`와 새 대화 부품, Office 창, 그리고 M3에서 `src-tauri/src/engine.rs`·`lib.rs`·`model.rs`(개선·취소).

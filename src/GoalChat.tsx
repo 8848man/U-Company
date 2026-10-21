@@ -152,6 +152,17 @@ export function GoalChat(props: Props) {
   }
 
   function planCardView(card: PlanCard) {
+    // ADR-0053: a repair that needs new files asks once on the same goal; 거절 stops the goal (no cancel).
+    if (card.scope && card.current) return <section className="gc-plan is-scope" key={card.approval.id} aria-label="파일 추가 확인">
+      <h3>{planCardLabel(card)}</h3>
+      <p>{card.firstLine}</p>
+      <details className="gc-plan-detail"><summary>재작업 계획 보기</summary><ContentPreview><pre className="report">{card.approval.reason}</pre></ContentPreview></details>
+      <small className="muted">승인하면 같은 목표에서 이 파일들까지 고쳐요 · 거절하면 목표가 멈추고 새 계획 버전으로 이어갈 수 있어요</small>
+      <div className="gc-plan-actions">
+        <button type="button" className="primary" disabled={working} onClick={() => void guarded(() => onDecide(card.approval.id, true, null)).then(scrollDown)}>파일 추가 승인</button>
+        <button type="button" className="secondary" disabled={working} onClick={() => void guarded(() => onDecide(card.approval.id, false, null)).then(scrollDown)}>거절</button>
+      </div>
+    </section>;
     if (!card.current) return <div className="gc-plan is-closed" key={card.approval.id}><strong>{planCardLabel(card)}</strong>{card.counts && <span> · {card.counts}</span>}<details><summary>승인 범위 보기</summary><ContentPreview><pre className="report">{card.approval.reason}</pre></ContentPreview></details></div>;
     return <section className="gc-plan" key={card.approval.id} aria-label="계획 확인">
       <h3>{planCardLabel(card)}</h3>
