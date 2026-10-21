@@ -96,6 +96,14 @@
 - [x] 검증: 세 프런트 `tsc`, `vitest` 97, v3 빌드, `cargo check`. 모의 앱에서 PNG·md·txt 세 파일을 끌어 놓기 → 안내 표시, 자식 위 이동에도 유지, 놓은 뒤 사라짐, 상자 3개, × 로 1개 삭제, 콘솔 오류 0.
 - 남은 위험: WebView2 실제 끌어놓기는 QA-47로 확인한다.
 
+### M11 — PM이 SDD를 관리 (완료, 오프라인 검증)
+
+- [x] 찾음(2026-10-15 CEO): 샘플 프로젝트의 `.ucompany/sdd`가 뼈대 그대로였다. 원인은 CTO·PM 요청문에 SDD가 없고 계획에 SDD 파일이 들어가지 않으며, AGENTS.md 안내대로 팀원이 고치면 선언하지 않은 파일 변경으로 거절되는 구조였다(공용 파일은 두 업무가 함께 맡을 수도 없음).
+- [x] 결정: [ADR-0050](sdd/architecture/decisions/ADR-0050.md)(신규, 색인), SI-03, 보안 명세, 구현 지도, QA-48.
+- [x] 변경: SDD가 있으면 CTO·PM이 색인·헌법·handoff·다음 작업을 읽고 시작한다. 계획 업무는 `.ucompany/sdd/`를 바꿀 파일로 적을 수 없다. 승인 직후와 QA 통과 뒤 PM이 격리 작업 폴더에서 SDD를 쓰고(기능·요구사항·계획·작업 목록 / 체크·결정·handoff·색인), `.ucompany/sdd/` 밖을 바꾸면 그 단계 전체를 반영하지 않는다. 단계는 목표·단계마다 한 번, 실패해도 목표는 계속되고 대화에 한 줄. 승인 범위에 PM의 SDD 관리를 적고, AGENTS.md의 앱 구간만 새 문구(PM 관리, 다른 팀원은 읽기만)로 바꾼다.
+- [x] 검증: `cargo test --lib` 147(기준선 145 + SDD 단계 반영 범위 Git·폴더 1, AGENTS 구간 갱신·읽기 맥락 1), `vitest` 98(+1).
+- 남은 위험: SDD 프로젝트는 목표마다 PM 호출이 두 번 늘어난다. 실제 문서 품질은 QA-48로 확인한다.
+
 ## 프로젝트 작업 규칙 감지와 구조 잡기 (2026-10-12, Claude Cowork)
 
 작업 중 파일(다른 작업자는 동시에 수정하지 말 것): `src-tauri/src/sdd_origin.rs`, `src-tauri/src/spec_import.rs`(`project_root` 공개만), `src-tauri/src/lib.rs`(명령 3개·프로토콜), `src/sddOrigin.ts`, `src/SddOriginCard.tsx`, `src/SpecImportPanel.tsx`, `src/ux.css`, `tests/sdd-origin/` 및 아래 소유 문서.

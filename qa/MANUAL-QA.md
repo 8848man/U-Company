@@ -320,6 +320,13 @@ try { node --test } finally { Pop-Location }
 - [ ] 작업이 끝난 뒤 `work-references/`의 파일이 바뀌지 않았고 결과에 섞이지 않았는지 확인한다.
 - [ ] 같은 자료를 목표 문장에 직접 붙여 넣은 목표와 토큰 사용량을 비교해 기록한다.
 
+### QA-48 PM의 SDD 관리 (ADR-0050)
+
+- [ ] SDD가 있는 프로젝트(예: `D:\projects\샘플_폴더\샘플프로젝트`)에서 개발 목표를 보낸다. 계획 카드 승인 범위에 "SDD: 승인하면 PM이 `.ucompany/sdd/`를 함께 관리합니다"가 보이고, 어떤 업무의 바꿀 파일에도 `.ucompany/sdd/`가 없어야 한다.
+- [ ] 승인 뒤 대화에 "PM이 SDD에 기능·요구사항·작업 목록을 기록했어요"가 보이고, `.ucompany/sdd/features/<기능>/`에 feature·requirements·plan·tasks와 갱신된 `00_index.md`·`graph.json`(focus)·`handoff.md`가 있어야 한다. 예전 문구의 AGENTS.md 구간은 새 문구로 바뀌고 구간 밖은 그대로여야 한다.
+- [ ] QA 통과 뒤 "PM이 SDD에 결과와 다음 작업을 기록했어요"가 보이고, `tasks.md` 체크박스와 `handoff.md`가 갱신돼야 한다. `git status`에 `.ucompany/sdd/` 밖의 예상치 못한 변경이 없어야 한다.
+- [ ] 다음 목표에서 CTO 분석이 SDD의 진행 중 기능과 다음 작업을 언급하는지 확인한다.
+
 ## 결과 기록
 
 각 항목을 `PASS`, `FAIL`, `BLOCKED`, `NOT RUN` 중 하나로 표시한다. 실패 시 목표 ID, 화면의 오류 문구, `.run-data/startup-logs`의 해당 실행 로그, 시험 저장소의 `git status --short`, 기대 결과와 실제 결과를 함께 남긴다. QA-09 이후 실패했다면 저장된 worktree를 조사할 수 있도록 시험 디렉터리를 보존한다. 이 기록만으로 Ubuntu 지원 또는 미구현 복구 기능을 통과 처리하지 않는다.

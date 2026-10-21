@@ -74,4 +74,12 @@ describe('plan cards', () => {
     expect(cards[1].summary).toBe('마감일 기능을 넣어요');
     expect(cards.map(planCardLabel)).toEqual(['계획 · 바뀜', '계획이 나왔어요']);
   });
+  it('says when the PM recorded the goal in the SDD, and that a failed SDD step does not stop the work', () => {
+    const at = '2026-10-15T00:00:00Z';
+    const lines = stageLines(goal('executing'), [
+      { id: 1, at, kind: 'sdd_updated', goalId: 'g', taskId: null, agentId: null, message: 'PM updated the SDD (plan): .ucompany/sdd/features/due/tasks.md' },
+      { id: 2, at, kind: 'sdd_update_failed', goalId: 'g', taskId: null, agentId: null, message: 'close: PM이 SDD 밖의 파일(app.py)을 바꿔 아무것도 반영하지 않았습니다' },
+    ]);
+    expect(lines.map(line => line.text)).toEqual(['PM이 SDD에 기능·요구사항·작업 목록을 기록했어요', 'SDD를 갱신하지 못했어요(작업은 계속돼요): PM이 SDD 밖의 파일(app.py)을 바꿔 아무것도 반영하지 않았습니다']);
+  });
 });

@@ -75,6 +75,21 @@ pub fn prepare_folder_copy(root: &Path, workspace: &Path) -> Result<(), String> 
     copy_folder_files(&baseline, workspace, &files)
 }
 
+/// Project-relative paths that differ between a folder-copy workspace and its baseline.
+pub fn folder_changes(workspace: &Path) -> Result<Vec<String>, String> {
+    let baseline = workspace.with_extension("baseline");
+    let before = folder_files(&baseline)?;
+    let after = folder_files(workspace)?;
+    let names: BTreeSet<_> = before.keys().chain(after.keys()).cloned().collect();
+    let mut changes = Vec::new();
+    for relative in names {
+        let old = if before.contains_key(&relative) { Some(std::fs::read(baseline.join(&relative)).map_err(|e| e.to_string())?) } else { None };
+        let new = if after.contains_key(&relative) { Some(std::fs::read(workspace.join(&relative)).map_err(|e| e.to_string())?) } else { None };
+        if old != new { changes.push(relative.to_string_lossy().replace('\\', "/")); }
+    }
+    Ok(changes)
+}
+
 pub fn integrate_folder_copy(root: &Path, workspace: &Path, allowed_files: &[String]) -> Result<Vec<String>, String> {
     let baseline = workspace.with_extension("baseline");
     let before = folder_files(&baseline)?;
