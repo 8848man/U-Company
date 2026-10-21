@@ -29,6 +29,7 @@ export const blockKindLabels: Record<BlockKind, string> = {
   integration_conflict: '파일 통합 충돌 · 원본 보존',
   qa_failed: 'QA 실패 · 재작업 한도 또는 범위 초과',
   qa_form: 'QA 판정 형식 오류 · 완료 처리 안 함',
+  plan_form: 'PM 계획 형식 오류 · 한 번 고쳐 받았지만 다시 틀림',
   provider: '실행 중 AI 호출 실패',
   other: '실행 중단',
 };

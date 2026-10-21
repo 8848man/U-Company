@@ -9,9 +9,9 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 pub const CAPABILITIES: [&str; 2] = ["document", "code"];
-const MAX_CRITERIA: usize = 8;
-const MAX_EVIDENCE: usize = 8;
-const CRITERION_CHARS: usize = 300;
+pub const MAX_CRITERIA: usize = 8;
+pub const MAX_EVIDENCE: usize = 8;
+pub const CRITERION_CHARS: usize = 300;
 
 /// Contract fields of one proposed task as they come from the PM plan.
 pub struct ContractInput<'a> {
@@ -26,7 +26,8 @@ pub struct ContractInput<'a> {
 
 const MARK_OPEN: &str = "⟦";
 const MARK_CLOSE: &str = "⟧ ";
-pub const BLOCK_KINDS: [&str; 8] = ["precall", "approval_denied", "interrupted", "integration_conflict", "qa_failed", "qa_form", "provider", "other"];
+/// `plan_form` (ADR-0048): the planner's plan failed the app's format checks twice in a row.
+pub const BLOCK_KINDS: [&str; 9] = ["precall", "approval_denied", "interrupted", "integration_conflict", "qa_failed", "qa_form", "plan_form", "provider", "other"];
 
 /// Tags an engine-generated error with its block kind. Only engine code calls this; model text is
 /// never parsed for a kind because provider errors are passed through `provider` sites.

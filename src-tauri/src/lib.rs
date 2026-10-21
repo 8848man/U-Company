@@ -12,6 +12,7 @@ mod runtime;
 mod spec_import;
 mod sdd_origin;
 mod plan_review;
+mod team_fix;
 mod squad;
 mod archive;
 mod storage;
@@ -25,7 +26,7 @@ use tauri::{Emitter, Manager};
 struct BackendInfo { protocol_version: u32, build_id: String }
 
 #[tauri::command]
-fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 35, build_id: meeting::meeting_build() } }
+fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 36, build_id: meeting::meeting_build() } }
 
 #[tauri::command]
 fn get_snapshot(store: tauri::State<'_, Store>) -> Result<Snapshot, String> { store.snapshot() }
@@ -497,6 +498,12 @@ fn send_goal_message(goal_id: String, agent_id: String, message: String, store: 
     Ok(turn)
 }
 
+/// ADR-0048: the recovery card's one-click fix request.
+#[tauri::command]
+fn request_team_fix(goal_id: String, app: tauri::AppHandle) -> Result<GoalTurn, String> {
+    engine::request_team_fix(app, goal_id)
+}
+
 #[tauri::command]
 fn propose_goal_change(goal_id: String, text: String, agent_id: Option<String>, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<GoalGuidance, String> {
     let text = text.trim();
@@ -730,7 +737,7 @@ pub fn run() {
             engine::resume_auto_guidance(app.handle());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, revise_plan, cancel_goal, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
+        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, request_team_fix, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, revise_plan, cancel_goal, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
         .run(tauri::generate_context!())
         .expect("error while running AI Organization OS");
 }

@@ -4,7 +4,7 @@ import { GoalGraph } from './OfficeActivity';
 import { GitBootstrapPanel } from './GitBootstrapPanel';
 import type { GitBootstrapPreview, GitBootstrapResult } from './GitBootstrapPanel';
 import { goalBrief, goalStageLabel, taskStageLabel } from './goalBrief';
-import { goalRecovery } from './goalRecovery';
+import { fixReceiver, goalRecovery, teamFixRoute } from './goalRecovery';
 import { runtimeRecovery } from './providerRecovery';
 import { goalTitle } from './progress';
 import { blockFacts, deliverableRows } from './deliverables';
@@ -31,6 +31,8 @@ type Props = {
   onRevision: (id: string, intent: string) => Promise<boolean>;
   onOpenGoal: (id: string) => void;
   onRetry: () => Promise<boolean>; onResume: () => Promise<boolean>;
+  /** ADR-0048: one-click `해결 요청` on a blocked goal (`request_team_fix`). */
+  onRequestFix?: () => Promise<boolean>;
   onDecide: (approvalId: string, approved: boolean, squadDigest: string | null) => Promise<boolean>;
   /** ADR-0046 M3: `개선` (same goal, new plan) and `거부` (cancel the goal); `다시 시작` sends the same goal again. */
   onRevise: (approvalId: string, note: string) => Promise<boolean>; onCancel: (approvalId: string) => Promise<boolean>; onRestart: (intent: string) => Promise<boolean>;
@@ -55,7 +57,7 @@ type StreamItem =
 
 /** v3 goal conversation (ADR-0046): the goal, stage lines, plan cards and recovery in one stream, with a progress line. */
 export function GoalChat(props: Props) {
-  const { goal, projectKind, focusTaskId = null, turns, guidance, agents, connections, tasks, approvals, events, usage, reviews, runBlock, squad, squads, summary, goalOrigins, projects, layout = 'dialog', onClose, onSend, onArchive, onRevision, onOpenGoal, onRetry, onResume, onDecide, onRevise, onCancel, onRestart, onSwapSquad, onAddSquad, onOpenConnections, onOpenOffice, onOpenTeam, onOpenProject, onError, onPreviewGit, onBootstrapGit } = props;
+  const { goal, projectKind, focusTaskId = null, turns, guidance, agents, connections, tasks, approvals, events, usage, reviews, runBlock, squad, squads, summary, goalOrigins, projects, layout = 'dialog', onClose, onSend, onArchive, onRevision, onOpenGoal, onRetry, onResume, onRequestFix, onDecide, onRevise, onCancel, onRestart, onSwapSquad, onAddSquad, onOpenConnections, onOpenOffice, onOpenTeam, onOpenProject, onError, onPreviewGit, onBootstrapGit } = props;
   const focusTask = tasks.find(task => task.id === focusTaskId && task.goalId === goal.id);
   const [draft, setDraft] = useState(focusTask ? `"${focusTask.title.slice(0, 120)}" 업무는 지금 어디까지 했고, 막힌 점이 있나요? 제 결정이 필요하면 알려 주세요.` : '');
   const [improving, setImproving] = useState<string | null>(null);
@@ -90,6 +92,8 @@ export function GoalChat(props: Props) {
   const taskWindow = useLimitedItems(ownedTasks);
   // The decision that needs the CEO now, outside the plan card: start, recovery or a guidance review.
   const decision = recovery && recovery.kind !== 'approval' ? recovery : null;
+  const fix = decision?.kind === 'revision' ? teamFixRoute(goal, tasks, approvals, guidance) : null;
+  const fixReceiverName = fixReceiver(goal.id, squads, agents);
   const todoTitle = goal.status === 'new' ? (runBlock ? runBlock.title : '팀 실행 시작') : decision?.label ?? null;
 
   const stream: StreamItem[] = [
@@ -185,13 +189,16 @@ export function GoalChat(props: Props) {
       {goal.status === 'new' ? <><span className="card-kicker">지금 할 일</span><h3>{runBlock ? runBlock.title : '팀 실행 시작'}</h3><p>{runBlock ? `${runBlock.reason} ${runBlock.next}` : '목표를 팀에 전달했습니다. 시작하면 AI 팀이 분석합니다.'}</p><div className="chat-decision-actions"><button type="button" className="primary" disabled={working || Boolean(runBlock)} onClick={() => void guarded(onRetry)}>팀 실행 시작 →</button>{runBlock && <button type="button" className="secondary" onClick={onOpenConnections}>AI 연결 열기 →</button>}{runBlock && <button type="button" className="secondary" onClick={onOpenTeam}>팀 설정 확인 →</button>}</div></> : decision ? <><span className="card-kicker">지금 할 일</span><h3>{decision.label}</h3>
         {facts && <BlockFactsView facts={facts} />}
         {goal.status === 'blocked' && <ContentPreview><pre className="report">{goal.report || '저장된 중단 사유가 없습니다.'}</pre></ContentPreview>}
-        <p>{decision.explanation}</p>
+        {!(fix?.route === 'repair' && onRequestFix) && <p>{decision.explanation}</p>}
         {providerHint && <p className="chat-decision-hint">AI 연결: {providerHint}</p>}
         {runBlock && (decision.kind === 'retry' || decision.kind === 'resume') && <p className="chat-decision-hint">실행 전 확인: {runBlock.title} · {runBlock.reason} {runBlock.next}</p>}
+        {fix && <p className="chat-decision-hint gc-fix-note">{fix.note}</p>}
         <div className="chat-decision-actions">
           {decision.kind === 'retry' && <button type="button" className="primary" disabled={working || Boolean(runBlock)} onClick={() => void guarded(onRetry)}>분석 다시 실행 →</button>}
           {decision.kind === 'resume' && <button type="button" className="primary" disabled={working || Boolean(runBlock)} onClick={() => void guarded(onResume)}>승인된 계획 실행 →</button>}
-          {decision.kind === 'revision' && <button type="button" className="primary" onClick={focusComposer}>팀원에게 해결 요청 →</button>}
+          {fix && onRequestFix && (fix.route === 'repair' || fix.route === 'revision') && <button type="button" className="primary" disabled={working} onClick={() => void guarded(async () => { const ok = await onRequestFix(); if (ok) { setTodoOpen(false); scrollDown(); } return ok; })}>{working ? '요청하는 중…' : `${fixReceiverName}에게 해결 요청 →`}</button>}
+          {fix?.route === 'connections' && !providerHint && <button type="button" className="primary" onClick={onOpenConnections}>AI 연결 열기 →</button>}
+          {decision.kind === 'revision' && <button type="button" className={fix && onRequestFix && fix.route !== 'direct' ? 'secondary' : 'primary'} onClick={focusComposer}>직접 지시하기</button>}
           {decision.kind === 'guidance' && activeGuidance?.status === 'review_required' && (!activeGuidance.autoContinue || autoContinuationFailure) && <button type="button" className="primary" onClick={() => revisionRef.current?.scrollIntoView({ block: 'nearest' })}>새 목표 내용 검토 →</button>}
           {decision.kind === 'replacement' && replacementId && <button type="button" className="primary" onClick={() => onOpenGoal(replacementId)}>새 목표 열기 →</button>}
           {providerHint && <button type="button" className="secondary" onClick={onOpenConnections}>AI 연결 열기 →</button>}

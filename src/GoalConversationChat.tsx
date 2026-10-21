@@ -4,7 +4,7 @@ import { GoalGraph } from './OfficeActivity';
 import { GitBootstrapPanel } from './GitBootstrapPanel';
 import type { GitBootstrapPreview, GitBootstrapResult } from './GitBootstrapPanel';
 import { goalBrief, goalStageLabel, taskStageLabel } from './goalBrief';
-import { goalRecovery } from './goalRecovery';
+import { goalRecovery, teamFixRoute } from './goalRecovery';
 import { runtimeRecovery } from './providerRecovery';
 import { shortGoal, goalTitle } from './progress';
 import type { Agent, AiConnection, Approval, DeliverableReview, Event, Goal, GoalGuidance, GoalTurn, Task, TokenUsageRecord } from './types';
@@ -22,6 +22,8 @@ type Props = {
   onRevision: (id: string, intent: string) => Promise<boolean>;
   onOpenGoal: (id: string) => void; onOpenApproval: (id: string) => void;
   onRetry: () => Promise<boolean>; onResume: () => Promise<boolean>;
+  /** ADR-0048: one-click `해결 요청` (optional; a shell without it keeps `직접 지시하기`). */
+  onRequestFix?: () => Promise<boolean>;
   onOpenConnections: () => void; onOpenOffice: () => void; onOpenProject: () => void;
   onPreviewGit: () => Promise<GitBootstrapPreview | undefined>;
   onBootstrapGit: (preview: GitBootstrapPreview, selectedFiles: string[], authorName: string, authorEmail: string, message: string) => Promise<GitBootstrapResult | undefined>;
@@ -33,7 +35,7 @@ function RevisionForm({ goal, guidance, onRevision }: { goal: Goal; guidance: Go
   return <div className="goal-revision-form"><strong>새 목표 내용 확인</strong><p>새 목표는 팀이 다시 계획합니다. 새 파일 작업이 있으면 변경 범위를 승인받습니다.</p><textarea aria-label="새 목표 내용" value={intent} maxLength={12000} onChange={event => setIntent(event.target.value)} /><button type="button" className="primary" disabled={sending || intent.trim().length < 10} onClick={() => { setSending(true); void onRevision(guidance.id, intent).finally(() => setSending(false)); }}>새 목표 버전 만들기</button></div>;
 }
 
-export function GoalConversation({ goal, projectKind, focusTaskId, turns, guidance, agents, connections, tasks, approvals, events, usage, reviews = [], runBlock, onClose, onSend, onArchive, onRevision, onOpenGoal, onOpenApproval, onRetry, onResume, onOpenConnections, onOpenOffice, onOpenProject, onPreviewGit, onBootstrapGit }: Props) {
+export function GoalConversation({ goal, projectKind, focusTaskId, turns, guidance, agents, connections, tasks, approvals, events, usage, reviews = [], runBlock, onClose, onSend, onArchive, onRevision, onOpenGoal, onOpenApproval, onRetry, onResume, onRequestFix, onOpenConnections, onOpenOffice, onOpenProject, onPreviewGit, onBootstrapGit }: Props) {
   const focusTask = tasks.find(task => task.id === focusTaskId && task.goalId === goal.id);
   const taskQuestion = focusTask ? `"${shortGoal(focusTask.title, 120)}" 업무는 지금 어디까지 했고, 막힌 점이 있나요? 제 결정이 필요하면 알려 주세요.` : '';
   const taskEvidence = focusTask ? (focusTask.result.trim() || (goal.status === 'blocked' ? goal.report.trim() : '')).slice(0, 1200) : '';
@@ -59,6 +61,7 @@ export function GoalConversation({ goal, projectKind, focusTaskId, turns, guidan
   const brief = goalBrief(goal, tasks, approvals, guidance, agents, events, usage);
   const qaReview = events.find(event => event.goalId === goal.id && event.kind === 'qa_review');
   const recovery = goalRecovery(goal, tasks, approvals, guidance);
+  const fix = recovery?.kind === 'revision' ? teamFixRoute(goal, tasks, approvals, guidance) : null;
   const facts = blockFacts(goal, tasks, approvals, guidance, agents, events);
   const quiet = quietMinutes(goal, tasks, events);
   const deliverables = deliverableRows(goal, tasks, reviews, agents);
@@ -105,15 +108,17 @@ export function GoalConversation({ goal, projectKind, focusTaskId, turns, guidan
         {recovery?.kind === 'approval' && brief.pendingApproval && <p className="chat-decision-evidence">승인 범위: {brief.pendingApproval.reason}</p>}
         {recovery?.kind === 'guidance' && activeGuidance && <p className="chat-decision-evidence">{activeGuidance.autoContinue && !autoContinuationFailure ? '지침을 안전 지점에서 반영하고 새 목표를 자동으로 계획합니다. 새 파일 작업이 생기면 승인 요청이 나타납니다.' : '대화에 저장된 지침을 검토하고 새 목표 내용을 확정해 주세요. 이후 담당 팀원 → CTO → PM 순서로 검토합니다.'}</p>}
         {autoContinuationFailure && activeGuidance?.autoContinue && <p className="chat-decision-hint">자동 진행 실패: {autoContinuationFailure.message}</p>}
-        <p>{recovery?.kind === 'guidance' && activeGuidance?.autoContinue && !autoContinuationFailure ? '이전 목표의 실행 결과를 보존한 채 안전 지점을 기다립니다. 이후 연결된 새 목표에서 팀이 남은 일을 다시 분석합니다.' : recovery?.explanation ?? '목표를 팀에 전달했습니다. 실행을 시작하면 AI 팀이 분석합니다.'}</p>
+        <p>{recovery?.kind === 'guidance' && activeGuidance?.autoContinue && !autoContinuationFailure ? '이전 목표의 실행 결과를 보존한 채 안전 지점을 기다립니다. 이후 연결된 새 목표에서 팀이 남은 일을 다시 분석합니다.' : fix?.route === 'repair' && onRequestFix ? '' : recovery?.explanation ?? '목표를 팀에 전달했습니다. 실행을 시작하면 AI 팀이 분석합니다.'}</p>
         {providerHint && <p className="chat-decision-hint">AI 연결: {providerHint}</p>}
+        {fix && <p className="chat-decision-hint">{fix.note}</p>}
         {runBlock && (goal.status === 'new' || recovery?.kind === 'retry' || recovery?.kind === 'resume') && <p className="chat-decision-hint">실행 전 확인: {runBlock.title} · {runBlock.reason} {runBlock.next}</p>}
         <div className="chat-decision-actions">
           {goal.status === 'new' && <button type="button" className="primary" disabled={recovering || Boolean(runBlock)} onClick={() => void executeRecovery(onRetry)}>팀 실행 시작 →</button>}
           {recovery?.kind === 'approval' && brief.pendingApproval && <button type="button" className="primary" onClick={() => { onClose(); onOpenApproval(brief.pendingApproval!.id); }}>승인 범위 확인 →</button>}
           {recovery?.kind === 'retry' && <button type="button" className="primary" disabled={recovering || Boolean(runBlock)} onClick={() => void executeRecovery(onRetry)}>분석 다시 실행 →</button>}
           {recovery?.kind === 'resume' && <button type="button" className="primary" disabled={recovering || Boolean(runBlock)} onClick={() => void executeRecovery(onResume)}>승인된 계획 실행 →</button>}
-          {recovery?.kind === 'revision' && <button type="button" className="primary" onClick={focusComposer}>팀원에게 해결 요청 →</button>}
+          {fix && onRequestFix && (fix.route === 'repair' || fix.route === 'revision') && <button type="button" className="primary" disabled={recovering} onClick={() => void executeRecovery(onRequestFix)}>{recovering ? '요청하는 중…' : '팀원에게 해결 요청 →'}</button>}
+          {recovery?.kind === 'revision' && <button type="button" className={fix && onRequestFix && fix.route !== 'direct' && fix.route !== 'connections' ? 'secondary' : 'primary'} onClick={focusComposer}>직접 지시하기</button>}
           {recovery?.kind === 'guidance' && activeGuidance?.status === 'review_required' && (!activeGuidance.autoContinue || autoContinuationFailure) && <button type="button" className="primary" onClick={() => revisionRef.current?.scrollIntoView({ block: 'nearest' })}>새 목표 내용 검토 →</button>}
           {recovery?.kind === 'replacement' && replacementId && <button type="button" className="primary" onClick={() => onOpenGoal(replacementId)}>새 목표 열기 →</button>}
           {providerHint && <button type="button" className="secondary" onClick={onOpenConnections}>AI 연결 열기 →</button>}
