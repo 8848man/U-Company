@@ -138,6 +138,11 @@ fn a_sample_app_goal_runs_from_analysis_to_a_qa_passed_report() {
     assert!(goal.report.contains("QA result:\nPASS"), "the report carries the QA verdict:\n{}", goal.report);
     assert_eq!(goal.review_loops_used, 0);
     assert!(h.tasks(&id).iter().all(|task| task.status == "completed"));
+    // ADR-0054: the result card lists what changed and how to try it.
+    let result = crate::goal_result::result(&h.store(), &id).unwrap();
+    assert_eq!(result.files.len(), 5);
+    assert!(result.files.iter().all(|file| file.exists));
+    assert!(result.hints.iter().any(|hint| hint.contains("index.html")) && result.hints.iter().any(|hint| hint.contains("node --test")), "{:?}", result.hints);
 }
 
 #[test]
@@ -223,6 +228,9 @@ fn a_denied_scope_addition_blocks_as_needs_scope_without_changing_files() {
         std::thread::sleep(Duration::from_millis(100));
     };
     assert_eq!(goal.block_kind, "needs_scope");
+    let project_id = goal.project_id.clone().unwrap();
+    let stats = crate::goal_result::block_stats(&h.store().list("goal_block").unwrap(), &project_id);
+    assert_eq!(stats.iter().map(|stat| (stat.kind.as_str(), stat.count)).collect::<Vec<_>>(), vec![("needs_scope", 1)]);
     assert_eq!(std::fs::read_to_string(h.root.join("README.md")).unwrap(), "# 샘플 프로젝트\n");
 }
 
@@ -235,4 +243,37 @@ fn a_repair_with_nothing_to_change_goes_back_to_qa_instead_of_blocking() {
     let goal = h.wait(&id, &["completed"]);
     assert_eq!(goal.review_loops_used, 1);
     assert!(h.event_kinds(&id).contains(&"task_unchanged".to_string()));
+}
+
+/// Screen fixtures for headless rendering checks: real snapshots of a project with no goal, a plan
+/// waiting for approval, a scope addition waiting, and a finished goal (with its result and block
+/// statistics). Run with `U_SNAPSHOT_DIR=<dir> cargo test --lib dump_screen_snapshots -- --ignored`.
+#[test]
+#[ignore]
+fn dump_screen_snapshots() {
+    let Ok(out) = std::env::var("U_SNAPSHOT_DIR") else { return };
+    let out = PathBuf::from(out);
+    std::fs::create_dir_all(&out).unwrap();
+    let write = |name: &str, value: serde_json::Value| std::fs::write(out.join(format!("{name}.json")), serde_json::to_string_pretty(&value).unwrap()).unwrap();
+    let Some(empty) = harness(&[]) else { return };
+    write("empty", serde_json::to_value(empty.store().snapshot().unwrap()).unwrap());
+    let plan_id = empty.submit(GOAL);
+    empty.wait(&plan_id, &["awaiting_approval"]);
+    write("plan", serde_json::json!({ "snapshot": empty.store().snapshot().unwrap(), "goalId": plan_id }));
+    empty.approve(&plan_id);
+    empty.wait(&plan_id, &["completed"]);
+    let project_id = empty.goal(&plan_id).project_id.unwrap();
+    write("completed", serde_json::json!({ "snapshot": empty.store().snapshot().unwrap(), "goalId": plan_id, "result": crate::goal_result::result(&empty.store(), &plan_id).unwrap() }));
+    let Some(scope) = harness(&["qa-fail-once", "needs-scope-once"]) else { return };
+    let scope_id = scope.submit(GOAL);
+    scope.wait(&scope_id, &["awaiting_approval"]);
+    scope.approve(&scope_id);
+    wait_scope_approval(&scope, &scope_id);
+    write("scope", serde_json::json!({ "snapshot": scope.store().snapshot().unwrap(), "goalId": scope_id }));
+    scope.deny(&scope_id);
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while scope.goal(&scope_id).status != "blocked" { assert!(Instant::now() < deadline); std::thread::sleep(Duration::from_millis(100)); }
+    let scope_project = scope.goal(&scope_id).project_id.unwrap();
+    write("blocked", serde_json::json!({ "snapshot": scope.store().snapshot().unwrap(), "goalId": scope_id, "stats": crate::goal_result::block_stats(&scope.store().list("goal_block").unwrap(), &scope_project) }));
+    let _ = project_id;
 }

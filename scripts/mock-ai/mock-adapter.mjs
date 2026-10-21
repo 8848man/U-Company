@@ -198,4 +198,5 @@ function main() {
   });
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+const same = (a, b) => (process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b);
+if (process.argv[1] && same(resolve(process.argv[1]), fileURLToPath(import.meta.url))) main();

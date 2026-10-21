@@ -345,6 +345,9 @@ fn block_goal<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, error
         goal.block_kind = kind;
         goal.report = format!("Blocked: {message}");
         let _ = store.put("goal", &goal.id, &goal, Some(NewEvent::goal("goal_blocked", &goal, &message)));
+        // ADR-0054: every block is kept by kind so the project can show where its goals stop.
+        let record = crate::goal_result::BlockRecord { goal_id: goal.id.clone(), project_id: goal.project_id.clone().unwrap_or_default(), kind: goal.block_kind.clone(), at: crate::model::now() };
+        let _ = store.put("goal_block", &crate::model::id(), &record, None);
     }
     let _ = app.emit("state-changed", ());
 }

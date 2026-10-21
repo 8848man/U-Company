@@ -502,6 +502,8 @@ impl Store {
                 goal.status = "blocked".into();
                 goal.block_kind = "interrupted".into();
                 self.put("goal", &goal.id.clone(), &goal, Some(NewEvent::goal("goal_interrupted", &goal, "App restart requires recovery review")))?;
+                let record = crate::goal_result::BlockRecord { goal_id: goal.id.clone(), project_id: goal.project_id.clone().unwrap_or_default(), kind: "interrupted".into(), at: crate::model::now() };
+                self.put("goal_block", &crate::model::id(), &record, None)?;
             }
         }
         Ok(())

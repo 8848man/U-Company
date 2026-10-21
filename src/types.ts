@@ -54,3 +54,7 @@ export type Reference = { id: string; projectId: string; goalId: string | null; 
 
 /** Summary of an archived goal for the backup dialog (ADR-0043). */
 export type ArchivedGoal = { goalId: string; kind: string; title: string; status: string; createdAt: string; archivedAt: string };
+/** ADR-0054: what a finished goal changed and plain ways to try it (read-only backend summary). */
+export type GoalResult = { folder: string; files: { path: string; exists: boolean }[]; hints: string[] };
+/** ADR-0054: how often this project's goals stopped, by kind. */
+export type BlockStat = { kind: string; label: string; count: number; lastAt: string };

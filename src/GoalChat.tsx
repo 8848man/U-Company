@@ -13,8 +13,9 @@ import { ArchiveGoalButton } from './ArchiveGoalButton';
 import { SquadPanel } from './SquadPanel';
 import { PlanningOriginPanel } from './PlanningOriginPanel';
 import { planCardLabel, planCards, progressLine, stageLines, type PlanCard } from './goalStream';
+import { planEstimate } from './planEstimate';
 import type { GoalOrigin } from './sddOrigin';
-import type { Agent, AiConnection, Approval, DeliverableReview, Event, Goal, GoalGuidance, GoalTurn, Project, Reference, Squad, Task, TokenUsageRecord } from './types';
+import type { Agent, AiConnection, Approval, DeliverableReview, Event, Goal, GoalGuidance, GoalResult, GoalTurn, Project, Reference, Squad, Task, TokenUsageRecord } from './types';
 import { ReferenceButton } from './ReferenceList';
 import { requirementCoverage } from './referenceAttach';
 import { versionReason } from './goalChain';
@@ -41,6 +42,8 @@ type Props = {
   /** ADR-0048: one-click `해결 요청` on a blocked goal (`request_team_fix`). */
   onRequestFix?: () => Promise<boolean>;
   onDecide: (approvalId: string, approved: boolean, squadDigest: string | null) => Promise<boolean>;
+  /** ADR-0054: optional result summary of a finished goal and a way to open its folder (v3). */
+  result?: GoalResult | null; onOpenFolder?: () => void;
   /** ADR-0046 M3: `개선` (same goal, new plan) and `거부` (cancel the goal); `다시 시작` sends the same goal again. */
   onRevise: (approvalId: string, note: string) => Promise<boolean>; onCancel: (approvalId: string) => Promise<boolean>; onRestart: (intent: string) => Promise<boolean>;
   onSwapSquad: (from: string, to: string) => void; onAddSquad: (slot: 'writer' | 'reviewer', agentId: string, taskId: string | null) => void;
@@ -65,6 +68,7 @@ type StreamItem =
 
 /** v3 goal conversation (ADR-0046): the goal, stage lines, plan cards and recovery in one stream, with a progress line. */
 export function GoalChat(props: Props) {
+  const { result = null, onOpenFolder } = props;
   const { goal, projectKind, focusTaskId = null, turns: chainTurns, guidance, earlier = [], agents, connections, tasks, approvals, events, usage, reviews, runBlock, squad, squads, summary, goalOrigins, projects, layout = 'dialog', onClose, onSend, onArchive, onRevision, onOpenGoal, onRetry, onResume, onRequestFix, onDecide, onRevise, onCancel, onRestart, onSwapSquad, onAddSquad, onOpenConnections, onOpenOffice, onOpenTeam, onOpenProject, onError, onPreviewGit, onBootstrapGit } = props;
   const turns = chainTurns.filter(turn => turn.goalId === goal.id);
   // ADR-0051: earlier versions of this goal read as the top of the same conversation.
@@ -100,6 +104,7 @@ export function GoalChat(props: Props) {
   const qaReview = events.find(event => event.goalId === goal.id && event.kind === 'qa_review');
   const progress = progressLine(goal, tasks, agents, events, squad);
   const cards = planCards(goal, approvals, tasks, summary);
+  const resultFiles = useLimitedItems(result?.files ?? []);
   const ownedTasks = tasks.filter(task => task.goalId === goal.id && task.status !== 'superseded');
   const taskWindow = useLimitedItems(ownedTasks);
   // The decision that needs the CEO now, outside the plan card: start, recovery or a guidance review.
@@ -168,6 +173,7 @@ export function GoalChat(props: Props) {
       <h3>{planCardLabel(card)}</h3>
       {card.summary && <p>{card.summary}</p>}
       {card.counts && <p className="gc-plan-counts">{card.counts}</p>}
+      {(() => { const estimate = planEstimate(goal, card.approval, tasks, squad, usage); return <p className="gc-plan-estimate">{estimate.text}<br /><small>{estimate.tokens} · {estimate.rework}</small></p>; })()}
       {coverage && <p className={`gc-plan-coverage${coverage.covered < coverage.total ? ' is-partial' : ''}`}>요구사항 {coverage.total}절 중 {coverage.covered}절을 업무에 반영{coverage.covered < coverage.total ? ' · 나머지는 승인 범위에 이유가 적혀 있어요' : ''}</p>}
       <details className="gc-plan-detail"><summary>작업과 팀 자세히 보기</summary>
         {deliverables.length > 0 && <DeliverablePanel rows={deliverables} mode="plan" />}
@@ -215,7 +221,7 @@ export function GoalChat(props: Props) {
       <div className="chat-timeline" aria-label="목표 대화와 진행 기록">{[...history.visible].reverse().map(item => item.kind === 'turn' ? turnView(item.turn) : item.kind === 'guidance' ? guidanceView(item.guidance) : item.kind === 'line' ? <p className="gc-line" key={item.id}>{item.text}</p> : item.kind === 'version' ? versionView(item) : planCardView(item.card))}</div>
 
       {goal.status === 'cancelled' && <section className="chat-context gc-cancelled" aria-label="취소됨"><strong>이 목표를 취소했어요</strong><p>계획을 거부해 프로젝트 파일은 바뀌지 않았어요. 같은 내용으로 다시 맡기려면 다시 시작하세요.</p><div className="chat-decision-actions"><button type="button" className="secondary" disabled={working} onClick={() => void guarded(() => onRestart(goal.intent))}>같은 내용으로 다시 시작</button></div></section>}
-      {goal.status === 'completed' && <section className="chat-context gc-result" aria-label="결과"><strong>결과</strong>{deliverables.length > 0 && <DeliverablePanel rows={deliverables} mode="result" />}{goal.report && <ContentPreview><pre className="report">{goal.report}</pre></ContentPreview>}<p>후속 작업은 새 목표로 보내 주세요.</p></section>}
+      {goal.status === 'completed' && <section className="chat-context gc-result" aria-label="결과"><strong>결과</strong>{result && <div className="gc-result-summary"><p><b>바뀐 파일 {result.files.length}개</b>{onOpenFolder && <button type="button" className="secondary" onClick={onOpenFolder}>폴더 열기</button>}</p><ul className="gc-result-files">{resultFiles.visible.map(file => <li key={file.path}><code>{file.path}</code>{!file.exists && <small> · 지금은 없음</small>}</li>)}</ul><ListDisclosure label="바뀐 파일" total={resultFiles.total} hidden={resultFiles.hidden} expanded={resultFiles.expanded} onToggle={resultFiles.toggle} /><p><b>해 보는 법</b></p><ul className="gc-result-hints">{result.hints.map(hint => <li key={hint}>{hint}</li>)}</ul></div>}{result ? <details className="gc-result-more"><summary>QA 판정과 전체 보고 보기</summary>{deliverables.length > 0 && <DeliverablePanel rows={deliverables} mode="result" />}{goal.report && <ContentPreview><pre className="report">{goal.report}</pre></ContentPreview>}</details> : <>{deliverables.length > 0 && <DeliverablePanel rows={deliverables} mode="result" />}{goal.report && <ContentPreview><pre className="report">{goal.report}</pre></ContentPreview>}</>}<p>후속 작업은 새 목표로 보내 주세요.</p></section>}
       {gitBootstrapRelevant && projectKind === 'folder' && <GitBootstrapPanel onPreview={onPreviewGit} onApply={onBootstrapGit} />}
       {gitBootstrapCompleted && projectKind === 'git' && <section className="chat-context" role="status"><strong>Git 저장소 초기화 완료</strong><p>{gitBootstrapCompleted.message}</p></section>}
       {autoContinuationFailure && !activeGuidance && <section className="chat-context" role="status"><strong>자동 진행을 끝내지 못했습니다.</strong><p>{autoContinuationFailure.message}</p>{replacementId && <button type="button" className="text-button" onClick={() => onOpenGoal(replacementId)}>새 목표에서 이어가기 →</button>}</section>}

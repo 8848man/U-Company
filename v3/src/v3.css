@@ -198,3 +198,14 @@ body.office-docked .v3 .main{margin-right:min(440px,90vw)}
 .v2-mock-ai{margin-top:16px}.v2-mock-ai p{margin:6px 0 10px;color:#a9bba9;font-size:13px;line-height:1.5}.v2-mock-ai select{padding:9px;border:1px solid #485e50;border-radius:7px;background:#17221c;color:#e8f2e0}
 /* ADR-0053: repair scope-addition card */
 .v3 .gc .gc-plan.is-scope{border-color:#c9a94a}.v3 .gc .gc-plan.is-scope h3{color:#f0d68a}
+/* ADR-0054: plan-card estimate */
+.v3 .gc .gc-plan .gc-plan-estimate{color:#cfe3c9;font-size:13px;line-height:1.5}.v3 .gc .gc-plan .gc-plan-estimate small{color:#9fb59c}
+/* ADR-0054: finished-goal summary and block statistics */
+.v3 .gc .gc-result-summary{display:grid;gap:6px;margin:6px 0 10px}.v3 .gc .gc-result-summary p{display:flex;align-items:center;gap:10px;margin:0}.v3 .gc .gc-result-summary ul{margin:0;padding-left:18px}.v3 .gc .gc-result-summary code{font-size:12.5px}
+.v3 .v3-block-stats{margin-top:16px}.v3 .v3-block-stats ul{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:8px}.v3 .v3-block-stats li{display:grid;grid-template-columns:1fr auto;gap:4px 10px}.v3 .v3-block-bar{grid-column:1/-1;height:6px;border-radius:3px;background:#c9a94a}
+/* ADR-0054 R6: first-run check */
+.v3 .v3-first-run ul{list-style:none;padding:0;margin:10px 0;display:grid;gap:8px}.v3 .v3-first-run li{display:grid;grid-template-columns:22px 92px 1fr auto;align-items:center;gap:8px}.v3 .v3-first-run li span{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#2e6b3c;color:#e8f2e0;font-size:12px}.v3 .v3-first-run li.is-missing span{background:#8a5a18}.v3 .v3-first-run li small{color:#b8c9b5}
+@media (max-width:640px){.v3 .v3-first-run li{grid-template-columns:22px 1fr}.v3 .v3-first-run li small,.v3 .v3-first-run li button{grid-column:2}}
+.v3 .v3-examples{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:6px}.v3 .v3-examples small{color:#9fb59c}
+.v3 .gc .gc-result-summary p,.v3 .gc .gc-result-summary li{font-size:14px;line-height:1.55}.v3 .gc .gc-result-more summary{cursor:pointer;font-size:14px;margin:4px 0}
+.v3 .v3-block-stats{max-width:900px}

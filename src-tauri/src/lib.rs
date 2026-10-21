@@ -4,6 +4,7 @@ mod engine;
 mod git_bootstrap;
 mod meeting;
 mod mock_ai;
+mod goal_result;
 #[cfg(test)]
 mod engine_e2e;
 mod model;
@@ -31,7 +32,7 @@ use tauri::{Emitter, Manager};
 struct BackendInfo { protocol_version: u32, build_id: String }
 
 #[tauri::command]
-fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 38, build_id: meeting::meeting_build() } }
+fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 39, build_id: meeting::meeting_build() } }
 
 #[tauri::command]
 fn get_snapshot(store: tauri::State<'_, Store>) -> Result<Snapshot, String> { store.snapshot() }
@@ -318,6 +319,23 @@ fn save_connection(mut connection: AiConnection, store: tauri::State<'_, Store>,
     store.register_connection_and_assign_unassigned(&connection)?;
     let _ = app.emit("state-changed", ());
     Ok(connection)
+}
+
+/// ADR-0054: files a finished goal changed and plain ways to try them. Read-only.
+#[tauri::command]
+fn get_goal_result(goal_id: String, store: tauri::State<'_, Store>) -> Result<goal_result::GoalResult, String> { goal_result::result(&store, &goal_id) }
+
+/// ADR-0054: where this project's goals stopped, by kind.
+#[tauri::command]
+fn get_block_stats(project_id: String, store: tauri::State<'_, Store>) -> Result<Vec<goal_result::BlockStat>, String> {
+    Ok(goal_result::block_stats(&store.list::<goal_result::BlockRecord>("goal_block")?, &project_id))
+}
+
+/// ADR-0054: opens a registered project's folder in the system file manager.
+#[tauri::command]
+fn open_project_folder(project_id: String, store: tauri::State<'_, Store>) -> Result<(), String> {
+    let project: Project = store.get("project_entry", &project_id)?.ok_or("프로젝트를 찾을 수 없습니다")?;
+    goal_result::open_folder(&project.path)
 }
 
 /// ADR-0052: register the token-free mock AI (a `plugin` connection running the repository's adapter).
@@ -846,7 +864,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, add_mock_connection, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, request_team_fix, stage_text_reference, stage_image_reference, discard_reference, set_reference_caption, set_reference_role, set_curator_enabled, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, revise_plan, cancel_goal, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
+        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, add_mock_connection, get_goal_result, get_block_stats, open_project_folder, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, request_team_fix, stage_text_reference, stage_image_reference, discard_reference, set_reference_caption, set_reference_role, set_curator_enabled, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, revise_plan, cancel_goal, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
         .run(tauri::generate_context!())
         .expect("error while running AI Organization OS");
 }
