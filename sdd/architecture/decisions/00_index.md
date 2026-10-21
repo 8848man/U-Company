@@ -48,5 +48,6 @@
 | [ADR-0044](ADR-0044.md) | Consent-gated SDD origin: detect, follow, or bootstrap a project structure | Accepted; narrows the harness-entry rule in SI-02/Security, refines ADR-0021 |
 | [ADR-0045](ADR-0045.md) | SDD origin in onboarding and planning: folder first, development goals only | Accepted, implemented (protocol 34); refines ADR-0044 |
 | [ADR-0046](ADR-0046.md) | One conversation per goal: plan card, revise, cancel, and an in-app Office window | Accepted (v3); refines ADR-0042, ADR-0045 |
+| [ADR-0049](ADR-0049.md) | Reference material (long text, images) as app-managed files with an index, and a curator role | Accepted; refines ADR-0038 |
 | [ADR-0048](ADR-0048.md) | One-click `해결 요청` for a blocked goal, and one automatic retry for a malformed plan | Accepted; refines ADR-0038, ADR-0046 |
 | [ADR-0047](ADR-0047.md) | v3 shell polish: icon rail, compact `지금 할 일`, movable open-work button, Office window coordinates and mini chat | Accepted (v3); refines ADR-0046 |

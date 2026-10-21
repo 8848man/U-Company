@@ -21,6 +21,8 @@ fn slots(name: &str) -> (usize, usize) {
 }
 
 pub fn is_analyst(agent: &Agent) -> bool { agent.id == "cto" || agent.role.to_ascii_lowercase().contains("architect") }
+/// ADR-0049: the reference curator, by seed id or role text.
+pub fn is_curator(agent: &Agent) -> bool { agent.id == "curator" || agent.role.to_ascii_lowercase().contains("curat") }
 pub fn is_planner(agent: &Agent) -> bool { agent.id == "pm" || agent.role.to_ascii_lowercase().contains("plan") }
 pub fn is_reviewer(agent: &Agent) -> bool {
     let role = agent.role.to_ascii_lowercase();

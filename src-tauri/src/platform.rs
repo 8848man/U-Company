@@ -19,6 +19,8 @@ fn folder_files(root: &Path) -> Result<BTreeMap<LocalPathBuf, u64>, String> {
             // A parent project may contain nested repositories. Their working files belong
             // to the selected folder; Git metadata never belongs in an isolated task copy.
             if entry.file_name() == ".git" { continue; }
+            // ADR-0049: reference material is copied per task (only what the task names), never wholesale.
+            if relative.as_os_str().is_empty() && entry.file_name().to_string_lossy().eq_ignore_ascii_case(crate::references::FOLDER) { continue; }
             let path = relative.join(entry.file_name());
             let metadata = std::fs::symlink_metadata(entry.path()).map_err(|e| e.to_string())?;
             if metadata.file_type().is_symlink() { return Err(format!("심볼릭 링크는 일반 폴더 작업에 포함할 수 없습니다: {}", path.display())); }
@@ -239,6 +241,28 @@ pub fn create_worktree(root: &Path, destination: &Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_folder_copy_skips_reference_material_and_a_copied_reference_is_no_change() {
+        let base = std::env::temp_dir().join(format!("utopia-folder-refs-{}", crate::model::id()));
+        let root = base.join("project");
+        std::fs::create_dir_all(root.join("work-references/g/text")).unwrap();
+        std::fs::create_dir_all(root.join("docs/work-references")).unwrap();
+        std::fs::write(root.join("work-references/g/text/R1.md"), "자료").unwrap();
+        std::fs::write(root.join("docs/work-references/keep.md"), "nested folder with the same name is ordinary").unwrap();
+        std::fs::write(root.join("a.md"), "a").unwrap();
+        let workspace = base.join("ws");
+        prepare_folder_copy(&root, &workspace).unwrap();
+        assert!(!workspace.join("work-references").exists());
+        assert!(workspace.join("docs/work-references/keep.md").is_file());
+        // The engine copies a named reference into both the workspace and its baseline.
+        for dir in [workspace.clone(), workspace.with_extension("baseline")] {
+            std::fs::create_dir_all(dir.join("work-references/g/text")).unwrap();
+            std::fs::write(dir.join("work-references/g/text/R1.md"), "자료").unwrap();
+        }
+        std::fs::write(workspace.join("a.md"), "changed").unwrap();
+        assert_eq!(integrate_folder_copy(&root, &workspace, &["a.md".into()]).unwrap(), vec!["a.md".to_string()]);
+    }
 
     #[test]
     fn creates_new_folder_project_without_overwriting_existing_folder() {

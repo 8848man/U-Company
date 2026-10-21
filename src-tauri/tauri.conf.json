@@ -10,7 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{ "title": "AI Organization OS", "width": 1440, "height": 900, "minWidth": 1080, "minHeight": 700 }],
+    "windows": [{ "title": "AI Organization OS", "width": 1440, "height": 900, "minWidth": 1080, "minHeight": 700, "dragDropEnabled": false }],
     "security": { "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost" }
   },
   "bundle": { "active": false, "targets": "all" }

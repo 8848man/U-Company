@@ -14,7 +14,9 @@ import { SquadPanel } from './SquadPanel';
 import { PlanningOriginPanel } from './PlanningOriginPanel';
 import { planCardLabel, planCards, progressLine, stageLines, type PlanCard } from './goalStream';
 import type { GoalOrigin } from './sddOrigin';
-import type { Agent, AiConnection, Approval, DeliverableReview, Event, Goal, GoalGuidance, GoalTurn, Project, Squad, Task, TokenUsageRecord } from './types';
+import type { Agent, AiConnection, Approval, DeliverableReview, Event, Goal, GoalGuidance, GoalTurn, Project, Reference, Squad, Task, TokenUsageRecord } from './types';
+import { ReferenceButton } from './ReferenceList';
+import { requirementCoverage } from './referenceAttach';
 
 type RunBlock = { title: string; reason: string; next: string } | null;
 
@@ -24,6 +26,8 @@ type Props = {
   events: Event[]; usage: TokenUsageRecord[]; reviews: DeliverableReview[]; runBlock: RunBlock;
   squad: Squad | null; squads: Squad[] | undefined; summary: string | null;
   goalOrigins: GoalOrigin[] | undefined; projects: Project[];
+  /** ADR-0049: this goal's reference material (own and inherited). */
+  references?: Reference[];
   /** `dialog` floats over the page (M1); `panel` fills its container (home, M2). */
   layout?: 'dialog' | 'panel';
   onClose: () => void; onSend: (message: string, agentId: string) => Promise<boolean>;
@@ -94,6 +98,7 @@ export function GoalChat(props: Props) {
   const decision = recovery && recovery.kind !== 'approval' ? recovery : null;
   const fix = decision?.kind === 'revision' ? teamFixRoute(goal, tasks, approvals, guidance) : null;
   const fixReceiverName = fixReceiver(goal.id, squads, agents);
+  const coverage = requirementCoverage(props.references ?? [], tasks.filter(task => task.goalId === goal.id));
   const todoTitle = goal.status === 'new' ? (runBlock ? runBlock.title : '팀 실행 시작') : decision?.label ?? null;
 
   const stream: StreamItem[] = [
@@ -137,6 +142,7 @@ export function GoalChat(props: Props) {
       <h3>{planCardLabel(card)}</h3>
       {card.summary && <p>{card.summary}</p>}
       {card.counts && <p className="gc-plan-counts">{card.counts}</p>}
+      {coverage && <p className={`gc-plan-coverage${coverage.covered < coverage.total ? ' is-partial' : ''}`}>요구사항 {coverage.total}절 중 {coverage.covered}절을 업무에 반영{coverage.covered < coverage.total ? ' · 나머지는 승인 범위에 이유가 적혀 있어요' : ''}</p>}
       <details className="gc-plan-detail"><summary>작업과 팀 자세히 보기</summary>
         {deliverables.length > 0 && <DeliverablePanel rows={deliverables} mode="plan" />}
         {squad && <SquadPanel squad={squad} agents={agents} connections={connections} tasks={tasks} editable onSwap={onSwapSquad} onAdd={onAddSquad} />}
@@ -167,7 +173,7 @@ export function GoalChat(props: Props) {
   }
 
   const body = <section className={layout === 'dialog' ? 'goal-conversation chat-workspace gc' : 'chat-workspace gc gc-panel'} role={layout === 'dialog' ? 'dialog' : 'region'} aria-modal={layout === 'dialog' ? true : undefined} aria-labelledby="goal-chat-title" onClick={event => event.stopPropagation()}>
-    <header className="chat-workspace-header"><div><span className="card-kicker">{goalStageLabel(goal.status)}</span><h2 id="goal-chat-title" title={goal.intent}>{goalTitle(goal, 105)}</h2></div><div className="button-row"><button type="button" className="secondary" onClick={onOpenOffice}>Office ↗</button>{onArchive && <ArchiveGoalButton goal={goal} tasks={tasks} onArchive={onArchive} />}{layout === 'dialog' && <button type="button" className="secondary" onClick={onClose} aria-label="목표 대화 닫기">닫기</button>}</div></header>
+    <header className="chat-workspace-header"><div><span className="card-kicker">{goalStageLabel(goal.status)}</span><h2 id="goal-chat-title" title={goal.intent}>{goalTitle(goal, 105)}</h2></div><div className="button-row"><ReferenceButton references={props.references ?? []} tasks={tasks.filter(task => task.goalId === goal.id)} /><button type="button" className="secondary" onClick={onOpenOffice}>Office ↗</button>{onArchive && <ArchiveGoalButton goal={goal} tasks={tasks} onArchive={onArchive} />}{layout === 'dialog' && <button type="button" className="secondary" onClick={onClose} aria-label="목표 대화 닫기">닫기</button>}</div></header>
     <div className="chat-workspace-feed" ref={feedRef}>
       <ListDisclosure label="이전 기록" total={history.total} hidden={history.hidden} expanded={history.expanded} onToggle={history.toggle} />
       {history.hidden === 0 && <div className="chat-bubble ceo gc-goal"><div className="chat-bubble-meta"><strong>CEO · 목표</strong><time>{new Date(goal.createdAt).toLocaleString()}</time></div><ContentPreview><p>{goal.intent}</p></ContentPreview></div>}

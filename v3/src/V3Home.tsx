@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { PASTE_FILE_OVER } from '../../src/referenceAttach';
 import { GoalGraph } from '../../src/OfficeActivity';
 import { ListDisclosure, useLimitedItems } from '../../src/ContentDensity';
 import { goalTitle } from '../../src/progress';
@@ -24,6 +25,8 @@ type Props = {
   onSettings: () => void; onConnections: () => void; onOffice: () => void; onExplain: (title: string, reason: string, next: string) => void;
   /** ADR-0046: the chat home lists goals on the left, so this pane shows only the new-goal box and decisions. */
   hideGoalList?: boolean;
+  /** ADR-0049: attached material under the goal box, and where a long paste or dropped files go. */
+  attachments?: ReactNode; onPasteLong?: (text: string) => void; onDropFiles?: (files: File[]) => void;
 };
 
 function stageLabel(goal: Goal): string {
@@ -32,8 +35,11 @@ function stageLabel(goal: Goal): string {
 
 /** Home of the v3 shell: readiness, one command box, a decision inbox and per-deliverable goal cards. */
 export function V3Home(props: Props) {
-  const { project, goals, tasks, approvals, agents, connections, guidance, events, reviews, mode, onMode, readiness, readinessError, onStartMeeting, draftSource, onClearDraftSource, meetingStatus, intent, busy, teamBlock, runBlock, onIntent, onSubmit, onRun, onOpen, onSettings, onConnections, onOffice, onExplain, hideGoalList = false } = props;
+  const { project, goals, tasks, approvals, agents, connections, guidance, events, reviews, mode, onMode, readiness, readinessError, onStartMeeting, draftSource, onClearDraftSource, meetingStatus, intent, busy, teamBlock, runBlock, onIntent, onSubmit, onRun, onOpen, onSettings, onConnections, onOffice, onExplain, hideGoalList = false, attachments, onPasteLong, onDropFiles } = props;
   const [showGraph, setShowGraph] = useState<string | null>(null);
+  // ADR-0049: depth counter so the drop highlight does not flicker over child elements.
+  const [dragDepth, setDragDepth] = useState(0);
+  const acceptsFiles = (event: React.DragEvent) => mode === 'goal' && Boolean(onDropFiles) && event.dataTransfer.types.includes('Files');
   const decisions = goals.filter(goal => goal.kind === 'deliberation' ? meetingStatus(goal).needsDecision : Boolean(blockFacts(goal, tasks, approvals, guidance, agents, events)));
   const ordered = [...goals].sort((a, b) => Number(decisions.includes(b)) - Number(decisions.includes(a)) || b.createdAt.localeCompare(a.createdAt));
   const window = useLimitedItems(ordered);
@@ -46,9 +52,11 @@ export function V3Home(props: Props) {
     <div className="v2-stack">
       {teamBlock && <section className="card v3-setup" aria-label="시작 전 준비"><strong>시작 전 준비 · {teamBlock.title}</strong><small>{teamBlock.reason}</small><small>AI 연결 {readyConnections}개 사용 가능 · {teamBlock.next}</small><div className="button-row"><button className="primary" onClick={onConnections}>AI 연결 확인</button><button className="secondary" onClick={onOffice}>팀 확인</button></div></section>}
 
-      <section className="card command-card"><div className="v2-row"><div className="card-kicker">{mode === 'goal' ? '새 목표' : '새 회의'}</div><label className="home-mode">명령 방식<select aria-label="명령 방식" value={mode} onChange={event => onMode(event.target.value as HomeMode)}><option value="goal">목표 수행</option><option value="meeting">회의</option></select></label></div>
+      <section className={`card command-card${dragDepth > 0 ? ' is-dropping' : ''}`} onDragEnter={event => { if (acceptsFiles(event)) { event.preventDefault(); setDragDepth(depth => depth + 1); } }} onDragLeave={event => { if (acceptsFiles(event)) setDragDepth(depth => Math.max(0, depth - 1)); }} onDragOver={event => { if (acceptsFiles(event)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } }} onDrop={event => { setDragDepth(0); if (!acceptsFiles(event) || !event.dataTransfer.files.length) return; event.preventDefault(); onDropFiles?.(Array.from(event.dataTransfer.files)); }}>
+        {dragDepth > 0 && <div className="command-drop" aria-hidden="true"><strong>여기에 놓으면 자료로 첨부돼요</strong><small>md·txt 글, PNG·JPEG·WebP·GIF 이미지</small></div>}<div className="v2-row"><div className="card-kicker">{mode === 'goal' ? '새 목표' : '새 회의'}</div><label className="home-mode">명령 방식<select aria-label="명령 방식" value={mode} onChange={event => onMode(event.target.value as HomeMode)}><option value="goal">목표 수행</option><option value="meeting">회의</option></select></label></div>
         <h2>{mode === 'goal' ? '팀에 무엇을 맡길까요?' : '팀이 무엇을 먼저 토론할까요?'}</h2>
-        <textarea aria-label={mode === 'goal' ? '새 목표' : '회의 안건'} value={intent} onChange={event => onIntent(event.target.value)} placeholder={mode === 'goal' ? '만들 결과, 사용할 자료, 지켜야 할 조건을 한두 문장으로 적어 주세요.' : '결정할 질문과 기대하는 결과를 적어 주세요. 의장이 목표·제한·참여자를 제안합니다.'}/>
+        <textarea aria-label={mode === 'goal' ? '새 목표' : '회의 안건'} value={intent} onChange={event => onIntent(event.target.value)} onPaste={event => { const text = event.clipboardData.getData('text'); if (mode === 'goal' && onPasteLong && text.length > PASTE_FILE_OVER) { event.preventDefault(); onPasteLong(text); } }} placeholder={mode === 'goal' ? '만들 결과, 사용할 자료, 지켜야 할 조건을 한두 문장으로 적어 주세요.' : '결정할 질문과 기대하는 결과를 적어 주세요. 의장이 목표·제한·참여자를 제안합니다.'}/>
+        {mode === 'goal' && attachments}
         {mode === 'goal' && !intent.trim() && <div className="v3-example"><small>예시 · 첫 파일럿: 로컬 자료로 출시 준비 문서 세 가지</small><button type="button" className="text-button" onClick={() => onIntent(LAUNCH_PILOT_EXAMPLE)}>출시 준비 예시 넣기 →</button></div>}
         {draftSource && (mode === 'goal' ? <p className="meeting-draft-note" role="note">회의 결정 자료 {draftSource.slice(0, 12)}…에서 가져온 <strong>초안</strong>입니다. 고친 뒤 직접 전달해야 목표가 만들어지며, 파일 변경은 이후 별도 승인을 받습니다. <button className="text-button" onClick={onClearDraftSource}>출처 연결 해제</button></p> : <p className="meeting-draft-note" role="note">회의 결정 초안의 출처 연결은 <strong>목표 수행</strong>으로 전달할 때만 기록됩니다.</p>)}
         {mode === 'meeting' && <div className="meeting-disclosure" aria-live="polite">{readiness?.chair ? <><strong>의장 {readiness.chair.name} ({readiness.chair.role})</strong><small>{readiness.chair.connectionName} · {readiness.chair.modelId || '기본 모델'} · {profileLabel[readiness.chair.profile] ?? readiness.chair.profile}</small><small>안건이 이 AI에 전송되고, AI는 프로젝트 폴더를 읽을 수 있으며 파일은 바꾸지 않습니다.</small></> : <><strong>회의를 시작할 수 없습니다</strong><small>{readinessError || readiness?.chairReason || '의장 준비 상태를 확인하는 중입니다.'}</small></>}</div>}

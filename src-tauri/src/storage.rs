@@ -55,6 +55,7 @@ impl Store {
         let store = Self(Mutex::new(connection));
         store.seed_agents()?;
         store.fill_blank_agent_instructions()?;
+        store.ensure_curator()?;
         store.repair_saved_cli_paths()?;
         store.fill_missing_goal_limits()?;
         store.recover_interrupted()?;
@@ -261,7 +262,9 @@ impl Store {
             approvals.retain(|item: &Approval| !item.goal_id.as_ref().is_some_and(|id| hidden.contains(id)));
             events.retain(|item| !item.goal_id.as_ref().is_some_and(|id| hidden.contains(id)));
         }
-        Ok(Snapshot { project, projects, agents, connections, goals, meetings, meeting_packets, transmission_approvals, meeting_contributions, goal_lineage, goal_turns, goal_guidance, tasks, deliverable_reviews, squads, goal_summaries, goal_origins, archived_goals, events, approvals, usage, spec_profiles, spec_drafts })
+        let mut references = self.list::<crate::references::Reference>("reference")?;
+        references.retain(|item| item.goal_id.as_ref().is_none_or(|id| !hidden.contains(id)));
+        Ok(Snapshot { project, projects, agents, connections, goals, meetings, meeting_packets, transmission_approvals, meeting_contributions, goal_lineage, goal_turns, goal_guidance, tasks, deliverable_reviews, squads, goal_summaries, goal_origins, archived_goals, events, approvals, usage, spec_profiles, spec_drafts, references, curator_enabled: crate::references::curator_enabled(self)? })
     }
 
     pub fn stage_spec_import(&self, draft: &SpecDraft) -> Result<(), String> {
@@ -412,11 +415,23 @@ impl Store {
             ("developer-a", "Developer A", "implementation", Some("pm"), 22, 55),
             ("developer-b", "Developer B", "implementation", Some("pm"), 52, 55),
             ("qa", "QA / Reviewer", "validation and independent review", Some("cto"), 76, 45),
+            ("curator", "Curator", "reference curation", Some("pm"), 64, 20),
         ] {
             let agent = Agent { id: id.into(), name: name.into(), role: role.into(), instructions: crate::presets::for_seed_id(id).instructions, reports_to: reports_to.map(str::to_string), connection_id: String::new(), model_id: String::new(), x, y, enabled: true, external: None, appearance: None };
             self.put("agent", id, &agent, None)?;
         }
         Ok(())
+    }
+
+    /// ADR-0049: teams created before the curator existed get one once; removing it later is respected.
+    pub fn ensure_curator(&self) -> Result<(), String> {
+        if self.get::<bool>("setting", "curator_seeded")?.is_some() { return Ok(()); }
+        let agents: Vec<Agent> = self.list("agent")?;
+        if !agents.iter().any(crate::squad::is_curator) {
+            let agent = Agent { id: "curator".into(), name: "Curator".into(), role: "reference curation".into(), instructions: crate::presets::for_seed_id("curator").instructions, reports_to: Some("pm".into()), connection_id: String::new(), model_id: String::new(), x: 64, y: 20, enabled: true, external: None, appearance: None };
+            if !agents.iter().any(|item| item.id == "curator") { self.put("agent", "curator", &agent, None)?; }
+        }
+        self.put("setting", "curator_seeded", &true, None)
     }
 
     pub fn fill_blank_agent_instructions(&self) -> Result<(), String> {
@@ -809,7 +824,7 @@ mod tests {
         cto.connection_id = "existing".into();
         store.put("agent", "cto", &cto, None).unwrap();
         let connection = crate::model::AiConnection { id: "new".into(), name: "New AI".into(), kind: "cli".into(), executable: "tool.cmd".into(), endpoint: String::new(), args: vec![], model_id: String::new(), status: "ready".into(), capabilities: vec![] };
-        assert_eq!(store.register_connection_and_assign_unassigned(&connection).unwrap(), 4);
+        assert_eq!(store.register_connection_and_assign_unassigned(&connection).unwrap(), 5, "PM, two developers, QA and the curator");
         assert_eq!(store.register_connection_and_assign_unassigned(&connection).unwrap(), 0);
         assert_eq!(store.get::<Agent>("agent", "cto").unwrap().unwrap().connection_id, "existing");
         assert_eq!(store.get::<Agent>("agent", "pm").unwrap().unwrap().connection_id, "new");

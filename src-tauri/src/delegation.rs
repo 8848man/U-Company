@@ -136,13 +136,20 @@ pub fn assign_within(capabilities: &[&str], agents: &[Agent], connections: &[AiC
     }
     let mut load: HashMap<String, usize> = HashMap::new();
     let mut result = Vec::new();
-    for capability in capabilities {
+    for requested in capabilities {
+        // ADR-0049: `document+images` / `code+images` marks a task whose evidence includes an image;
+        // only a teammate whose connection can look at images may take it.
+        let (capability, needs_images) = match requested.strip_suffix("+images") { Some(base) => (base, true), None => (*requested, false) };
         let declared = |agent: &&&Agent| agent.external.as_ref().filter(|_| agent.is_external()).map_or(true, |contract| contract.capabilities.iter().any(|item| item == capability));
-        let chosen = eligible.iter().filter(declared).min_by_key(|agent| (load.get(&agent.id).copied().unwrap_or(0), implementers.iter().position(|item| item.id == agent.id).unwrap_or(usize::MAX))).ok_or_else(|| format!("{capability} 업무를 맡을 수 있는 작성자가 스쿼드에 없습니다"))?;
+        let sees_images = |agent: &&&Agent| !needs_images || connections.iter().find(|item| item.id == agent.connection_id).is_some_and(crate::curation::can_view_images);
+        if needs_images && !eligible.iter().filter(declared).any(|agent| sees_images(&agent)) {
+            return Err("이미지 자료를 볼 수 있는 개발 팀원이 없습니다. Claude 연결을 배정하거나, 이미지를 볼 수 있는 연결이면 연결 설정에서 '이미지 가능'을 켜 주세요".into());
+        }
+        let chosen = eligible.iter().filter(declared).filter(sees_images).min_by_key(|agent| (load.get(&agent.id).copied().unwrap_or(0), implementers.iter().position(|item| item.id == agent.id).unwrap_or(usize::MAX))).ok_or_else(|| format!("{capability} 업무를 맡을 수 있는 작성자가 스쿼드에 없습니다"))?;
         let count = load.entry(chosen.id.clone()).or_insert(0);
         *count += 1;
         let connection = connections.iter().find(|item| item.id == chosen.connection_id).map(|item| item.name.clone()).unwrap_or_default();
-        let mut reason = format!("{capability} 작업 가능 · {connection} 연결 사용 가능 · 다른 목표·회의에 묶여 있지 않음 · 이 계획에서 {}번째 배정", *count);
+        let mut reason = format!("{capability} 작업 가능{} · {connection} 연결 사용 가능 · 다른 목표·회의에 묶여 있지 않음 · 이 계획에서 {}번째 배정", if needs_images { " · 이미지 확인 가능" } else { "" }, *count);
         if !skipped.is_empty() { reason.push_str(&format!(" · 제외: {}", skipped.join(", "))); }
         result.push((chosen.id.clone(), reason));
     }
@@ -343,6 +350,19 @@ mod tests {
     }
     fn conn(id: &str, kind: &str, status: &str) -> AiConnection {
         AiConnection { id: id.into(), name: format!("{id} conn"), kind: kind.into(), executable: "C:/x/claude.exe".into(), endpoint: String::new(), args: vec![], model_id: String::new(), status: status.into(), capabilities: vec![] }
+    }
+    #[test]
+    fn an_image_task_goes_only_to_a_teammate_whose_connection_sees_images() {
+        let agents = vec![agent("developer-a", "implementation", "codex"), agent("developer-b", "implementation", "claude")];
+        let mut codex = conn("codex", "cli", "ready");
+        codex.executable = "C:/x/codex.exe".into();
+        let connections = vec![codex.clone(), conn("claude", "cli", "ready")];
+        let picked = assign(&["document+images", "document", "document"], &agents, &connections, &BTreeMap::new()).unwrap();
+        assert_eq!(picked[0].0, "developer-b");
+        assert!(picked[0].1.contains("이미지 확인 가능"));
+        let only_codex = vec![codex];
+        assert!(assign(&["code+images"], &agents[..1], &only_codex, &BTreeMap::new()).unwrap_err().contains("이미지"));
+        assert!(assign(&["code"], &agents[..1], &only_codex, &BTreeMap::new()).is_ok());
     }
     fn team() -> (Vec<Agent>, Vec<AiConnection>) {
         (vec![agent("cto", "architecture", "cli"), agent("pm", "planning", "cli"), agent("developer-a", "implementation", "cli"), agent("developer-b", "implementation", "cli2"), agent("qa", "validation and independent review", "cli")],
