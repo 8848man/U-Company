@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampPlace, memberRows, stageStrip } from './officeWindow';
+import { clampPlace, memberRows, stageStrip } from './officeWindowState';
 import type { MemberActivity } from './progress';
 import type { Agent, Goal, Squad, Task } from './types';
 

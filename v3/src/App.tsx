@@ -12,7 +12,8 @@ import OfficeMemberPanel from '../../src/OfficeMemberPanel';
 import { GoalChat } from '../../src/GoalChat';
 import { V3ChatHome } from './V3ChatHome';
 import { OfficeWindow } from '../../src/OfficeWindow';
-import { progressLine } from '../../src/goalChat';
+import { SafeBoundary } from '../../src/SafeBoundary';
+import { progressLine } from '../../src/goalStream';
 import { blockFacts } from '../../src/deliverables';
 import { goalStageLabel } from '../../src/goalBrief';
 import { ExternalStaffPanel } from '../../src/ExternalStaffPanel';
@@ -312,7 +313,7 @@ export default function App() {
       </div>}
       </div>
     </main>
-    {officeOpen && <OfficeWindow goal={homeGoal} agents={snapshot.agents} connections={snapshot.connections} tasks={visibleTasks} events={visibleEvents} squad={homeGoal ? squadFor(homeGoal.id, snapshot.squads) : null} activities={activities} badges={officeBadges(snapshot.squads, snapshot.goals, snapshot.agents)} progress={homeGoal ? progressLine(homeGoal, visibleTasks, snapshot.agents, visibleEvents, squadFor(homeGoal.id, snapshot.squads)) : null} selectedId={selectedAgentId} onSelect={selectAgent} onMove={(id, x, y) => void moveAgent(id, x, y)} onClose={() => setOfficeOpen(false)} />}
+    {officeOpen && <SafeBoundary label="Office 창" onClose={() => setOfficeOpen(false)}><OfficeWindow goal={homeGoal} agents={snapshot.agents} connections={snapshot.connections} tasks={visibleTasks} events={visibleEvents} squad={homeGoal ? squadFor(homeGoal.id, snapshot.squads) : null} activities={activities} badges={officeBadges(snapshot.squads, snapshot.goals, snapshot.agents)} progress={homeGoal ? progressLine(homeGoal, visibleTasks, snapshot.agents, visibleEvents, squadFor(homeGoal.id, snapshot.squads)) : null} selectedId={selectedAgentId} onSelect={selectAgent} onMove={(id, x, y) => void moveAgent(id, x, y)} onClose={() => setOfficeOpen(false)} /></SafeBoundary>}
     <OpenWorkLauncher items={openWorkItems} agents={snapshot.agents} onSelect={(goalId, taskId) => void openWorkItem(goalId, taskId)} />
     {conversationGoalId && snapshot.goals.find(goal => goal.id === conversationGoalId)?.kind === 'deliberation' && <MeetingPanel snapshot={snapshot} goal={snapshot.goals.find(goal => goal.id === conversationGoalId)!} onArchive={() => archiveGoal(conversationGoalId)} backendBuild={backendBuild} onClose={closeGoalWorkspace} {...meetingHandlers} />}
     {connectionDialogOpen && <ConnectionDialog onClose={() => setConnectionDialogOpen(false)} onError={message => setDialog(reason('연결을 확인해 주세요', message, '입력값과 모델 서버 상태를 확인한 뒤 다시 시도하세요.'))} onSave={async connection => Boolean(await action<AiConnection>('save_connection', { connection }, `${connection.name} 연결을 저장하고 AI가 없는 팀원에게 배정했습니다.`))} />}

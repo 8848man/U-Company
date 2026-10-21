@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import OfficeCanvas from './office/OfficeCanvas';
 import { goalTitle } from './progress';
 import type { MemberActivity } from './progress';
-import { clampPlace, loadPlace, memberRows, savePlace, stageStrip, type WindowPlace } from './officeWindow';
+import { clampPlace, loadPlace, memberRows, savePlace, stageStrip, type WindowPlace } from './officeWindowState';
 import type { Agent, AiConnection, Event, Goal, Squad, Task } from './types';
 
 type Props = {
@@ -46,21 +46,26 @@ export function OfficeWindow({ goal, agents, connections, tasks, events, squad, 
     return () => observer.disconnect();
   }, [place.mode]);
 
+  // Only a primary-button press on the bar moves the window; right clicks and other buttons never start a drag.
   function startDrag(event: React.PointerEvent) {
-    if (place.mode !== 'floating' || (event.target as HTMLElement).closest('button')) return;
+    if (event.button !== 0 || place.mode !== 'floating' || (event.target as HTMLElement).closest('button')) return;
     dragRef.current = { dx: event.clientX - place.x, dy: event.clientY - place.y };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
   }
   function moveDrag(event: React.PointerEvent) {
-    if (!dragRef.current) return;
-    setPlace(current => clampPlace({ ...current, x: event.clientX - dragRef.current!.dx, y: event.clientY - dragRef.current!.dy }, window.innerWidth, window.innerHeight));
+    const drag = dragRef.current;
+    if (!drag) return;
+    // Compute the target now: the drag may end before React runs a queued updater, so the updater must not read the ref.
+    const x = event.clientX - drag.dx, y = event.clientY - drag.dy;
+    setPlace(current => clampPlace({ ...current, x, y }, window.innerWidth, window.innerHeight));
   }
+  function endDrag() { dragRef.current = null; }
   const mode = (next: WindowPlace['mode']) => setPlace(current => ({ ...current, mode: current.mode === next ? 'floating' : next }));
   const style = place.mode === 'floating' ? { left: place.x, top: place.y, width: place.w, height: place.h } : undefined;
   const title = goal ? `Office · ${goalTitle(goal, 28)}` : 'Office';
 
   return <section ref={frameRef} className={`office-window is-${place.mode}`} style={style} role="dialog" aria-label={title}>
-    <header className="office-window-bar" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={() => { dragRef.current = null; }} onDoubleClick={() => mode('docked')}>
+    <header className="office-window-bar" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag} onDoubleClick={() => mode('docked')}>
       <strong title={goal?.intent}>{title}</strong>
       <div className="office-window-controls">
         <button type="button" aria-label={place.mode === 'minimized' ? '창 펼치기' : '최소화'} title={place.mode === 'minimized' ? '펼치기' : '최소화'} onClick={() => mode('minimized')}>{place.mode === 'minimized' ? '▢' : '–'}</button>

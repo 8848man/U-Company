@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planCardLabel, planCards, progressLine, stageLines, subject } from './goalChat';
+import { planCardLabel, planCards, progressLine, stageLines, subject } from './goalStream';
 import type { Agent, Approval, Event, Goal, Squad, Task } from './types';
 
 const goal = (status: string): Goal => ({ id: 'g', projectId: 'p', intent: '할 일에 마감일을 넣어줘', status, report: '', createdAt: '2026-10-14T00:00:00Z', resumedFrom: null, reviewLoopsUsed: 0, reviewLoopLimit: 2, workGroup: null });

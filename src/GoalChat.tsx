@@ -12,7 +12,7 @@ import { BlockFactsView, DeliverablePanel } from './DeliverablePanel';
 import { ArchiveGoalButton } from './ArchiveGoalButton';
 import { SquadPanel } from './SquadPanel';
 import { PlanningOriginPanel } from './PlanningOriginPanel';
-import { planCardLabel, planCards, progressLine, stageLines, type PlanCard } from './goalChat';
+import { planCardLabel, planCards, progressLine, stageLines, type PlanCard } from './goalStream';
 import type { GoalOrigin } from './sddOrigin';
 import type { Agent, AiConnection, Approval, DeliverableReview, Event, Goal, GoalGuidance, GoalTurn, Project, Squad, Task, TokenUsageRecord } from './types';
 
