@@ -194,3 +194,5 @@ body.office-docked .v3 .main{margin-right:min(440px,90vw)}
 @keyframes reference-spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.reference-box.is-preparing i{animation:none}}
 .reference-dialog-image{max-width:100%;max-height:260px;border-radius:8px;border:1px solid #2f4637}
+/* ADR-0052: mock AI card inside the AI 추가 dialog */
+.v2-mock-ai{margin-top:16px}.v2-mock-ai p{margin:6px 0 10px;color:#a9bba9;font-size:13px;line-height:1.5}.v2-mock-ai select{padding:9px;border:1px solid #485e50;border-radius:7px;background:#17221c;color:#e8f2e0}

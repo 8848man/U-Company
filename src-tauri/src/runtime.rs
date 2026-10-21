@@ -165,7 +165,11 @@ pub(crate) fn send_json(connection: &AiConnection, url: &str, body: &Value) -> R
 }
 
 pub(crate) fn run_plugin(connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool) -> Result<RuntimeResult, String> {
-    let mut child = Command::new(&connection.executable).args(&connection.args).current_dir(cwd).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().map_err(|e| e.to_string())?;
+    let mut command = Command::new(&connection.executable);
+    command.args(&connection.args).current_dir(cwd).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
+    // A console adapter (e.g. node.exe for the mock AI) must not open a window over the app.
+    #[cfg(windows)] { use std::os::windows::process::CommandExt; command.creation_flags(0x0800_0000); }
+    let mut child = command.spawn().map_err(|e| e.to_string())?;
     let mut stdin = child.stdin.take().ok_or("Plugin has no stdin")?;
     let stdout = child.stdout.take().ok_or("Plugin has no stdout")?;
     let (tx, rx) = mpsc::channel();

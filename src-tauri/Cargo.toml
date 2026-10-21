@@ -25,6 +25,10 @@ chrono = { version = "0.4", features = ["serde"] }
 ureq = { version = "3", features = ["json"] }
 sha2 = "0.10"
 
+[dev-dependencies]
+# ADR-0052: engine end-to-end tests run on tauri::test::mock_app().
+tauri = { version = "=2.11.6", features = ["test"] }
+
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "=0.61.3", features = ["Win32_Foundation", "Win32_System_Com", "Win32_UI_Shell"] }
 

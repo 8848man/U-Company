@@ -137,7 +137,7 @@ const STAGE_WAIT: Duration = Duration::from_secs(2 * 60 * 60);
 /// another goal or meeting holds them the goal waits, with one visible note, instead of sharing a
 /// character between two sessions. `choose` returns the holders, or Err(reason) to wait, or a
 /// hard error (via the outer Result) when no one could ever hold the stage.
-fn enter_stage(app: &tauri::AppHandle, goal_id: &str, status: &str, message: &str, choose: impl Fn(&rusqlite::Transaction<'_>, &std::collections::BTreeMap<String, String>) -> Result<Result<Vec<String>, String>, String>) -> Result<Vec<String>, String> {
+fn enter_stage<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, status: &str, message: &str, choose: impl Fn(&rusqlite::Transaction<'_>, &std::collections::BTreeMap<String, String>) -> Result<Result<Vec<String>, String>, String>) -> Result<Vec<String>, String> {
     let store = app.state::<Store>();
     let deadline = Instant::now() + STAGE_WAIT;
     let mut noted = false;
@@ -169,7 +169,7 @@ fn enter_stage(app: &tauri::AppHandle, goal_id: &str, status: &str, message: &st
 
 /// Waits (without changing the stage) until the given squad members are free, e.g. the planning
 /// lead before a QA rework plan.
-fn wait_free(app: &tauri::AppHandle, goal_id: &str, ids: &[String]) -> Result<(), String> {
+fn wait_free<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, ids: &[String]) -> Result<(), String> {
     let store = app.state::<Store>();
     let deadline = Instant::now() + STAGE_WAIT;
     let mut noted = false;
@@ -202,7 +202,7 @@ fn parse_conversation_decision(text: &str) -> Result<ConversationDecision, Strin
     Ok(decision)
 }
 
-pub fn start(app: tauri::AppHandle, goal_id: String) -> Result<(), String> {
+pub fn start<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_id: String) -> Result<(), String> {
     let store = app.state::<Store>();
     let mut goal: Goal = store.get("goal", &goal_id)?.ok_or("Goal not found")?;
     if goal.kind != "execution" { return Err("회의 목표는 회의 작업공간에서만 진행할 수 있습니다".into()); }
@@ -249,7 +249,7 @@ fn can_retry_before_write(goal: &Goal, tasks: &[Task], approvals: &[Approval]) -
         && !approvals.iter().any(|approval| approval.goal_id.as_deref() == Some(goal.id.as_str()))
 }
 
-pub fn resume_approved(app: tauri::AppHandle, goal_id: String) -> Result<(), String> {
+pub fn resume_approved<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_id: String) -> Result<(), String> {
     let store = app.state::<Store>();
     if store.list::<GoalGuidance>("goal_guidance")?.iter().any(|item| item.goal_id == goal_id) { return Err("방향 변경 제안이 있는 기존 계획은 재사용할 수 없습니다. 목표 대화에서 새 버전을 만드세요".into()); }
     let goal: Goal = store.get("goal", &goal_id)?.ok_or("Goal not found")?;
@@ -276,7 +276,7 @@ pub fn resume_approved(app: tauri::AppHandle, goal_id: String) -> Result<(), Str
     Ok(())
 }
 
-pub fn verify_bootstrap_goal(app: tauri::AppHandle, goal_id: &str, commit_id: &str, committed_files: &[String]) -> Result<bool, String> {
+pub fn verify_bootstrap_goal<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_id: &str, commit_id: &str, committed_files: &[String]) -> Result<bool, String> {
     let store = app.state::<Store>();
     let snapshot = store.snapshot()?;
     let goal: Goal = store.get("goal", goal_id)?.ok_or("Goal not found")?;
@@ -335,7 +335,7 @@ fn bootstrap_task_candidate(tasks: &[Task], committed_files: &[String]) -> Optio
     Some(task)
 }
 
-fn block_goal(app: &tauri::AppHandle, goal_id: &str, error: &str) {
+fn block_goal<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, error: &str) {
     let _ = check_goal_guidance(app, goal_id, "실행 오류 후");
     let store = app.state::<Store>();
     if let Ok(Some(mut goal)) = store.get::<Goal>("goal", goal_id) {
@@ -349,19 +349,19 @@ fn block_goal(app: &tauri::AppHandle, goal_id: &str, error: &str) {
     let _ = app.emit("state-changed", ());
 }
 
-fn record_progress(app: &tauri::AppHandle, goal_id: &str, task_id: Option<&str>, agent_id: &str, message: &str) {
+fn record_progress<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, task_id: Option<&str>, agent_id: &str, message: &str) {
     let store = app.state::<Store>();
     let event = NewEvent { kind: "runtime_progress".into(), goal_id: Some(goal_id.into()), task_id: task_id.map(str::to_string), agent_id: Some(agent_id.into()), message: message.chars().take(160).collect() };
     if store.append_event(event).is_ok() { let _ = app.emit("state-changed", ()); }
 }
 
-fn record_handoff(app: &tauri::AppHandle, goal_id: &str, from: &str, to: &str) {
+fn record_handoff<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, from: &str, to: &str) {
     let store = app.state::<Store>();
     let _ = store.append_event(NewEvent { kind: "agent_handoff".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: Some(from.into()), message: to.into() });
     let _ = app.emit("state-changed", ());
 }
 
-fn check_goal_guidance(app: &tauri::AppHandle, goal_id: &str, checkpoint: &str) -> Result<(), String> {
+fn check_goal_guidance<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, checkpoint: &str) -> Result<(), String> {
     let store = app.state::<Store>();
     let mut proposals: Vec<GoalGuidance> = store.list::<GoalGuidance>("goal_guidance")?.into_iter()
         .filter(|item| item.goal_id == goal_id && ["pending", "review_required"].contains(&item.status.as_str())).collect();
@@ -382,7 +382,7 @@ fn check_goal_guidance(app: &tauri::AppHandle, goal_id: &str, checkpoint: &str) 
     Err(format!("CEO 방향 변경 제안이 {checkpoint} 단계에서 대기 중입니다. 목표 대화를 열어 새 목표 버전을 검토해 주세요"))
 }
 
-fn execute_tracked(app: &tauri::AppHandle, project_id: &str, goal_id: &str, task_id: Option<&str>, agent_id: &str, connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool) -> Result<provider::AiResponse, String> {
+fn execute_tracked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, project_id: &str, goal_id: &str, task_id: Option<&str>, agent_id: &str, connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool) -> Result<provider::AiResponse, String> {
     let store = app.state::<Store>();
     let mut usage = TokenUsageRecord { id: crate::model::id(), project_id: project_id.into(), goal_id: goal_id.into(), agent_id: agent_id.into(), task_id: task_id.map(str::to_string), connection_id: connection.id.clone(), connection_name: connection.name.clone(), model_id: connection.model_id.clone(), input_tokens: prompt.chars().count().div_ceil(4) as u64, output_tokens: 0, source: "estimated".into(), status: "active".into(), updated_at: crate::model::now(), meeting_id: None };
     store.put("usage", &usage.id, &usage, None)?;
@@ -416,7 +416,7 @@ fn execute_tracked(app: &tauri::AppHandle, project_id: &str, goal_id: &str, task
 
 /// ADR-0049: a curator call belongs to no goal yet. Its tokens are still recorded (goal id empty)
 /// so usage totals stay truthful; it writes no progress events.
-pub fn execute_for_reference(app: &tauri::AppHandle, project_id: &str, agent: &Agent, connection: &AiConnection, prompt: &str, cwd: &Path) -> Result<String, String> {
+pub fn execute_for_reference<R: tauri::Runtime>(app: &tauri::AppHandle<R>, project_id: &str, agent: &Agent, connection: &AiConnection, prompt: &str, cwd: &Path) -> Result<String, String> {
     let store = app.state::<Store>();
     let mut usage = TokenUsageRecord { id: crate::model::id(), project_id: project_id.into(), goal_id: String::new(), agent_id: agent.id.clone(), task_id: None, connection_id: connection.id.clone(), connection_name: connection.name.clone(), model_id: connection.model_id.clone(), input_tokens: prompt.chars().count().div_ceil(4) as u64, output_tokens: 0, source: "estimated".into(), status: "active".into(), updated_at: crate::model::now(), meeting_id: None };
     store.put("usage", &usage.id, &usage, None)?;
@@ -434,7 +434,7 @@ pub fn execute_for_reference(app: &tauri::AppHandle, project_id: &str, agent: &A
     result.map(|completed| completed.text)
 }
 
-pub fn answer_goal_question(app: &tauri::AppHandle, turn_id: &str, agent: Agent, selected: AiConnection) {
+pub fn answer_goal_question<R: tauri::Runtime>(app: &tauri::AppHandle<R>, turn_id: &str, agent: Agent, selected: AiConnection) {
     let store = app.state::<Store>();
     let result = (|| -> Result<String, String> {
         let turn: GoalTurn = store.get("goal_turn", turn_id)?.ok_or("질문 기록을 찾을 수 없습니다")?;
@@ -460,7 +460,7 @@ pub fn answer_goal_question(app: &tauri::AppHandle, turn_id: &str, agent: Agent,
     }
 }
 
-pub fn answer_goal_message(app: &tauri::AppHandle, turn_id: &str, agent: Agent, selected: AiConnection) {
+pub fn answer_goal_message<R: tauri::Runtime>(app: &tauri::AppHandle<R>, turn_id: &str, agent: Agent, selected: AiConnection) {
     let store = app.state::<Store>();
     let result = (|| -> Result<(String, Option<String>, String), String> {
         let turn: GoalTurn = store.get("goal_turn", turn_id)?.ok_or("메시지 기록을 찾을 수 없습니다")?;
@@ -506,7 +506,7 @@ pub fn answer_goal_message(app: &tauri::AppHandle, turn_id: &str, agent: Agent, 
     }
 }
 
-pub fn resume_auto_guidance(app: &tauri::AppHandle) {
+pub fn resume_auto_guidance<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let store = app.state::<Store>();
     if let Ok(items) = store.list::<GoalGuidance>("goal_guidance") {
         for guidance in items.into_iter().filter(|item| item.auto_continue && (["pending", "review_required"].contains(&item.status.as_str()) || (item.status == "revised" && item.replacement_goal_id.is_some()))) {
@@ -515,7 +515,7 @@ pub fn resume_auto_guidance(app: &tauri::AppHandle) {
     }
 }
 
-fn follow_auto_guidance(app: tauri::AppHandle, guidance_id: String) {
+fn follow_auto_guidance<R: tauri::Runtime>(app: tauri::AppHandle<R>, guidance_id: String) {
     thread::spawn(move || {
         let store = app.state::<Store>();
         loop {
@@ -576,7 +576,7 @@ pub fn discussion_runtime(agents: &[Agent], connections: &[AiConnection], agent_
     Ok((agent.clone(), selected))
 }
 
-fn run(app: &tauri::AppHandle, goal_id: &str) -> Result<(), String> {
+fn run<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<(), String> {
     let store = app.state::<Store>();
     check_goal_guidance(app, goal_id, "CTO 분석 시작 전")?;
     let snapshot = store.snapshot()?;
@@ -753,7 +753,15 @@ fn run(app: &tauri::AppHandle, goal_id: &str) -> Result<(), String> {
     }
 }
 
-fn execute_planned(app: &tauri::AppHandle, goal_id: &str, project: &Project, goal: &Goal, analysis: &str, snapshot: &Snapshot) -> Result<(), String> {
+/// Where isolated task folders live: the app data folder, or a folder a test harness manages (ADR-0052).
+pub struct WorktreeBase(pub PathBuf);
+
+fn worktree_base<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, String> {
+    if let Some(base) = app.try_state::<WorktreeBase>() { return Ok(base.0.clone()); }
+    Ok(app.path().app_data_dir().map_err(|e| e.to_string())?.join("worktrees"))
+}
+
+fn execute_planned<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, project: &Project, goal: &Goal, analysis: &str, snapshot: &Snapshot) -> Result<(), String> {
     let store = app.state::<Store>();
     let reviewers = reviewers_for(&store, snapshot, goal_id)?;
     for reviewer in &reviewers { connection(&snapshot.connections, reviewer)?; }
@@ -762,7 +770,7 @@ fn execute_planned(app: &tauri::AppHandle, goal_id: &str, project: &Project, goa
     let root = PathBuf::from(&project.path);
     transition_goal(app, goal_id, "executing", "Implementation tasks delegated")?;
     let base = if project.kind == "git" { git_output(&root, &["rev-parse", "HEAD"])? } else { String::new() };
-    let worktree_root = app.path().app_data_dir().map_err(|e| e.to_string())?.join("worktrees").join(goal_id);
+    let worktree_root = worktree_base(app)?.join(goal_id);
     std::fs::create_dir_all(&worktree_root).map_err(|e| e.to_string())?;
     // ADR-0050: the PM writes the approved goal into the project's U-SDD before implementation.
     run_sdd_step(app, goal_id, project, goal, analysis, &base, &worktree_root, "plan", "");
@@ -898,7 +906,7 @@ fn execute_planned(app: &tauri::AppHandle, goal_id: &str, project: &Project, goa
 /// ADR-0048 `해결 요청`: one click on a blocked goal. The route and the request text come from saved
 /// records (`team_fix`); a repair stays inside the approved files, a new version is planned and
 /// waits for the CEO's approval. The request is kept in the goal conversation as a CEO turn.
-pub fn request_team_fix(app: tauri::AppHandle, goal_id: String) -> Result<GoalTurn, String> {
+pub fn request_team_fix<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_id: String) -> Result<GoalTurn, String> {
     let store = app.state::<Store>();
     if store.get::<crate::archive::GoalArchive>("goal_archive", &goal_id)?.is_some() { return Err("보관한 목표입니다. 설정 › 백업 삭제에서 되돌린 뒤 진행해 주세요".into()); }
     let snapshot = store.snapshot()?;
@@ -963,7 +971,7 @@ pub fn request_team_fix(app: tauri::AppHandle, goal_id: String) -> Result<GoalTu
 /// QA rework plan on the same goal. Also the engine side of ADR-0048 `해결 요청`, which passes the
 /// app-built fix request as `ceo_note`. Repairs may touch only the already approved files.
 #[allow(clippy::too_many_arguments)]
-fn plan_repair(app: &tauri::AppHandle, goal_id: &str, project: &Project, goal: &Goal, analysis: &str, from_id: &str, review: &str, approved_files: &HashSet<String>, ceo_note: Option<&str>) -> Result<(), String> {
+fn plan_repair<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, project: &Project, goal: &Goal, analysis: &str, from_id: &str, review: &str, approved_files: &HashSet<String>, ceo_note: Option<&str>) -> Result<(), String> {
     let store = app.state::<Store>();
     let snapshot = store.snapshot()?;
     let root = PathBuf::from(&project.path);
@@ -1016,7 +1024,7 @@ const CONTRACT_RULES: &str = "Every task has 1-8 acceptance criteria, each one c
 /// ADR-0048: ask the planner, check the plan, and on a format failure ask once more with the exact
 /// error. A second failure blocks as `plan_form` (an error that already carries a kind keeps it).
 #[allow(clippy::too_many_arguments)]
-fn plan_with_retry(app: &tauri::AppHandle, project_id: &str, goal_id: &str, pm: &Agent, pm_connection: &AiConnection, prompt: &str, root: &Path, checkpoint: &str, check: impl Fn(&ProposedPlan) -> Result<(), String>) -> Result<ProposedPlan, String> {
+fn plan_with_retry<R: tauri::Runtime>(app: &tauri::AppHandle<R>, project_id: &str, goal_id: &str, pm: &Agent, pm_connection: &AiConnection, prompt: &str, root: &Path, checkpoint: &str, check: impl Fn(&ProposedPlan) -> Result<(), String>) -> Result<ProposedPlan, String> {
     let mut attempt_prompt = prompt.to_string();
     let mut attempt = 0;
     loop {
@@ -1103,7 +1111,7 @@ fn remove_copied_evidence(worktree: &Path) -> Result<(), String> {
     std::fs::remove_file(&list).map_err(|e| e.to_string())
 }
 
-fn run_task(app: &tauri::AppHandle, mut task: Task, agent: Agent, connection: AiConnection, intent: &str, project_id: &str) -> Result<(), String> {
+fn run_task<R: tauri::Runtime>(app: &tauri::AppHandle<R>, mut task: Task, agent: Agent, connection: AiConnection, intent: &str, project_id: &str) -> Result<(), String> {
     let store = app.state::<Store>();
     let worktree = Path::new(task.worktree.as_ref().ok_or("Missing worktree")?);
     let prompt = format!("You are {} ({}) in an AI company. Work only inside this isolated task folder and change ONLY these declared files: {}. The engine rejects changes to other files. Follow project instructions that do not conflict with this assignment. Do not deploy, send data externally beyond the model service, alter credentials, change agent permissions, or commit. Implement your assigned task and run focused tests.\nCEO goal: {}\nTask: {}\n{}\nRole instructions: {}\nReturn a concise summary and test evidence.", agent.name, agent.role, task.files.join(", "), intent, task.title, worker_brief(&task, &crate::references::for_goal(&store, &task.goal_id).unwrap_or_default()), squad::role_notes(&agent));
@@ -1174,7 +1182,7 @@ fn summary_line(text: &str) -> String {
         .map(|rest| crate::meeting::plain_summary(Some(&serde_json::Value::String(rest.trim().trim_matches('*').trim().to_string())), 80)).unwrap_or_default()
 }
 
-fn transition_goal(app: &tauri::AppHandle, id: &str, status: &str, message: &str) -> Result<(), String> {
+fn transition_goal<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str, status: &str, message: &str) -> Result<(), String> {
     let store = app.state::<Store>();
     let mut goal: Goal = store.get("goal", id)?.ok_or("Goal not found")?;
     goal.status = status.into();
@@ -1358,7 +1366,7 @@ fn integrate_sdd(root: &Path, worktree: &Path, project_kind: &str) -> Result<Vec
 /// Runs the PM's SDD step once per goal and phase. It never blocks the goal: a failure is recorded
 /// and shown in the conversation, and the work goes on.
 #[allow(clippy::too_many_arguments)]
-fn run_sdd_step(app: &tauri::AppHandle, goal_id: &str, project: &Project, goal: &Goal, analysis: &str, base: &str, worktree_root: &Path, phase: &str, qa_report: &str) {
+fn run_sdd_step<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, project: &Project, goal: &Goal, analysis: &str, base: &str, worktree_root: &Path, phase: &str, qa_report: &str) {
     let store = app.state::<Store>();
     let root = PathBuf::from(&project.path);
     if !crate::sdd_origin::exists(&root) { return; }
@@ -1375,7 +1383,7 @@ fn run_sdd_step(app: &tauri::AppHandle, goal_id: &str, project: &Project, goal: 
 }
 
 #[allow(clippy::too_many_arguments)]
-fn sdd_step(app: &tauri::AppHandle, goal_id: &str, project: &Project, goal: &Goal, analysis: &str, base: &str, worktree_root: &Path, phase: &str, qa_report: &str) -> Result<Vec<String>, String> {
+fn sdd_step<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, project: &Project, goal: &Goal, analysis: &str, base: &str, worktree_root: &Path, phase: &str, qa_report: &str) -> Result<Vec<String>, String> {
     let store = app.state::<Store>();
     let snapshot = store.snapshot()?;
     let root = PathBuf::from(&project.path);

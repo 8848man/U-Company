@@ -1,5 +1,32 @@
 # Active work checklist
 
+## 완주율·사용성 개선 라운드 (2026-10-20, Claude)
+
+브랜치 `feature/completion-usability-rounds`(기준 `feature/v3-shell-polish` `ee0ac2d`). 계획: [완주율·사용성 개선 라운드](sdd/completion-usability-rounds.md), [ADR-0052](sdd/architecture/decisions/ADR-0052.md).
+
+### R0 — 기준선과 계획 기록 (완료)
+
+- [x] 브랜치 생성, 라운드 명세·ADR-0052·색인 2곳.
+- [x] 기준선(Linux 클라우드 작업 공간): `cargo test --locked --lib` 148 통과·2 무시, `vitest` 104, 세 프런트 `tsc`, 빌드 3종 통과.
+- 다음: R1 모의 AI 연결.
+
+### R1 — 모의 AI 연결 (완료, 오프라인 검증)
+
+- [x] `scripts/mock-ai/mock-adapter.mjs`(의존성 없음, 프로토콜 v1)와 `scenarios/todo-app.json`(할 일 규칙+테스트, 화면 3파일). 요청문 문구로 단계 판별(분석·계획·재작업 계획·구현·산출물 QA·SDD·대화). 구현 단계는 선언 파일만 작업 폴더 안에 쓰고, QA는 파일 존재로 기준마다 판정. 방식 `qa-fail-once`·`plan-form-once`·`needs-scope-once`.
+- [x] 백엔드 `mock_ai.rs`와 `add_mock_connection`(프로토콜 38): PATH의 Node + 저장소 스크립트로 `plugin`·`files` 연결을 만들고, 연결 없는 팀원에게만 배정. Windows에서 어댑터 프로세스는 콘솔 창 없이 시작.
+- [x] v3 `AI 추가` 대화상자에 "토큰 없이 흐름만 시험하기" 카드(방식 4가지 선택). v2는 prop을 넘기지 않아 그대로.
+- [x] 명세: AI-03 "Mock AI" 절.
+- [x] 검증: `vitest` 모의 AI 7개(프로토콜 왕복, 단계 판별, 형식 오류 1회, 생성 파일이 `node --test` 통과, 작업 폴더 밖 쓰기 거부, QA 1회 실패, 범위 요구), Rust `mock_ai` 1개.
+- 남은 위험: 실제 앱에서 등록·실행은 R2 종단 시험과 Windows 수동 확인(샘플 앱 흐름 A)으로 본다.
+
+### R2 — 엔진 종단 시험 (완료, 오프라인 검증)
+
+- [x] 구조 변경(동작 불변): `engine.rs`의 `AppHandle`을 받는 함수 24개를 `AppHandle<R: tauri::Runtime>` 제네릭으로. dev-dependency `tauri` `test` 기능. 작업 폴더 위치는 `WorktreeBase` 상태가 있으면 그 폴더(시험용), 없으면 기존 앱 데이터 폴더.
+- [x] 새 `engine_e2e.rs` 4개: 샘플 앱 목표 분석→승인→작업 2개 병렬→통합→산출물 QA→보고 완주(통합된 앱의 `node --test` 통과), QA 1회 실패→승인 파일 안 재작업→통과, 계획 형식 오류 1회 자동 재요청, 승인 대기 중 재시작 시 승인 대기 유지·프로젝트 무변경.
+- [x] 찾음: 재작업 업무가 파일을 바꾸지 않으면(이미 맞다고 판단한 경우) `Task produced no file changes`로 `integration_conflict` 멈춤. 실제 AI도 QA 오판에 "고칠 것 없음"으로 답할 수 있어 완주를 막는 경로다. R3에서 다룬다. 모의 AI는 재작업에서 눈에 보이는 수정 한 줄을 남긴다.
+- [x] 명세: Validation "Whole-goal tests with the mock AI".
+- [x] 검증: `cargo test --locked --lib` 153 통과·2 무시(기준선 149 + 4), 앱 데이터 폴더에 시험 흔적 없음.
+
 ## 대화형 목표 흐름 (2026-10-14, Claude Cowork)
 
 작업 중 파일(다른 작업자는 동시에 수정하지 말 것): v3 화면(`v3/src/`), `src/GoalConversationChat.tsx`와 새 대화 부품, Office 창, 그리고 M3에서 `src-tauri/src/engine.rs`·`lib.rs`·`model.rs`(개선·취소).

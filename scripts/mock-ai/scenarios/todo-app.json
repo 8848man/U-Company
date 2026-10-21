@@ -1,0 +1,42 @@
+{
+  "name": "todo-app",
+  "summary": "할 일을 적고 끝낸 일을 표시하는 작은 웹앱을 만들어요",
+  "analysis": "범위: 브라우저에서 바로 여는 할 일 목록 앱(index.html)과, 화면과 분리된 할 일 규칙(todo.js) 및 그 테스트.\n제약: 외부 라이브러리와 서버 없이 파일만으로 동작한다. 기존 파일은 바꾸지 않는다.\n위험: 저장 기능은 브라우저 localStorage에만 의존한다.\n수용 기준: 할 일 추가·완료 표시·삭제가 되고, `node --test`가 통과한다.",
+  "tasks": [
+    {
+      "title": "할 일 규칙과 테스트",
+      "deliverable": "할 일 추가·완료 전환·삭제 규칙을 담은 todo.js와 그 테스트",
+      "instructions": "todo.js에 addTodo, toggleTodo, removeTodo를 순수 함수로 만들고 todo.test.js에 node:test 테스트를 둔다. 브라우저와 Node에서 모두 쓸 수 있게 한다.",
+      "files": ["todo.js", "todo.test.js"],
+      "acceptance": [
+        "todo.js가 addTodo, toggleTodo, removeTodo를 내보낸다",
+        "빈 문자열은 할 일로 추가되지 않는다",
+        "todo.test.js의 테스트가 `node --test`로 통과한다"
+      ],
+      "evidence": [],
+      "capability": "code",
+      "dependsOn": []
+    },
+    {
+      "title": "할 일 목록 화면",
+      "deliverable": "브라우저에서 여는 할 일 목록 화면(index.html, style.css, main.js)",
+      "instructions": "index.html에 입력칸, 추가 버튼, 목록을 두고 main.js가 window.Todo 규칙을 써서 그린다. 목록은 localStorage에 저장한다.",
+      "files": ["index.html", "style.css", "main.js"],
+      "acceptance": [
+        "index.html을 브라우저에서 열면 입력칸과 추가 버튼이 보인다",
+        "추가한 할 일을 눌러 완료로 표시하고 삭제할 수 있다",
+        "새로고침해도 목록이 남는다"
+      ],
+      "evidence": [],
+      "capability": "code",
+      "dependsOn": []
+    }
+  ],
+  "files": {
+    "todo.js": "// 할 일 규칙: 화면과 분리된 순수 함수. 브라우저에서는 window.Todo, Node에서는 require로 쓴다.\n(function (root) {\n  function addTodo(list, text) {\n    const title = String(text ?? '').trim();\n    if (!title) return list;\n    return [...list, { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), title, done: false }];\n  }\n  function toggleTodo(list, id) {\n    return list.map(item => (item.id === id ? { ...item, done: !item.done } : item));\n  }\n  function removeTodo(list, id) {\n    return list.filter(item => item.id !== id);\n  }\n  const api = { addTodo, toggleTodo, removeTodo };\n  if (typeof module !== 'undefined' && module.exports) module.exports = api;\n  else root.Todo = api;\n})(this);\n",
+    "todo.test.js": "const test = require('node:test');\nconst assert = require('node:assert/strict');\nconst { addTodo, toggleTodo, removeTodo } = require('./todo.js');\n\ntest('할 일을 추가한다', () => {\n  const list = addTodo([], '우유 사기');\n  assert.equal(list.length, 1);\n  assert.equal(list[0].title, '우유 사기');\n  assert.equal(list[0].done, false);\n});\n\ntest('빈 문자열은 추가하지 않는다', () => {\n  assert.deepEqual(addTodo([], '   '), []);\n});\n\ntest('완료를 전환하고 삭제한다', () => {\n  const [item] = addTodo([], '청소');\n  const toggled = toggleTodo([item], item.id);\n  assert.equal(toggled[0].done, true);\n  assert.deepEqual(removeTodo(toggled, item.id), []);\n});\n",
+    "index.html": "<!doctype html>\n<html lang=\"ko\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>할 일 목록</title>\n  <link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n  <main>\n    <h1>할 일 목록</h1>\n    <form id=\"add-form\">\n      <input id=\"new-todo\" placeholder=\"할 일을 적어 주세요\" autocomplete=\"off\">\n      <button type=\"submit\">추가</button>\n    </form>\n    <ul id=\"list\"></ul>\n    <p id=\"empty\">아직 할 일이 없어요.</p>\n  </main>\n  <script src=\"todo.js\"></script>\n  <script src=\"main.js\"></script>\n</body>\n</html>\n",
+    "style.css": "body { font-family: system-ui, sans-serif; background: #f6f7f9; margin: 0; }\nmain { max-width: 420px; margin: 48px auto; padding: 24px; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.06); }\nh1 { font-size: 22px; margin: 0 0 16px; }\nform { display: flex; gap: 8px; }\ninput { flex: 1; padding: 10px; border: 1px solid #ccd; border-radius: 8px; font-size: 15px; }\nbutton { padding: 10px 14px; border: 0; border-radius: 8px; background: #3b5bdb; color: #fff; cursor: pointer; }\nul { list-style: none; padding: 0; margin: 16px 0 0; }\nli { display: flex; align-items: center; gap: 8px; padding: 10px 4px; border-bottom: 1px solid #eef; }\nli span { flex: 1; cursor: pointer; }\nli.done span { text-decoration: line-through; color: #889; }\nli button { background: #e9ecef; color: #333; padding: 4px 10px; }\n#empty { color: #889; }\n",
+    "main.js": "// 화면: window.Todo 규칙으로 목록을 그리고 localStorage에 저장한다.\n(function () {\n  const KEY = 'todo-app-items';\n  let items = [];\n  try { items = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { items = []; }\n  const list = document.getElementById('list');\n  const empty = document.getElementById('empty');\n  const input = document.getElementById('new-todo');\n  function save() { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch {} }\n  function render() {\n    list.innerHTML = '';\n    for (const item of items) {\n      const li = document.createElement('li');\n      if (item.done) li.className = 'done';\n      const title = document.createElement('span');\n      title.textContent = item.title;\n      title.title = '눌러서 완료 표시';\n      title.onclick = () => { items = Todo.toggleTodo(items, item.id); save(); render(); };\n      const remove = document.createElement('button');\n      remove.textContent = '삭제';\n      remove.onclick = () => { items = Todo.removeTodo(items, item.id); save(); render(); };\n      li.append(title, remove);\n      list.append(li);\n    }\n    empty.hidden = items.length > 0;\n  }\n  document.getElementById('add-form').addEventListener('submit', event => {\n    event.preventDefault();\n    items = Todo.addTodo(items, input.value);\n    input.value = '';\n    save();\n    render();\n  });\n  render();\n})();\n"
+  }
+}
