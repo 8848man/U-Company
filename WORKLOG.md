@@ -62,6 +62,13 @@
 - [x] 검증: `cargo test --lib` 125(기준선 119 + `team_fix` 5 + 형식 재요청 1), `cargo check`, 세 프런트 `tsc`와 빌드, `vitest` 92(기준선 89 + 해결 요청 3). 모의 앱에서 같은 모양의 멈춘 목표를 열어 버튼 → 대화상자 닫힘, CEO 턴·답, 진행 줄 "서연이 작업을 나누는 중…", 콘솔 오류 0을 확인했다.
 - 남은 위험: 실제 PM 재작업과 QA 재검토는 Windows에서 QA-46으로 확인한다. 이미 멈춘 목표가 `validating`이 아닌 단계에서 멈췄다면 새 목표 버전 경로로 간다.
 
+### M7 — 팀원 요청문에 수용 기준·근거 자료 전달 (완료, 오프라인 검증)
+
+- [x] 찾음(2026-10-14, 코드 검토): 팀원 요청문이 "Instructions and acceptance criteria"라고 적으면서 지시문만 넣었다. 산출물 설명, QA가 판정할 수용 기준, 근거 자료 목록은 팀원에게 가지 않았다. Git 프로젝트의 작업 폴더는 HEAD에서 만들어 커밋되지 않은 근거 자료가 없었다.
+- [x] 변경: `worker_brief`로 지시문, 산출물, 번호 붙인 수용 기준, 읽기 전용 근거 자료 목록을 보낸다. 작업 폴더를 만든 뒤 없는 근거 자료만 원본 프로젝트에서 복사한다(`copy_evidence`, 이미 있는 파일과 업무가 바꿀 파일은 건드리지 않음). 통합은 선언한 파일만 반영하므로 복사본은 결과에 섞이지 않는다.
+- [x] 검증: `cargo test --lib` 126(기준선 125 + 1).
+- [x] 다음: 참조 자료(긴 글·이미지) 입력 계획서를 CEO 검토용으로 작성했다("참조 자료(긴 글·이미지) 입력 기능 개선 계획서", 결정 다섯 가지 대기). 이 단계가 그 계획의 M0이다.
+
 ## 프로젝트 작업 규칙 감지와 구조 잡기 (2026-10-12, Claude Cowork)
 
 작업 중 파일(다른 작업자는 동시에 수정하지 말 것): `src-tauri/src/sdd_origin.rs`, `src-tauri/src/spec_import.rs`(`project_root` 공개만), `src-tauri/src/lib.rs`(명령 3개·프로토콜), `src/sddOrigin.ts`, `src/SddOriginCard.tsx`, `src/SpecImportPanel.tsx`, `src/ux.css`, `tests/sdd-origin/` 및 아래 소유 문서.
