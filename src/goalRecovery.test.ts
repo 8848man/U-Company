@@ -35,6 +35,13 @@ describe('one-click fix request (ADR-0048)', () => {
     expect(teamFixRoute({ ...reviewed, blockKind: 'plan_form' }, [done], [approval], []).note).toContain('새 승인은 필요 없어요');
     expect(teamFixRoute({ ...reviewed, reviewLoopsUsed: 2 }, [done], [approval], []).note).toContain('1회 추가');
   });
+  it('repairs again when a repair plan failed, but a new file goes to the next plan version (ADR-0051)', () => {
+    expect(teamFixRoute({ ...reviewed, resumedFrom: 'planning', blockKind: 'plan_form' }, [done], [approval], []).route).toBe('repair');
+    expect(teamFixRoute({ ...reviewed, resumedFrom: 'planning', blockKind: 'plan_form' }, [done], [], []).route).toBe('revision');
+    const scope = teamFixRoute({ ...reviewed, blockKind: 'needs_scope' }, [done], [approval], []);
+    expect(scope.route).toBe('revision');
+    expect(scope.note).toContain('이 대화에서');
+  });
   it('falls back to a new version, and leaves connections and CEO denials to the CEO', () => {
     expect(teamFixRoute(reviewed, [{ ...done, status: 'running' }], [approval], []).route).toBe('revision');
     expect(teamFixRoute({ ...reviewed, blockKind: 'integration_conflict', resumedFrom: 'executing' }, [done], [approval], []).route).toBe('revision');

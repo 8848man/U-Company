@@ -26,6 +26,11 @@
 .v3 .gc .gc-plan.is-closed{display:block;padding:8px 12px;border:1px solid #3c5843;border-radius:10px;background:none;font-size:13px}
 .v3 .gc .gc-plan.is-closed span{color:#98ab9f}
 .v3 .gc .gc-plan.is-closed details{margin-top:4px;font-size:12px}
+.v3 .gc .gc-version{align-self:stretch;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:10px 0 4px;padding:8px 0 0;border-top:1px dashed #4b6953;font-size:13px;color:#98ab9f}
+.v3 .gc .gc-version strong{color:#d8e6dc;font-size:12px;letter-spacing:.02em}
+.v3 .gc .gc-version small{color:#7f9787}
+.v3 .gc .gc-version details{flex-basis:100%;font-size:12px}
+.v3 .gc .gc-version details p{white-space:pre-wrap}
 .v3 .gc .gc-plan .sdd-origin{margin:0}
 .v3 .gc .gc-result{border-color:#8fd694}
 .v3 .gc .gc-progress{display:flex;align-items:center;gap:8px;margin:0 20px 8px;padding:7px 14px;border:1px solid #3c5843;border-radius:999px;background:#1d2d24;color:#e5eee3;font:inherit;font-size:13px;text-align:left;cursor:pointer}

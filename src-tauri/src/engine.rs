@@ -872,7 +872,7 @@ fn execute_planned(app: &tauri::AppHandle, goal_id: &str, project: &Project, goa
     let passed = verdicts.iter().all(|(pass, _)| *pass);
     let review_report = if targets.is_empty() { review.clone() } else { format!("{}\n\n산출물별 QA 판정:\n{}", if passed { "PASS" } else { "FAIL" }, verdicts.iter().map(|(_, summary)| summary.as_str()).collect::<Vec<_>>().join("\n")) };
     if !passed {
-        if approved_files.is_empty() { return Err(delegation::mark("qa_failed", format!("재사용 결과에 대한 QA가 실패했습니다. 새 파일 작업과 승인 범위를 계획해야 합니다: {}", review.chars().take(500).collect::<String>()))); }
+        if approved_files.is_empty() { return Err(delegation::mark("needs_scope", format!("재사용 결과에 대한 QA가 실패했습니다. 새 파일 작업과 승인 범위를 계획해야 합니다: {}", review.chars().take(500).collect::<String>()))); }
         let current: Goal = store.get("goal", goal_id)?.ok_or("Goal not found")?;
         let review_limit = current.review_loop_limit.unwrap_or(project.review_loop_limit);
         if current.review_loops_used >= review_limit {
@@ -951,7 +951,7 @@ pub fn request_team_fix(app: tauri::AppHandle, goal_id: String) -> Result<GoalTu
             let text = format!("멈춘 원인을 해결해 주세요.\n{brief}");
             let guidance = store.propose_goal_guidance(&goal_id, &text, Some(&planner.id), true)?;
             let now = crate::model::now();
-            let turn = GoalTurn { id: crate::model::id(), goal_id: goal_id.clone(), question: format!("{}에게 해결 요청\n{brief}", planner.name), answer: "기존 작업을 보존한 새 목표 버전을 만들어 CTO·PM이 다시 계획합니다. 새 계획은 계획 카드에서 승인해 주세요.".into(), status: "answered".into(), asked_at: now.clone(), answered_at: Some(now), agent_id: planner.id.clone(), agent_name: planner.name.clone(), connection_name: String::new(), model_id: String::new(), guidance_id: Some(guidance.id.clone()), route: Some("team_fix".into()) };
+            let turn = GoalTurn { id: crate::model::id(), goal_id: goal_id.clone(), question: format!("{}에게 해결 요청\n{brief}", planner.name), answer: "이 대화에서 다음 계획 버전으로 이어 갑니다. 기존 작업은 보존하고 CTO·PM이 다시 계획해요. 새 계획은 이 대화의 계획 카드에서 승인해 주세요.".into(), status: "answered".into(), asked_at: now.clone(), answered_at: Some(now), agent_id: planner.id.clone(), agent_name: planner.name.clone(), connection_name: String::new(), model_id: String::new(), guidance_id: Some(guidance.id.clone()), route: Some("team_fix".into()) };
             store.put("goal_turn", &turn.id, &turn, Some(NewEvent { kind: "team_fix_requested".into(), goal_id: Some(goal_id.clone()), task_id: None, agent_id: Some(planner.id.clone()), message: "CEO asked for a fix; a new goal version will be planned".into() }))?;
             let _ = app.emit("state-changed", ());
             follow_auto_guidance(app.clone(), guidance.id);
@@ -980,7 +980,7 @@ fn plan_repair(app: &tauri::AppHandle, goal_id: &str, project: &Project, goal: &
         validate_plan(plan)?;
         delegation::validate_contract(&plan.tasks.iter().map(ProposedTask::contract).collect::<Vec<_>>(), &root)?;
         validate_reference_evidence(plan, &refs)?;
-        validate_repair_scope(plan, approved_files).map_err(|error| delegation::mark("qa_failed", error))
+        validate_repair_scope(plan, approved_files).map_err(|error| delegation::mark("needs_scope", error))
     })?;
     let repair_assignees = assign_proposals(&store, goal_id, &proposed.tasks, &store.snapshot()?)?;
     let mut current: Goal = store.get("goal", goal_id)?.ok_or("Goal not found")?;

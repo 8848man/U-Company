@@ -104,6 +104,14 @@
 - [x] 검증: `cargo test --lib` 147(기준선 145 + SDD 단계 반영 범위 Git·폴더 1, AGENTS 구간 갱신·읽기 맥락 1), `vitest` 98(+1).
 - 남은 위험: SDD 프로젝트는 목표마다 PM 호출이 두 번 늘어난다. 실제 문서 품질은 QA-48로 확인한다.
 
+### M12 — 버전이 이어지는 목표 대화 (완료, 오프라인·모의 렌더링 검증)
+
+- [x] 찾음(2026-10-15 CEO): QA에서 막혀 해결을 요청하면 새 채팅으로 넘어가는 경우가 많았다. 새 목표 ID(GC-02)는 승인 범위·기록 보존용이었고 화면 분리는 부수 효과였다. 재작업 계획이 실패한 뒤의 요청도 새 버전으로 갔고, 새 파일이 필요한 재작업과 한도 초과가 같은 `qa_failed`였다.
+- [x] 결정: [ADR-0051](sdd/architecture/decisions/ADR-0051.md)(신규, 색인), GC-02, DM-02, 구현 지도, QA-49.
+- [x] 변경: v3에서 목표와 그 후속 버전을 한 대화로 보여 준다(목록 한 줄·첫 제목, 항상 최신 버전, 이전 버전 기록 위 `계획 vN` 구분선과 이유·재사용 수). 보관·복원은 버전 전체를 한 트랜잭션으로. `planning`에서 멈춘 재작업도 같은 목표에서 다시 재작업. 새 파일이 필요한 재작업은 `needs_scope`로 구분해 다음 버전에서 범위를 승인받는다. 대화를 펼쳤을 때 첫 목표 말풍선이 사라지던 문제도 고침.
+- [x] 검증: `cargo test --lib` 148(+1 버전 보관·복원, team_fix 경로 단언 추가), `vitest` 104(+6), tsc 3종, 빌드 3종, 모의 화면(목록 한 줄, v2 구분선, 펼친 v1 기록).
+- 남은 위험: v1·v2 셸은 여전히 버전별 대화다. 실제 앱 흐름은 QA-49로 확인한다.
+
 ## 프로젝트 작업 규칙 감지와 구조 잡기 (2026-10-12, Claude Cowork)
 
 작업 중 파일(다른 작업자는 동시에 수정하지 말 것): `src-tauri/src/sdd_origin.rs`, `src-tauri/src/spec_import.rs`(`project_root` 공개만), `src-tauri/src/lib.rs`(명령 3개·프로토콜), `src/sddOrigin.ts`, `src/SddOriginCard.tsx`, `src/SpecImportPanel.tsx`, `src/ux.css`, `tests/sdd-origin/` 및 아래 소유 문서.

@@ -27,7 +27,7 @@ pub struct ContractInput<'a> {
 const MARK_OPEN: &str = "⟦";
 const MARK_CLOSE: &str = "⟧ ";
 /// `plan_form` (ADR-0048): the planner's plan failed the app's format checks twice in a row.
-pub const BLOCK_KINDS: [&str; 9] = ["precall", "approval_denied", "interrupted", "integration_conflict", "qa_failed", "qa_form", "plan_form", "provider", "other"];
+pub const BLOCK_KINDS: [&str; 10] = ["precall", "approval_denied", "interrupted", "integration_conflict", "qa_failed", "needs_scope", "qa_form", "plan_form", "provider", "other"];
 
 /// Tags an engine-generated error with its block kind. Only engine code calls this; model text is
 /// never parsed for a kind because provider errors are passed through `provider` sites.

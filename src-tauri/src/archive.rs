@@ -54,29 +54,66 @@ fn archivable(goal: &Goal, tasks: &[Task], meeting: Option<&Meeting>) -> Result<
     Ok(())
 }
 
+/// ADR-0051: the versions of one goal conversation (a goal and the revisions that replaced it), oldest
+/// first, limited to those `keep` accepts. The screen shows them as one conversation, so they are
+/// archived and restored together.
+fn version_chain(tx: &rusqlite::Transaction<'_>, goal_id: &str, keep: impl Fn(&str) -> bool) -> Result<Vec<String>, String> {
+    let links: Vec<(String, String)> = tx_list::<GoalGuidance>(tx, "goal_guidance")?.into_iter()
+        .filter(|item| item.status == "revised")
+        .filter_map(|item| item.replacement_goal_id.map(|next| (item.goal_id, next)))
+        .collect();
+    let mut chain = vec![goal_id.to_string()];
+    let mut current = goal_id.to_string();
+    while let Some(previous) = links.iter().find(|(_, next)| *next == current).map(|(from, _)| from.clone()) {
+        if chain.contains(&previous) || !keep(&previous) || tx_get::<Goal>(tx, "goal", &previous)?.is_none() { break; }
+        chain.insert(0, previous.clone());
+        current = previous;
+    }
+    current = goal_id.to_string();
+    while let Some(next) = links.iter().find(|(from, _)| *from == current).map(|(_, next)| next.clone()) {
+        if chain.contains(&next) || !keep(&next) || tx_get::<Goal>(tx, "goal", &next)?.is_none() { break; }
+        chain.push(next.clone());
+        current = next;
+    }
+    Ok(chain)
+}
+
 pub fn archive(store: &Store, goal_id: &str) -> Result<(), String> {
     store.transact(|tx| {
-        let goal: Goal = tx_get(tx, "goal", goal_id)?.ok_or("목표를 찾을 수 없습니다")?;
-        if archived_ids(tx)?.contains(goal_id) { return Err("이미 보관한 목표입니다".into()); }
+        let archived = archived_ids(tx)?;
+        if archived.contains(goal_id) { return Err("이미 보관한 목표입니다".into()); }
+        tx_get::<Goal>(tx, "goal", goal_id)?.ok_or("목표를 찾을 수 없습니다")?;
+        let chain = version_chain(tx, goal_id, |id| !archived.contains(id))?;
         let tasks: Vec<Task> = tx_list(tx, "task")?;
-        let meeting = tx_list::<Meeting>(tx, "meeting")?.into_iter().find(|item| item.goal_id == goal_id);
-        archivable(&goal, &tasks, meeting.as_ref())?;
-        // External staff contracted to this goal would otherwise stay busy forever (ADR-0041).
-        for mut agent in tx_list::<Agent>(tx, "agent")?.into_iter().filter(|agent| agent.is_external() && agent.external.as_ref().is_some_and(|item| item.status == "contracted" && item.goal_id.as_deref() == Some(goal_id))) {
-            agent.enabled = false;
-            if let Some(contract) = agent.external.as_mut() { contract.status = "released".into(); contract.released_at = Some(crate::model::now()); }
-            tx_put(tx, "agent", &agent.id.clone(), &agent)?;
+        let meetings: Vec<Meeting> = tx_list(tx, "meeting")?;
+        // Every version must be archivable before any is archived.
+        for id in &chain {
+            let goal: Goal = tx_get(tx, "goal", id)?.ok_or("목표를 찾을 수 없습니다")?;
+            archivable(&goal, &tasks, meetings.iter().find(|item| &item.goal_id == id)).map_err(|error| if id == goal_id { error } else { format!("같은 대화의 다른 버전 때문에 보관할 수 없습니다: {error}") })?;
         }
-        tx_put(tx, "goal_archive", goal_id, &GoalArchive { goal_id: goal_id.into(), archived_at: crate::model::now() })?;
-        tx_event(tx, "goal_archived", goal_id, "CEO archived the goal; hidden from screens, data kept")
+        for id in &chain {
+            // External staff contracted to this goal would otherwise stay busy forever (ADR-0041).
+            for mut agent in tx_list::<Agent>(tx, "agent")?.into_iter().filter(|agent| agent.is_external() && agent.external.as_ref().is_some_and(|item| item.status == "contracted" && item.goal_id.as_deref() == Some(id.as_str()))) {
+                agent.enabled = false;
+                if let Some(contract) = agent.external.as_mut() { contract.status = "released".into(); contract.released_at = Some(crate::model::now()); }
+                tx_put(tx, "agent", &agent.id.clone(), &agent)?;
+            }
+            tx_put(tx, "goal_archive", id, &GoalArchive { goal_id: id.clone(), archived_at: crate::model::now() })?;
+            tx_event(tx, "goal_archived", id, if id == goal_id { "CEO archived the goal; hidden from screens, data kept" } else { "Archived with another version of the same goal conversation" })?;
+        }
+        Ok(())
     })
 }
 
 pub fn restore(store: &Store, goal_id: &str) -> Result<(), String> {
     store.transact(|tx| {
-        if !archived_ids(tx)?.contains(goal_id) { return Err("보관함에 없는 목표입니다".into()); }
-        tx.execute("DELETE FROM objects WHERE kind='goal_archive' AND id=?1", [goal_id]).map_err(|e| e.to_string())?;
-        tx_event(tx, "goal_restored", goal_id, "CEO restored the goal from the archive")
+        let archived = archived_ids(tx)?;
+        if !archived.contains(goal_id) { return Err("보관함에 없는 목표입니다".into()); }
+        for id in version_chain(tx, goal_id, |id| archived.contains(id))? {
+            tx.execute("DELETE FROM objects WHERE kind='goal_archive' AND id=?1", [&id]).map_err(|e| e.to_string())?;
+            tx_event(tx, "goal_restored", &id, if id == goal_id { "CEO restored the goal from the archive" } else { "Restored with another version of the same goal conversation" })?;
+        }
+        Ok(())
     })
 }
 
@@ -202,6 +239,28 @@ mod tests {
         assert!(store.get::<Goal>("goal", "done").unwrap().is_some(), "data kept");
         restore(&store, "done").unwrap();
         assert!(store.snapshot().unwrap().goals.iter().any(|goal| goal.id == "done"));
+    }
+
+    #[test]
+    fn the_versions_of_one_conversation_are_archived_and_restored_together() {
+        let (store, _) = store();
+        store.put("goal", "v1", &goal("v1", "blocked"), None).unwrap();
+        store.put("goal", "v2", &goal("v2", "blocked"), None).unwrap();
+        store.put("goal", "v3", &goal("v3", "executing"), None).unwrap();
+        store.put("goal", "solo", &goal("solo", "completed"), None).unwrap();
+        store.put("goal_guidance", "g1", &json!({"id": "g1", "goalId": "v1", "text": "x", "status": "revised", "createdAt": "t", "replacementGoalId": "v2"}), None).unwrap();
+        store.put("goal_guidance", "g2", &json!({"id": "g2", "goalId": "v2", "text": "x", "status": "revised", "createdAt": "t", "replacementGoalId": "v3"}), None).unwrap();
+        assert!(archive(&store, "v2").unwrap_err().contains("다른 버전"), "a running version keeps the whole conversation");
+        assert!(store.snapshot().unwrap().archived_goals.is_empty(), "nothing archived on refusal");
+        let mut v3 = goal("v3", "completed");
+        v3.id = "v3".into();
+        store.put("goal", "v3", &v3, None).unwrap();
+        archive(&store, "v3").unwrap();
+        let hidden: Vec<String> = store.snapshot().unwrap().archived_goals.into_iter().map(|item| item.goal_id).collect();
+        assert_eq!(hidden.len(), 3, "{hidden:?}");
+        assert!(store.snapshot().unwrap().goals.iter().any(|item| item.id == "solo"));
+        restore(&store, "v1").unwrap();
+        assert!(store.snapshot().unwrap().archived_goals.is_empty(), "restored together");
     }
 
     #[test]

@@ -7,6 +7,7 @@ use crate::model::{Approval, DeliverableReview, Goal, GoalGuidance, Task};
 #[derive(Debug, Clone, PartialEq)]
 pub enum FixRoute {
     /// The planning lead plans a QA rework on the same goal, inside the approved files; no new approval.
+    /// Also after a previous repair's planning failed (ADR-0051): the work QA judged is still there.
     Repair,
     /// A new goal version is created and planned automatically; its plan needs the CEO's approval.
     Revision,
@@ -31,7 +32,9 @@ pub fn route(goal: &Goal, tasks: &[Task], approvals: &[Approval], guidance: &[Go
     }
     let owned: Vec<&Task> = tasks.iter().filter(|task| task.goal_id == goal.id).collect();
     let approved = approvals.iter().any(|item| item.goal_id.as_deref() == Some(goal.id.as_str()) && item.operation == "project_write" && item.status == "approved");
-    let after_review = goal.resumed_from.as_deref() == Some("validating");
+    // ADR-0051: `planning` with every task completed and an approved plan is a repair whose planning
+    // failed (the first plan of a goal has no completed tasks yet), so it is repaired again too.
+    let after_review = matches!(goal.resumed_from.as_deref(), Some("validating") | Some("planning"));
     if REPAIR_KINDS.contains(&goal.block_kind.as_str()) && after_review && approved && own_guidance.is_empty() && !owned.is_empty() && owned.iter().all(|task| task.status == "completed") {
         return FixRoute::Repair;
     }
@@ -84,6 +87,7 @@ mod tests {
         assert_eq!(route(&goal("other", "validating"), &[task("t1", "completed")], &approved(), &[]), FixRoute::Repair);
         for kind in ["plan_form", "qa_failed", "qa_form"] {
             assert_eq!(route(&goal(kind, "validating"), &[task("t1", "completed")], &approved(), &[]), FixRoute::Repair, "{kind}");
+            assert_eq!(route(&goal(kind, "planning"), &[task("t1", "completed")], &approved(), &[]), FixRoute::Repair, "{kind}: a repair whose planning failed is repaired again (ADR-0051)");
         }
     }
 
@@ -94,6 +98,8 @@ mod tests {
         assert_eq!(route(&goal("integration_conflict", "executing"), &[task("t1", "awaiting_integration")], &approved(), &[]), FixRoute::Revision);
         assert_eq!(route(&goal("interrupted", "executing"), &[task("t1", "running")], &approved(), &[]), FixRoute::Revision);
         assert_eq!(route(&goal("other", "executing"), &[task("t1", "completed")], &approved(), &[]), FixRoute::Revision, "not stopped at review");
+        assert_eq!(route(&goal("needs_scope", "validating"), &[task("t1", "completed")], &approved(), &[]), FixRoute::Revision, "a repair that needs a new file needs the CEO's approval");
+        assert_eq!(route(&goal("plan_form", "planning"), &[task("t1", "completed")], &[], &[]), FixRoute::Revision, "a first plan that failed has nothing approved");
     }
 
     #[test]

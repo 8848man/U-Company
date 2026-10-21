@@ -4,7 +4,8 @@ const revisionExplanation: Record<string, string> = {
   approval_denied: '거절은 기록되었고 같은 범위를 자동으로 다시 요청하지 않습니다. 범위를 바꾸려면 CEO 지침으로 새 목표 버전을 만들어 계획과 승인을 다시 받습니다.',
   interrupted: '앱이 실행 중에 종료되어 작업 결과를 알 수 없습니다. 격리 작업공간에 일부 변경이 남았을 수 있어 자동으로 다시 실행하거나 통합하지 않습니다. 기록을 확인한 뒤 새 목표 버전으로 이어 갑니다.',
   integration_conflict: '원래 프로젝트 파일은 덮어쓰지 않았습니다. 충돌한 파일과 기존 통합 기록을 확인한 뒤 새 목표 버전에서 범위를 다시 승인받습니다.',
-  qa_failed: 'QA 근거와 실패한 산출물은 보존했습니다. 재작업 한도를 넘었거나 새 파일이 필요해 CEO의 결정이 필요합니다.',
+  qa_failed: 'QA 근거와 실패한 산출물은 보존했습니다. 재작업 한도에 도달해 CEO의 결정이 필요합니다.',
+  needs_scope: '재작업에 승인되지 않은 새 파일이 필요합니다. 해결을 요청하면 이 대화에서 다음 계획 버전을 세우고, 바뀐 범위를 계획 카드에서 승인받습니다.',
   qa_form: 'QA가 산출물별 판정을 형식에 맞게 내지 않아 완료로 처리하지 않았습니다. 재작업 횟수는 쓰지 않았습니다. 새 목표 버전에서 QA를 다시 받습니다.',
   plan_form: 'PM의 계획이 앱의 형식 검사를 두 번 통과하지 못했습니다. 재작업 횟수는 쓰지 않았습니다. 해결을 요청하면 PM이 같은 목표에서 승인된 파일 안의 재작업을 다시 계획합니다.',
   provider: '실행 중 AI 호출이 실패했습니다. 연결을 확인한 뒤 기존 결과를 보존한 새 목표 버전으로 이어 갑니다.',
@@ -43,14 +44,15 @@ export function teamFixRoute(goal: Goal, tasks: Task[], approvals: Approval[], g
   if (kind === 'approval_denied') return { route: 'direct', note: '거절한 범위예요. 무엇을 바꿀지 직접 적어 주세요.' };
   const owned = tasks.filter(task => task.goalId === goal.id);
   const approved = approvals.some(item => item.goalId === goal.id && item.operation === 'project_write' && item.status === 'approved');
-  const repair = ['plan_form', 'qa_failed', 'qa_form', 'other'].includes(kind) && goal.resumedFrom === 'validating' && approved
+  // ADR-0051: `planning` with every task completed and an approved plan is a repair whose planning failed.
+  const repair = ['plan_form', 'qa_failed', 'qa_form', 'other'].includes(kind) && ['validating', 'planning'].includes(goal.resumedFrom ?? '') && approved
     && !guidance.some(item => item.goalId === goal.id) && owned.length > 0 && owned.every(task => task.status === 'completed');
   if (repair) {
     const limit = goal.reviewLoopLimit ?? 2;
     const extra = goal.reviewLoopsUsed >= limit ? ` 재작업 ${goal.reviewLoopsUsed}/${limit}회를 썼어요. 누르면 1회 추가돼요.` : '';
     return { route: 'repair', note: `같은 목표에서 승인된 파일 안의 재작업을 계획하고 바로 진행해요. 새 승인은 필요 없어요.${extra}` };
   }
-  return { route: 'revision', note: '기존 작업을 보존한 새 목표 버전을 만들어 다시 계획해요. 새 계획은 계획 카드에서 승인해 주세요.' };
+  return { route: 'revision', note: '이 대화에서 다음 계획 버전으로 이어 가요. 기존 작업은 보존하고, 새 계획은 아래 계획 카드에서 승인해 주세요.' };
 }
 
 /** Who receives a fix request: the goal's planning lead, else the PM. */
