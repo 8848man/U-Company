@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import OfficeCanvas from './office/OfficeCanvas';
+import { OfficeMiniChat } from './OfficeMiniChat';
 import { goalTitle } from './progress';
 import type { MemberActivity } from './progress';
 import { clampPlace, loadPlace, memberRows, savePlace, stageStrip, type WindowPlace } from './officeWindowState';
-import type { Agent, AiConnection, Event, Goal, Squad, Task } from './types';
+import type { Agent, AiConnection, Event, Goal, GoalTurn, Squad, Task } from './types';
 
 type Props = {
   goal: Goal | null;
@@ -12,11 +13,17 @@ type Props = {
   /** The conversation's progress line, shown as the window's status so both say the same thing. */
   progress: string | null;
   selectedId: string | null; onSelect: (id: string) => void; onMove: (id: string, x: number, y: number) => void;
+  /** This goal's conversation turns; the mini chat shows the selected teammate's. */
+  turns: GoalTurn[];
+  onAsk: (agentId: string, question: string) => Promise<boolean>;
   onClose: () => void;
 };
 
 /** In-app Office window (ADR-0046 decision 7): move, resize, dock right, minimize, close; place remembered on this computer. */
-export function OfficeWindow({ goal, agents, connections, tasks, events, squad, activities, badges, progress, selectedId, onSelect, onMove, onClose }: Props) {
+export function OfficeWindow({ goal, agents, connections, tasks, events, squad, activities, badges, progress, selectedId, onSelect, onMove, turns, onAsk, onClose }: Props) {
+  // Clicking a character (or a member row) opens a short session with that teammate inside the window.
+  const [chatId, setChatId] = useState<string | null>(null);
+  const openChat = (id: string) => { onSelect(id); setChatId(id); };
   const [place, setPlace] = useState<WindowPlace>(() => clampPlace(loadPlace(), window.innerWidth, window.innerHeight));
   const frameRef = useRef<HTMLElement>(null);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
@@ -76,8 +83,9 @@ export function OfficeWindow({ goal, agents, connections, tasks, events, squad, 
     {place.mode !== 'minimized' && <div className="office-window-body">
       {goal && <ol className="office-stages" aria-label="단계">{strip.map(stage => <li key={stage.id} className={`is-${stage.state}`} aria-current={stage.state === 'current' || stage.state === 'waiting' ? 'step' : undefined}>{stage.label}</li>)}</ol>}
       {progress && <p className="office-window-status" role="status">{progress}</p>}
-      <div className="office-window-room"><OfficeCanvas agents={agents} connections={connections} activities={activities} events={events} badges={badges} selectedId={selectedId} focusIds={goal ? rows.map(row => row.id) : undefined} onSelect={onSelect} onMove={onMove} /></div>
-      {goal && <ul className="office-members" aria-label="이 목표의 팀원">{rows.map(row => <li key={row.id} className={`is-${row.kind}`}><strong>{row.name}</strong><span>{row.work}</span><small>{row.state}</small></li>)}{rows.length === 0 && <li className="is-idle"><span>아직 맡은 팀원이 없어요</span></li>}</ul>}
+      <div className="office-window-room"><OfficeCanvas agents={agents} connections={connections} activities={activities} events={events} badges={badges} selectedId={selectedId} focusIds={goal ? rows.map(row => row.id) : undefined} onSelect={openChat} onMove={onMove} />
+        {chatId && <OfficeMiniChat goal={goal} agent={agents.find(agent => agent.id === chatId)} turns={turns} onAsk={onAsk} onClose={() => setChatId(null)} />}</div>
+      {goal && <ul className="office-members" aria-label="이 목표의 팀원">{rows.map(row => <li key={row.id} className={`is-${row.kind}${row.id === chatId ? ' is-chatting' : ''}`}><button type="button" title={`${row.name}과 대화`} onClick={() => openChat(row.id)}><strong>{row.name}</strong><span>{row.work}</span><small>{row.state}</small></button></li>)}{rows.length === 0 && <li className="is-idle"><span>아직 맡은 팀원이 없어요</span></li>}</ul>}
     </div>}
   </section>;
 }

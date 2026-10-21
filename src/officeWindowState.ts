@@ -76,3 +76,18 @@ export function loadPlace(): WindowPlace {
 export function savePlace(place: WindowPlace) {
   try { window.localStorage.setItem(KEY, JSON.stringify(place)); } catch { /* best effort */ }
 }
+
+/** Mini chat in the Office window: why this teammate cannot be asked right now, or null when they can. */
+export function miniChatBlock(goal: Goal | null, agent: { id: string; connectionId?: string | null } | undefined): string | null {
+  if (!goal) return '목표를 고르면 이 팀원과 대화할 수 있어요.';
+  if (goal.kind === 'deliberation') return '회의 목표에서는 회의 화면에서 이야기해 주세요.';
+  if (!goal.projectId) return '프로젝트가 연결된 목표에서만 대화할 수 있어요.';
+  if (!agent) return '팀원을 찾을 수 없어요.';
+  if (!agent.connectionId) return '이 팀원에게 연결된 AI가 없어요. 설정 › 팀에서 AI를 배정해 주세요.';
+  return null;
+}
+
+/** The latest turns this teammate had in this goal's conversation, oldest first (the window shows a short session). */
+export function miniChatTurns<T extends { agentId: string; askedAt: string }>(turns: T[], agentId: string, limit = 6): T[] {
+  return turns.filter(turn => turn.agentId === agentId).sort((a, b) => a.askedAt.localeCompare(b.askedAt)).slice(-limit);
+}

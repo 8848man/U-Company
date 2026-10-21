@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampPlace, memberRows, stageStrip } from './officeWindowState';
+import { clampPlace, memberRows, miniChatBlock, miniChatTurns, stageStrip } from './officeWindowState';
 import type { MemberActivity } from './progress';
 import type { Agent, Goal, Squad, Task } from './types';
 
@@ -43,5 +43,23 @@ describe('window place', () => {
     expect(clampPlace({ x: -1, y: 96, w: 440, h: 560, mode: 'floating' }, 1280, 800)).toMatchObject({ x: 816, w: 440, h: 560 });
     expect(clampPlace({ x: 5000, y: 5000, w: 3000, h: 3000, mode: 'floating' }, 1280, 800)).toMatchObject({ x: 1160, y: 756, w: 1264, h: 784 });
     expect(clampPlace({ x: 10, y: 10, w: 100, h: 100, mode: 'floating' }, 1280, 800)).toMatchObject({ w: 320, h: 240 });
+  });
+});
+
+describe('office mini chat (ADR-0047)', () => {
+  it('says why a teammate cannot be asked, from saved state only', () => {
+
+    expect(miniChatBlock(null, agent('dev', '개발'))).toContain('목표를 고르면');
+    expect(miniChatBlock({ ...goal('executing'), kind: 'deliberation' }, agent('dev', '개발'))).toContain('회의');
+    expect(miniChatBlock({ ...goal('executing'), projectId: null }, agent('dev', '개발'))).toContain('프로젝트');
+    expect(miniChatBlock(goal('executing'), undefined)).toContain('찾을 수 없');
+    expect(miniChatBlock(goal('executing'), { ...agent('dev', '개발'), connectionId: '' })).toContain('AI');
+    expect(miniChatBlock(goal('executing'), agent('dev', '개발'))).toBeNull();
+  });
+  it('shows only the selected teammate’s latest turns, oldest first', () => {
+
+    const turns = Array.from({ length: 9 }, (_, i) => ({ id: `t${i}`, agentId: i % 3 === 0 ? 'pm' : 'dev', askedAt: `2026-10-14T00:0${i}` }));
+    const shown = miniChatTurns([...turns].reverse(), 'dev', 4);
+    expect(shown.map(turn => turn.id)).toEqual(['t4', 't5', 't7', 't8']);
   });
 });

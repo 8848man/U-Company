@@ -69,7 +69,7 @@
 .office-stages li.is-blocked{background:#5a2a2a;color:#ffb4ab;font-weight:700}
 .office-window-status{margin:0;font-size:12.5px;color:#cceb9f}
 .office-window-room{position:relative;flex:1 1 220px;min-height:200px;border-radius:8px;overflow:hidden;background:linear-gradient(90deg,#1f3527 0 15%,transparent 15% 85%,#1f3527 85%),#294032}
-.office-window-room .office-avatar{transform:scale(.8);transform-origin:center top}
+.office-window-room .office-avatar{transform:translate(-50%,-50%) scale(.8)}
 .office-avatar.dimmed{opacity:.35}
 .office-members{display:grid;gap:4px;margin:0;padding:0;list-style:none}
 .office-members li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:5px 8px;border-radius:6px;background:#1b2a22;font-size:12.5px}
@@ -81,3 +81,52 @@
 body.office-docked .v3 .main{margin-right:min(440px,90vw)}
 .office-window.is-docked .office-window-room{flex:0 0 320px}
 .office-window.is-minimized{min-width:0}
+/* Compact icon rail (v3): fixed 64px; hover or focus shows a card to the right without widening the rail */
+.v3 .sidebar.rail{width:64px;padding:16px 8px;align-items:center;gap:6px;overflow:visible;position:relative;z-index:950}
+.v3 .rail-brand{padding:0 0 14px}
+.v3 .rail-brand .brand-mark{width:36px;height:36px;font-size:22px}
+.v3 .rail-nav{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.v3 .rail-item{position:relative}
+.v3 .rail-button{display:grid;place-items:center;width:44px;height:44px;border:1px solid transparent;border-radius:10px;background:transparent;color:#8d98ac;cursor:pointer}
+.v3 .rail-button:hover,.v3 .rail-button:focus-visible{color:#e6f2dc;background:#1b2530}
+.v3 .rail-button.active{background:#26332b;color:#d4f7a0;border-color:#3c5843}
+.v3 .rail-project .rail-button{border-color:#3c5843;color:#c6ef87}
+.v3 .rail-card{position:absolute;left:calc(100% + 10px);top:50%;transform:translate(-4px,-50%);display:grid;gap:2px;min-width:max-content;padding:9px 14px;border:1px solid #4b6953;border-radius:10px;background:#17221d;color:#e5eee3;box-shadow:0 10px 30px #000a;font-size:13px;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .12s,transform .12s,visibility .12s;white-space:nowrap}
+.v3 .rail-card small{color:#98ab9f;font-size:11px}
+.v3 .rail-item:hover .rail-card,.v3 .rail-item:focus-within .rail-card{opacity:1;visibility:visible;transform:translate(0,-50%)}
+.v3 .rail-menu{left:calc(100% + 10px);top:0;z-index:960}
+.v3 .rail-menu-head{display:block;padding:4px 8px 8px;color:#98ab9f}
+.v3 .rail-foot{display:flex;flex-direction:column;align-items:center;gap:4px;color:#7f948a;font-size:10px}
+@media (prefers-reduced-motion:reduce){.v3 .rail-card{transition:none}}
+/* '지금 할 일' as one line above the composer; details open in a dialog */
+.v3 .gc .gc-todo{display:flex;align-items:center;gap:10px;margin:0 20px 8px;padding:8px 14px;border:1px solid #aa8550;border-radius:10px;background:#32291e;color:#f3e6cf;font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.v3 .gc .gc-todo:hover,.v3 .gc .gc-todo:focus-visible{border-color:#ffd38a}
+.v3 .gc .gc-todo-kicker{flex:none;padding:1px 8px;border-radius:999px;background:#5a4524;color:#ffd38a;font-size:11px;font-weight:700}
+.v3 .gc .gc-todo strong{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v3 .gc .gc-todo-more{flex:none;color:#ffd38a;font-size:12px}
+.v3 .gc-todo-dialog{position:relative;width:min(640px,calc(100vw - 32px));max-height:calc(100dvh - 60px);overflow:auto;text-align:left}
+.v3 .gc-todo-close{position:absolute;top:12px;right:14px}
+/* ADR-0047: member rows open the mini chat; the chat card sits over the room, the floor stays visible beside it. */
+.office-members li:has(> button){display:block;padding:0;background:none}
+.office-members li > button{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:baseline;width:100%;padding:5px 8px;border:1px solid transparent;border-radius:6px;background:#1b2a22;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.office-members li > button:hover,.office-members li > button:focus-visible{border-color:#5d8a67}
+.office-members li.is-chatting > button{border-color:#8fd694;background:#21352a}
+.office-mini-chat{position:absolute;right:8px;top:8px;bottom:8px;z-index:5;display:flex;flex-direction:column;width:min(280px,calc(100% - 16px));background:#111a16f2;border:1px solid #4b6953;border-radius:10px;box-shadow:0 10px 30px #0008;color:#e5eee3;font-size:12.5px}
+.office-mini-chat header{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 10px;border-bottom:1px solid #2f4637}
+.office-mini-chat header div{flex:1;min-width:0;display:grid}
+.office-mini-chat header strong{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.office-mini-chat header small{color:#98ab9f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.office-mini-chat header button{width:26px;height:24px;padding:0;border:1px solid #3c5843;border-radius:6px;background:none;color:#cfe0d2;font:inherit;cursor:pointer}
+.office-mini-avatar{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#2f5a3c;color:#dff5d8;font-weight:700}
+.office-mini-turns{flex:1;min-height:0;margin:0;padding:8px 10px;list-style:none;overflow-y:auto;display:grid;align-content:start;gap:8px}
+.office-mini-turns li{display:grid;gap:4px}
+.office-mini-turns p{margin:0;padding:6px 9px;border-radius:9px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.office-mini-turns .is-ceo{justify-self:end;max-width:88%;background:#2f5a3c;color:#f1fbef}
+.office-mini-turns .is-agent{justify-self:start;max-width:92%;background:#1d2d24;color:#dbe8dc}
+.office-mini-turns .is-pending{color:#cceb9f;font-style:italic}
+.office-mini-turns .is-failed,.office-mini-turns .is-interrupted{color:#ffb4ab}
+.office-mini-empty{color:#98ab9f}
+.office-mini-block{margin:0;padding:10px;border-top:1px solid #2f4637;color:#cfe0d2}
+.office-mini-chat form{display:flex;gap:6px;align-items:flex-end;padding:8px;border-top:1px solid #2f4637}
+.office-mini-chat textarea{flex:1;min-width:0;resize:none;padding:6px 8px;border:1px solid #3c5843;border-radius:8px;background:#17221d;color:inherit;font:inherit}
+.office-mini-chat form button{flex:none;padding:6px 10px;font-size:12.5px}

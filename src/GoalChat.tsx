@@ -61,6 +61,8 @@ export function GoalChat(props: Props) {
   const [improving, setImproving] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [working, setWorking] = useState(false);
+  // '지금 할 일' shows only its title above the composer; the full card opens as a dialog so the chat stays usable.
+  const [todoOpen, setTodoOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const revisionRef = useRef<HTMLDivElement>(null);
   const feedRef = useRef<HTMLDivElement>(null);
@@ -88,6 +90,7 @@ export function GoalChat(props: Props) {
   const taskWindow = useLimitedItems(ownedTasks);
   // The decision that needs the CEO now, outside the plan card: start, recovery or a guidance review.
   const decision = recovery && recovery.kind !== 'approval' ? recovery : null;
+  const todoTitle = goal.status === 'new' ? (runBlock ? runBlock.title : '팀 실행 시작') : decision?.label ?? null;
 
   const stream: StreamItem[] = [
     ...turns.map(turn => ({ kind: 'turn' as const, id: `turn:${turn.id}`, at: turn.askedAt, turn })),
@@ -96,10 +99,12 @@ export function GoalChat(props: Props) {
     ...cards.map(card => ({ kind: 'plan' as const, id: `plan:${card.approval.id}`, at: card.approval.createdAt, card })),
   ].sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id));
   const history = useLimitedItems([...stream].reverse());
+  // The dialog closes by itself once the decision it showed is gone (retried, resumed, replaced).
+  useEffect(() => { if (!todoTitle) setTodoOpen(false); }, [todoTitle]);
   // Open at the latest entry, and follow new entries, like a chat.
   useEffect(() => { feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight }); }, [stream.length, goal.status]);
 
-  function focusComposer() { inputRef.current?.focus(); }
+  function focusComposer() { setTodoOpen(false); requestAnimationFrame(() => inputRef.current?.focus()); }
   function scrollDown() { requestAnimationFrame(() => feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' })); }
   async function guarded(operation: () => Promise<boolean>) {
     if (working) return;
@@ -165,8 +170,19 @@ export function GoalChat(props: Props) {
       {sourceGuidance && <section className="chat-context" aria-label="이전 목표에서 이어받은 작업"><strong>이전 목표에서 이어받기</strong>{sourceGuidance.continuation ? <p>재사용 {sourceGuidance.continuation.reusedTaskIds.length}개 · 새 작업 {sourceGuidance.continuation.newTaskCount}개</p> : <small>분석 전입니다. 기존 결과를 아직 재사용 확정하지 않았습니다.</small>}<button type="button" className="text-button" onClick={() => onOpenGoal(sourceGuidance.goalId)}>이전 목표 보기 →</button></section>}
       <div className="chat-timeline" aria-label="목표 대화와 진행 기록">{[...history.visible].reverse().map(item => item.kind === 'turn' ? turnView(item.turn) : item.kind === 'guidance' ? guidanceView(item.guidance) : item.kind === 'line' ? <p className="gc-line" key={item.id}>{item.text}</p> : planCardView(item.card))}</div>
 
-      {goal.status === 'new' && <section className="chat-decision" aria-label="지금 필요한 행동"><span className="card-kicker">지금 할 일</span><h3>{runBlock ? runBlock.title : '팀 실행 시작'}</h3><p>{runBlock ? `${runBlock.reason} ${runBlock.next}` : '목표를 팀에 전달했습니다. 시작하면 AI 팀이 분석합니다.'}</p><div className="chat-decision-actions"><button type="button" className="primary" disabled={working || Boolean(runBlock)} onClick={() => void guarded(onRetry)}>팀 실행 시작 →</button>{runBlock && <button type="button" className="secondary" onClick={onOpenConnections}>AI 연결 열기 →</button>}{runBlock && <button type="button" className="secondary" onClick={onOpenTeam}>팀 설정 확인 →</button>}</div></section>}
-      {decision && <section className="chat-decision" aria-label="지금 필요한 행동"><span className="card-kicker">지금 할 일</span><h3>{decision.label}</h3>
+      {goal.status === 'cancelled' && <section className="chat-context gc-cancelled" aria-label="취소됨"><strong>이 목표를 취소했어요</strong><p>계획을 거부해 프로젝트 파일은 바뀌지 않았어요. 같은 내용으로 다시 맡기려면 다시 시작하세요.</p><div className="chat-decision-actions"><button type="button" className="secondary" disabled={working} onClick={() => void guarded(() => onRestart(goal.intent))}>같은 내용으로 다시 시작</button></div></section>}
+      {goal.status === 'completed' && <section className="chat-context gc-result" aria-label="결과"><strong>결과</strong>{deliverables.length > 0 && <DeliverablePanel rows={deliverables} mode="result" />}{goal.report && <ContentPreview><pre className="report">{goal.report}</pre></ContentPreview>}<p>후속 작업은 새 목표로 보내 주세요.</p></section>}
+      {gitBootstrapRelevant && projectKind === 'folder' && <GitBootstrapPanel onPreview={onPreviewGit} onApply={onBootstrapGit} />}
+      {gitBootstrapCompleted && projectKind === 'git' && <section className="chat-context" role="status"><strong>Git 저장소 초기화 완료</strong><p>{gitBootstrapCompleted.message}</p></section>}
+      {autoContinuationFailure && !activeGuidance && <section className="chat-context" role="status"><strong>자동 진행을 끝내지 못했습니다.</strong><p>{autoContinuationFailure.message}</p>{replacementId && <button type="button" className="text-button" onClick={() => onOpenGoal(replacementId)}>새 목표에서 이어가기 →</button>}</section>}
+
+      <details className="chat-progress"><summary>진행 정보 · 업무 {ownedTasks.length}개 · QA {goal.reviewLoopsUsed}/{goal.reviewLoopLimit ?? 2}회 · 토큰 {brief.tokenTotal.toLocaleString()}개</summary><div className="chat-progress-body"><GoalGraph goal={goal} tasks={tasks} />{brief.latestEvent && <p>마지막 확인 기록 · {new Date(brief.latestEvent.at).toLocaleString()} · {brief.latestEvent.message}</p>}{ownedTasks.length > 0 && <div className="chat-progress-tasks"><strong>업무</strong>{taskWindow.visible.map(task => <p key={task.id}>{task.title} · {agents.find(agent => agent.id === task.assigneeId)?.name ?? '배정 전'} · {taskStageLabel(task.status)}</p>)}<ListDisclosure label="업무" total={taskWindow.total} hidden={taskWindow.hidden} expanded={taskWindow.expanded} onToggle={taskWindow.toggle} /></div>}{qaReview && <ContentPreview><p>최근 QA 기록: {qaReview.message}</p></ContentPreview>}</div></details>
+    </div>
+
+    {todoTitle && <button type="button" className="gc-todo" onClick={() => setTodoOpen(true)} aria-haspopup="dialog"><span className="gc-todo-kicker">지금 할 일</span><strong>{todoTitle}</strong><span className="gc-todo-more" aria-hidden="true">자세히 ›</span></button>}
+    {todoOpen && todoTitle && <div className="dialog-backdrop gc-todo-backdrop" onClick={() => setTodoOpen(false)} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setTodoOpen(false); } }}><section className="reason-dialog chat-decision gc-todo-dialog" role="dialog" aria-modal="true" aria-label={`지금 할 일: ${todoTitle}`} onClick={event => event.stopPropagation()}>
+      <button type="button" className="text-button gc-todo-close" autoFocus onClick={() => setTodoOpen(false)} aria-label="닫기">닫기</button>
+      {goal.status === 'new' ? <><span className="card-kicker">지금 할 일</span><h3>{runBlock ? runBlock.title : '팀 실행 시작'}</h3><p>{runBlock ? `${runBlock.reason} ${runBlock.next}` : '목표를 팀에 전달했습니다. 시작하면 AI 팀이 분석합니다.'}</p><div className="chat-decision-actions"><button type="button" className="primary" disabled={working || Boolean(runBlock)} onClick={() => void guarded(onRetry)}>팀 실행 시작 →</button>{runBlock && <button type="button" className="secondary" onClick={onOpenConnections}>AI 연결 열기 →</button>}{runBlock && <button type="button" className="secondary" onClick={onOpenTeam}>팀 설정 확인 →</button>}</div></> : decision ? <><span className="card-kicker">지금 할 일</span><h3>{decision.label}</h3>
         {facts && <BlockFactsView facts={facts} />}
         {goal.status === 'blocked' && <ContentPreview><pre className="report">{goal.report || '저장된 중단 사유가 없습니다.'}</pre></ContentPreview>}
         <p>{decision.explanation}</p>
@@ -182,16 +198,8 @@ export function GoalChat(props: Props) {
           {decision.kind === 'revision' && <button type="button" className="secondary" onClick={onOpenProject}>프로젝트 확인 →</button>}
         </div>
         {decision.kind === 'guidance' && activeGuidance?.status === 'review_required' && (!activeGuidance.autoContinue || autoContinuationFailure) && <div ref={revisionRef}><RevisionForm key={activeGuidance.id} goal={goal} guidance={activeGuidance} onRevision={onRevision} /></div>}
-      </section>}
-      {goal.status === 'cancelled' && <section className="chat-context gc-cancelled" aria-label="취소됨"><strong>이 목표를 취소했어요</strong><p>계획을 거부해 프로젝트 파일은 바뀌지 않았어요. 같은 내용으로 다시 맡기려면 다시 시작하세요.</p><div className="chat-decision-actions"><button type="button" className="secondary" disabled={working} onClick={() => void guarded(() => onRestart(goal.intent))}>같은 내용으로 다시 시작</button></div></section>}
-      {goal.status === 'completed' && <section className="chat-context gc-result" aria-label="결과"><strong>결과</strong>{deliverables.length > 0 && <DeliverablePanel rows={deliverables} mode="result" />}{goal.report && <ContentPreview><pre className="report">{goal.report}</pre></ContentPreview>}<p>후속 작업은 새 목표로 보내 주세요.</p></section>}
-      {gitBootstrapRelevant && projectKind === 'folder' && <GitBootstrapPanel onPreview={onPreviewGit} onApply={onBootstrapGit} />}
-      {gitBootstrapCompleted && projectKind === 'git' && <section className="chat-context" role="status"><strong>Git 저장소 초기화 완료</strong><p>{gitBootstrapCompleted.message}</p></section>}
-      {autoContinuationFailure && !activeGuidance && <section className="chat-context" role="status"><strong>자동 진행을 끝내지 못했습니다.</strong><p>{autoContinuationFailure.message}</p>{replacementId && <button type="button" className="text-button" onClick={() => onOpenGoal(replacementId)}>새 목표에서 이어가기 →</button>}</section>}
-
-      <details className="chat-progress"><summary>진행 정보 · 업무 {ownedTasks.length}개 · QA {goal.reviewLoopsUsed}/{goal.reviewLoopLimit ?? 2}회 · 토큰 {brief.tokenTotal.toLocaleString()}개</summary><div className="chat-progress-body"><GoalGraph goal={goal} tasks={tasks} />{brief.latestEvent && <p>마지막 확인 기록 · {new Date(brief.latestEvent.at).toLocaleString()} · {brief.latestEvent.message}</p>}{ownedTasks.length > 0 && <div className="chat-progress-tasks"><strong>업무</strong>{taskWindow.visible.map(task => <p key={task.id}>{task.title} · {agents.find(agent => agent.id === task.assigneeId)?.name ?? '배정 전'} · {taskStageLabel(task.status)}</p>)}<ListDisclosure label="업무" total={taskWindow.total} hidden={taskWindow.hidden} expanded={taskWindow.expanded} onToggle={taskWindow.toggle} /></div>}{qaReview && <ContentPreview><p>최근 QA 기록: {qaReview.message}</p></ContentPreview>}</div></details>
-    </div>
-
+      </> : null}
+    </section></div>}
     {progress && <button type="button" className="gc-progress" onClick={onOpenOffice} aria-label={`진행 중: ${progress}. Office 열기`}><span className="gc-progress-dot" aria-hidden="true" />{progress}</button>}
     <div className="chat-composer"><div className="chat-composer-top"><strong>{improving ? '계획을 어떻게 고칠까요?' : '팀원에게 메시지'}</strong>{improving ? <button type="button" className="text-button" onClick={() => { setImproving(null); setDraft(''); }}>개선 취소</button> : <label>받는 팀원 <select value={selectedAgentId} onChange={event => setSelectedAgentId(event.target.value)}>{routable.length ? routable.map(agent => <option value={agent.id} key={agent.id}>{agent.name} · {agent.role}{eligible.some(ready => ready.id === agent.id) ? '' : ' · 연결 확인 필요'}</option>) : <option value="">활성 팀원 없음</option>}</select></label>}</div>
       <label className="chat-input-label" htmlFor="goal-chat-input">메시지</label><textarea id="goal-chat-input" ref={inputRef} value={draft} maxLength={4000} placeholder={improving ? '예: 파일을 하나로 합쳐 주세요. 시험도 같이 추가해 주세요.' : '팀원에게 질문하거나 원하는 일을 말해 주세요.'} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) void sendMessage(); }} />
