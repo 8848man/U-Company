@@ -47,7 +47,7 @@ export default function OfficeMemberPanel({ agents, connections, presets, select
         <label>역할 프리셋<select value={presetId} onChange={event => onPreset(event.target.value)}><option value="">선택해 적용</option>{presets.map(preset => <option value={preset.id} key={preset.id}>{preset.name} — {preset.summary}</option>)}</select></label>
         <button type="button" className="secondary" onClick={() => { const preset = presets.find(item => item.id === presetId); if (!preset) { onExplain('프리셋을 골라 주세요', '적용할 역할 프리셋이 선택되지 않았습니다.', '위 목록에서 역할을 고르세요.'); return; } onDraft({ ...draft, role: preset.role, instructions: preset.instructions }); onNotice('프리셋을 불러왔습니다. 변경 저장을 눌러 적용하세요.'); }}>프리셋 적용</button>
         <label>세부 역할 지침<textarea className="small-textarea" value={draft.instructions} onChange={event => onDraft({ ...draft, instructions: event.target.value })} /></label>
-        <ModelChoice connection={connections.find(connection => connection.id === draft.connectionId)} value={draft.modelId} onChange={modelId => onDraft({ ...draft, modelId })} />
+        <ModelChoice key={draft.connectionId} connection={connections.find(connection => connection.id === draft.connectionId)} value={draft.modelId} onChange={modelId => onDraft({ ...draft, modelId })} />
         <AppearanceEditor draft={draft} onDraft={onDraft} />
         <button type="button" className="primary" onClick={() => busy ? onExplain('잠시 기다려 주세요', '다른 작업이 진행 중입니다.', '잠시 후 다시 저장하세요.') : !draft.name.trim() || !draft.role.trim() ? onExplain('이름과 역할이 필요합니다', '팀원의 이름이나 담당 역할이 비어 있습니다.', '이름과 역할을 적어 주세요.') : onSave()}>변경 저장</button>
       </div>}

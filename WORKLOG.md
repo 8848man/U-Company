@@ -1,5 +1,12 @@
 # Active work checklist
 
+## M14 — Claude·Codex CLI 모델 선택 (2026-10-23, Codex)
+
+- [x] `codex/select-cli-models`에서 Office 팀원 개인 설정의 모델 선택을 CLI까지 확장했다. 저장된 Claude Code 연결은 `sonnet`·`opus`·`haiku` 별칭을, Codex 연결은 설치된 CLI app-server의 읽기 전용 `model/list` 결과를 보여 준다. 목록 실패 시 기본 모델 선택을 유지하고, 목록이 실제 계정 사용 권한을 보증하지 않는다고 표시한다. 선택한 팀원 모델은 기존 호출 경로의 리터럴 `--model` 인자로 전달된다.
+- [x] 소유 명세 AI-02와 검증 기준을 갱신했다. 저장 시 모델 이름의 길이와 제어 문자를 검사한다.
+- [x] 확인: 설치된 Codex CLI의 `initialize` → `model/list`가 추론 호출 없이 7개 모델 ID를 반환했다. `npm test` 26개 파일·119개 통과, 기본·v2·v3 프런트 빌드와 `cargo check --locked --all-targets` 통과, 공백 오류 없음.
+- [ ] 실제 앱에서 Claude·Codex 팀원 각각 모델을 저장·재시작 후 확인하고 다음 실제 호출의 모델을 검증한다. Rust 단위 시험은 컴파일됐으나 이 Windows 환경에서 시험 실행 파일이 `STATUS_ENTRYPOINT_NOT_FOUND`로 시작되지 않았다. Claude 토큰 제한이 풀리기 전까지 실제 Claude 호출은 수행하지 않는다.
+
 ## 완주율·사용성 개선 라운드 (2026-10-20, Claude)
 
 브랜치 `feature/completion-usability-rounds`(기준 `feature/v3-shell-polish` `ee0ac2d`). 계획: [완주율·사용성 개선 라운드](sdd/completion-usability-rounds.md), [ADR-0052](sdd/architecture/decisions/ADR-0052.md).
