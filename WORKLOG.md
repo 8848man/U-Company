@@ -185,7 +185,7 @@
 
 - [x] `main`에 병합된 CLI 문맥 집중 지침(PR #10)과 목표 흐름 통합 브랜치의 `WORKLOG.md`, `src-tauri/src/engine.rs` 충돌을 해결했다. 기록은 양쪽을 보존하고, 엔진은 참고자료·재작업 범위 승인·완료 기준을 유지하면서 최초 계획과 재작업 계획에 집중 지침을 추가하고 개발자 작업 지시에도 같은 지침을 전달한다.
 - [x] 검증: `cargo check --locked --all-targets` 통과, `npm test` 26개 파일·119개 테스트 통과, 충돌 마커와 공백 오류 없음.
-- 남은 확인: PR #21을 갱신한 뒤 GitHub의 병합 가능 상태를 확인한다. 실제 Claude/Codex CLI 재실행은 이번 충돌 해결 범위에서 수행하지 않았다.
+- [x] 해결 커밋 `0295550`을 PR #21 브랜치에 푸시했다. `origin/main`은 브랜치의 조상이고 작업 트리는 깨끗하다. GitHub API는 푸시 직후 `mergeable: null`, `mergeable_state: unknown`으로 계산 중이다. 실제 Claude/Codex CLI 재실행은 이번 충돌 해결 범위에서 수행하지 않았다.
 
 ## 프로젝트 작업 규칙 감지와 구조 잡기 (2026-10-12, Claude Cowork)
 
