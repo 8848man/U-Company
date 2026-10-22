@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex·Claude CLI: 대용량 문맥 처리 차이 분석</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0c111c;--panel:#151d2d;--panel2:#1b2639;--line:#33415b;--text:#eef4ff;--muted:#aebbd0;--codex:#65dac7;--claude:#f7b17d;--accent:#9eb8ff;--good:#76dbb1}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 82% 2%,#223454 0,transparent 32%),var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}button{font:inherit}main{max-width:1180px;margin:auto;padding:38px 24px 80px}h1,h2,h3,p{margin-top:0}h1{font-size:clamp(2.15rem,5vw,4.2rem);line-height:1.12;letter-spacing:-.055em;max-width:930px}h2{font-size:clamp(1.45rem,2.8vw,2.15rem);letter-spacing:-.035em;margin-bottom:9px}h3{font-size:1.08rem;margin-bottom:8px}.eyebrow{text-transform:uppercase;letter-spacing:.18em;font-weight:800;font-size:.73rem;color:var(--accent)}.lead{max-width:790px;color:#d3def0;font-size:1.15rem}.hero{padding:28px 0 34px}.hero strong{color:var(--codex)}.hero-note{border-left:3px solid var(--accent);padding:10px 16px;background:#1a2640;max-width:900px;color:#dae5f8}.section{margin-top:38px}.section-head{display:flex;align-items:end;justify-content:space-between;gap:18px;flex-wrap:wrap}.muted{color:var(--muted)}.small{font-size:.88rem}.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}.panel + .panel{margin-top:14px}.controls{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.controls button,.factor-buttons button{border:1px solid var(--line);border-radius:999px;padding:8px 16px;background:var(--panel);color:var(--text);cursor:pointer}.controls button[aria-pressed=true],.factor-buttons button[aria-pressed=true]{background:#294967;border-color:var(--codex);font-weight:800}.controls button:focus-visible,.factor-buttons button:focus-visible{outline:3px solid white;outline-offset:3px}.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:18px}.metric .number{display:block;font-size:clamp(1.45rem,3vw,2.25rem);line-height:1.15;font-weight:800;font-variant-numeric:tabular-nums}.metric .caption{font-size:.83rem;color:var(--muted)}.flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:stretch;gap:10px}.step{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}.step b{display:block;margin-bottom:5px}.arrow{align-self:center;color:var(--accent);font-size:1.5rem}.fork{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:13px}.fork .step:first-child{border-color:var(--codex)}.fork .step:last-child{border-color:var(--claude)}.tag{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;border-radius:99px;padding:3px 8px;font-weight:800;white-space:nowrap}.fact{background:#17483f;color:#a6f3dd}.inference{background:#584330;color:#ffdaa8}.two{display:grid;grid-template-columns:1fr 1fr;gap:15px}.chart-wrap{min-height:285px}.svgchart{width:100%;height:auto;display:block}.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:.88rem}.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px}.legend .c{background:var(--codex)}.legend .a{background:var(--claude)}.bars{display:grid;gap:13px}.bar-row{display:grid;grid-template-columns:100px minmax(0,1fr) 112px;align-items:center;gap:10px;font-size:.9rem}.track{height:28px;border-radius:7px;background:#27344a;overflow:hidden}.fill{height:100%;transition:width .28s}.fill.c{background:var(--codex)}.fill.a{background:var(--claude)}.bar-row strong{text-align:right;font-variant-numeric:tabular-nums}.cache-track{height:28px;background:#2c3546;border-radius:7px;overflow:hidden;display:flex}.cache-read{background:#6886bb}.cache-create{background:#a7b8d9}.cache-rest{background:#33445e}.cache-legend{display:flex;gap:15px;flex-wrap:wrap;color:var(--muted);font-size:.83rem}.swatch{width:12px;height:12px;display:inline-block;margin-right:5px;vertical-align:middle}.formula{font-size:1.15rem;font-weight:750;color:#d8e7ff;margin-bottom:16px}.factor-buttons{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0}.scenario{border:1px solid var(--line);border-radius:12px;background:var(--panel2);padding:16px;margin-top:10px}.scenario strong{font-size:1.55rem;font-variant-numeric:tabular-nums}.scenario p{margin:3px 0 0}.callout{background:#1c3042;border-left:4px solid var(--codex);padding:16px;border-radius:0 10px 10px 0}.cause-list{display:grid;gap:11px}.cause{display:grid;grid-template-columns:170px 1fr;gap:15px;align-items:start;padding:15px;background:var(--panel);border:1px solid var(--line);border-radius:12px}.cause p{margin:0;color:#d6e1ef}.table-wrap{overflow-x:auto}.table{width:100%;border-collapse:collapse;min-width:600px;font-size:.9rem}.table th,.table td{text-align:right;padding:10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}.table th:first-child,.table td:first-child{text-align:left}.table th{color:var(--muted)}.source{font-size:.86rem;color:var(--muted)}code{color:#d5e2ff;overflow-wrap:anywhere}.divider{border:0;border-top:1px solid var(--line);margin:20px 0}a{color:#b9d7ff}ul{padding-left:20px}li{margin:5px 0}@media(max-width:800px){.metric-grid{grid-template-columns:repeat(2,1fr)}.two,.fork{grid-template-columns:1fr}.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg);justify-self:center}.cause{grid-template-columns:1fr}}@media(max-width:500px){main{padding:24px 14px 60px}.metric-grid{grid-template-columns:1fr 1fr}.metric{padding:13px}.bar-row{grid-template-columns:78px 1fr 80px;font-size:.75rem}.panel{padding:16px}}
+  </style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <div class="eyebrow">Utopia Company · 동일 업무 쌍 분석 · 2026-10-21</div>
+    <h1>Codex가 적은 토큰으로 끝낸 핵심은 <strong>더 짧고 적은 내부 왕복</strong>이었다.</h1>
+    <p class="lead">레벨 4·5의 Dev1(Codex)과 Dev2(Claude)는 같은 수용 기준과 같은 파일 수의 독립 구현 업무를 받았다. 저장된 호출 기록과 로컬 CLI 세션 로그를 대조하면, Codex는 내부 모델 응답 횟수가 적고 각 응답에서 읽은 평균 문맥도 작다.</p>
+    <div class="hero-note">여기서 “대용량 데이터”는 앱이 거대한 데이터셋을 한 번 보냈다는 뜻이 아니다. 수차례 파일 조사·작성 중 누적된 <b>모델 입력 문맥</b>을 말한다. 원인에 관한 설명은 관측 사실과 가설을 나눴다.</div>
+  </header>
+
+  <section class="section" aria-labelledby="flow-title">
+    <h2 id="flow-title">앱과 두 CLI가 실제로 만나는 지점</h2>
+    <div class="flow">
+      <div class="step"><b>① PM이 같은 종류의 업무 배정</b><span class="muted">수용 기준·허용 파일·작업 폴더를 요청문으로 구성한다.</span></div><div class="arrow" aria-hidden="true">→</div>
+      <div class="step"><b>② 앱이 CLI를 한 번 실행</b><span class="muted">요청문을 인수로 전달하고 구조화 이벤트를 읽는다.</span></div><div class="arrow" aria-hidden="true">→</div>
+      <div class="step"><b>③ CLI가 내부 작업 수행</b><span class="muted">모델 응답 ↔ 파일·명령 도구를 반복한 뒤 최종 답을 돌려준다.</span></div>
+    </div>
+    <div class="fork">
+      <div class="step"><b style="color:var(--codex)">Codex CLI</b><code>codex exec --json --sandbox workspace-write --cd … &lt;prompt&gt;</code><p class="small muted">로컬 로그: 응답별 <code>token_usage_record</code>, <code>exec</code> 도구 호출.</p></div>
+      <div class="step"><b style="color:var(--claude)">Claude CLI</b><code>claude -p &lt;prompt&gt; --output-format stream-json --verbose --permission-mode acceptEdits</code><p class="small muted">로컬 로그: assistant 메시지별 usage, 여러 종류의 <code>tool_use</code>.</p></div>
+    </div>
+    <p class="small muted" style="margin-top:12px">앱은 CLI 내부의 반복 횟수나 문맥 재구성을 직접 지휘하지 않는다. 두 CLI의 이벤트 이름과 도구 종류가 다르므로 도구 건수는 작업량의 완전한 공통 척도가 아니다.</p>
+  </section>
+
+  <section class="section" aria-labelledby="evidence-title">
+    <div class="section-head"><div><h2 id="evidence-title">실제 기록에서 무엇이 달랐나</h2><p class="muted">버튼으로 같은 업무 쌍을 바꿔 보세요.</p></div><span class="tag fact">관측</span></div>
+    <div class="controls" role="group" aria-label="업무 수준 선택"><button type="button" id="level4" aria-pressed="true">레벨 4 · 13개 파일</button><button type="button" id="level5" aria-pressed="false">레벨 5 · 15개 파일</button></div>
+    <div class="metric-grid" id="metrics" aria-live="polite"></div>
+    <div class="two" style="margin-top:15px">
+      <div class="panel"><h3>누적 입력 토큰</h3><div class="bars" id="input-bars"></div><p class="small muted" id="input-note" style="margin:13px 0 0"></p></div>
+      <div class="panel"><h3>입력 가운데 캐시가 차지한 몫</h3><div id="cache-bars"></div><div class="cache-legend" style="margin-top:12px"><span><i class="swatch" style="background:#6886bb"></i>읽기 캐시</span><span><i class="swatch" style="background:#a7b8d9"></i>생성 캐시</span><span><i class="swatch" style="background:#33445e"></i>그 외</span></div><p class="small muted" style="margin:13px 0 0">Codex의 캐시 입력은 총 입력에 포함된다. Claude의 읽기·생성 캐시는 기본 입력에 더해 계산했다.</p></div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="curve-title">
+    <div class="section-head"><div><h2 id="curve-title">내부 응답이 진행될수록 읽는 문맥</h2><p class="muted">점 하나가 로컬 로그의 내부 모델 응답 하나입니다.</p></div><span class="tag fact">관측</span></div>
+    <div class="panel chart-wrap"><svg id="chart" class="svgchart" viewBox="0 0 900 310" role="img" aria-label="내부 응답 순서별 입력 토큰 선 그래프"></svg><div class="legend"><span><i class="c"></i>Codex</span><span><i class="a"></i>Claude</span></div><p class="small muted" id="chart-caption" style="margin:10px 0 0"></p></div>
+  </section>
+
+  <section class="section" aria-labelledby="factor-title">
+    <div class="section-head"><div><h2 id="factor-title">차이를 만든 두 숫자</h2><p class="muted">한 요소만 바꾸면 누적 입력이 어떻게 달라지는지 살펴보세요.</p></div><span class="tag inference">기계적 가정</span></div>
+    <div class="panel">
+      <div class="formula">누적 입력 = 내부 응답 수 × 응답당 평균 입력</div>
+      <div class="two"><div><h3>Codex 기준</h3><p id="codex-factors"></p></div><div><h3>Claude 기준</h3><p id="claude-factors"></p></div></div>
+      <div class="factor-buttons" role="group" aria-label="가정 선택"><button type="button" data-factor="none" aria-pressed="true">실제 기록</button><button type="button" data-factor="count" aria-pressed="false">Claude의 응답 수만 Codex처럼</button><button type="button" data-factor="average" aria-pressed="false">Claude의 평균 문맥만 Codex처럼</button><button type="button" data-factor="both" aria-pressed="false">둘 다 Codex처럼</button></div>
+      <div class="scenario" aria-live="polite"><div class="bars" id="scenario-bars"></div><p id="scenario-description"></p></div>
+      <p class="small muted" style="margin:12px 0 0">이 계산은 곱셈식에 숫자만 대입한 반사실 예시다. 실제로 Claude가 이 수치를 달성하거나 품질을 유지한다는 예측이 아니다.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="why-title">
+    <h2 id="why-title">주요 원인을 어떻게 해석할까</h2>
+    <div class="cause-list">
+      <div class="cause"><div><span class="tag fact">확인됨</span><h3 style="margin-top:8px">왕복 수와 문맥 크기</h3></div><p>레벨 4에서 Codex 17회·평균 약 5.1만 입력, Claude 28회·약 10.3만 입력이다. 레벨 5에서는 15회·약 5.6만 대 25회·약 14.2만이다. 누적 입력 차이를 직접 설명하는 두 요소다.</p></div>
+      <div class="cause"><div><span class="tag fact">확인됨</span><h3 style="margin-top:8px">출력과 도구 패턴</h3></div><p>Claude의 출력 토큰도 레벨 4에서 5.6배, 레벨 5에서 7.0배였다. 로컬 로그의 고유 도구 호출은 Codex 16·14회, Claude 31·32회였다. 단, <code>exec</code> 한 번과 파일 도구 한 번은 같은 작업 단위가 아니다.</p></div>
+      <div class="cause"><div><span class="tag fact">확인됨</span><h3 style="margin-top:8px">캐시도 양쪽 모두 높음</h3></div><p>Codex 입력의 88~92%, Claude 입력의 94~95%가 캐시 관련 입력이었다. 따라서 “Claude에 캐시가 없어서”라는 설명은 기록과 맞지 않는다. 캐시 읽기가 많아도 누적 입력 토큰 수는 커질 수 있다.</p></div>
+      <div class="cause"><div><span class="tag inference">추론</span><h3 style="margin-top:8px">CLI 내부 전략의 영향</h3></div><p>조사·파일 작성·검증을 나누는 방식, 긴 출력의 재투입, 문맥 정리 방식이 왕복 수와 평균 입력을 바꿨을 수 있다. 이 로그만으로 어느 특정 내부 전략이나 모델 고유 능력이 원인이라고 단정할 수 없다.</p></div>
+    </div>
+    <p class="callout" style="margin-top:16px"><b>가장 설득력 있는 답:</b> 이 실행에서 Codex는 같은 종류의 구현을 더 적은 내부 응답으로 진행했고, 매 응답에서 누적된 문맥도 더 작게 유지했다. 캐시 효율 차이 하나로 설명되는 현상은 아니다.</p>
+  </section>
+
+  <section class="section" aria-labelledby="detail-title">
+    <h2 id="detail-title">전체 비교와 해석 범위</h2>
+    <div class="panel table-wrap"><table class="table"><thead><tr><th>같은 종류의 업무</th><th>내부 응답</th><th>누적 입력</th><th>평균 입력/응답</th><th>출력</th><th>고유 도구</th><th>소요</th><th>첫 QA</th></tr></thead><tbody id="detail-rows"></tbody></table></div>
+    <ul class="small muted"><li>두 쌍은 저장된 수용 기준이 같고 선언 파일 수와 구조가 대응한다. 구현자가 다른 독립 작업이므로 생성 코드와 경로는 완전히 같지 않다.</li><li>시간과 첫 QA는 결과 확인용이다. 시간 차이를 토큰 차이의 단독 원인으로 해석하지 않는다. 레벨 4 Claude의 첫 QA는 실패했고 이후 재작업이 있었다.</li><li>서로 다른 제공자의 토큰 정의, 모델, 캐시 가격 정책이 다를 수 있다. 이 자료는 청구 비용, 성능 일반화, 모든 대용량 데이터 처리 성능을 주장하지 않는다.</li></ul>
+  </section>
+
+  <footer class="section source"><hr class="divider"><b>근거와 계산</b><p>앱 사용량·업무·QA·시간: 로컬 <code>organization.sqlite</code>의 목표 <code>677e378d…</code> 레벨 4·5 독립 구현 호출. 내부 응답·캐시·도구: 해당 Codex·Claude 로컬 세션 JSONL. Codex는 고유 <code>response_id</code> 17/15개와 마지막 누적 사용량, Claude는 고유 assistant 메시지 ID 28/25개의 usage 합계를 사용했다. 도구는 고유 호출 ID로 중복 제거했다. 원문 요청·파일 내용·세션 경로는 포함하지 않았다.</p><p>CLI 인수와 사용량 정규화: <code>src-tauri/src/provider.rs</code>, <code>src-tauri/src/runtime.rs</code>. 기준 문서: <code>sdd/aiIntegration/AI-03-adapter.md</code>, <code>AI-04-telemetry.md</code>. HTML의 가정 계산은 저장 기록을 바꾸거나 AI를 호출하지 않는다.</p></footer>
+</main>
+<script>
+const DATA={
+  4:{files:13,c:{n:17,input:870626,cached:768768,created:0,output:17102,tools:16,minutes:6.3,qa:'통과',steps:[17879,35703,41387,46694,46989,48427,48519,50328,52447,54558,57226,58479,61048,61540,62277,63149,63976]},a:{n:28,input:2874251,cached:2739658,created:134537,output:95050,tools:31,minutes:16.5,qa:'실패',steps:[32181,39074,51107,52752,70151,72824,76844,79832,82196,83373,85133,103611,104787,110101,117775,118575,124265,125450,125835,126097,126329,126482,126689,133587,137284,146504,146824,148589]}},
+  5:{files:15,c:{n:15,input:840393,cached:774656,created:0,output:19849,tools:14,minutes:6.9,qa:'통과',steps:[17913,34324,46082,50808,51784,52906,55185,58388,61568,64056,65772,68815,69478,70750,72564]},a:{n:25,input:3556941,cached:3360539,created:196352,output:139023,tools:32,minutes:22.1,qa:'통과',steps:[34401,40623,69039,101894,111828,115108,124245,126806,140674,141653,141855,142044,142205,142605,142809,143100,154519,158802,183844,186703,193166,196276,206014,206324,210404]}}
+};
+let level=4,factor='none';
+const fmt=n=>Math.round(n).toLocaleString('ko-KR');
+const pct=n=>(n*100).toFixed(1)+'%';
+const q=id=>document.getElementById(id);
+function bar(label,value,max,cls){return `<div class="bar-row"><span>${label}</span><div class="track"><div class="fill ${cls}" style="width:${(value/max*100).toFixed(2)}%"></div></div><strong>${fmt(value)}</strong></div>`}
+function chart(d){const svg=q('chart'),maxY=220000,W=820,H=245,left=57,top=12;let out='';for(const v of [0,50000,100000,150000,200000]){const y=top+H-v/maxY*H;out+=`<line x1="${left}" x2="${left+W}" y1="${y}" y2="${y}" stroke="#33415b"/><text x="${left-10}" y="${y+4}" text-anchor="end" fill="#aebbd0" font-size="13">${v/1000}k</text>`}for(const v of [1,5,10,15,20,25,30]){const x=left+(v-1)/29*W;out+=`<text x="${x}" y="${top+H+25}" text-anchor="middle" fill="#aebbd0" font-size="13">${v}</text>`}for(const [key,color] of [['c','#65dac7'],['a','#f7b17d']]){const points=d[key].steps.map((v,i)=>`${left+i/29*W},${top+H-v/maxY*H}`).join(' ');out+=`<polyline points="${points}" fill="none" stroke="${color}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`;for(const [i,v] of d[key].steps.entries()){out+=`<circle cx="${left+i/29*W}" cy="${top+H-v/maxY*H}" r="4.5" fill="${color}"><title>${key==='c'?'Codex':'Claude'} ${i+1}번째 응답: ${fmt(v)} 입력 토큰</title></circle>`}}out+=`<text x="${left+W/2}" y="307" text-anchor="middle" fill="#aebbd0" font-size="13">내부 응답 순서</text>`;svg.innerHTML=out;svg.setAttribute('aria-label',`레벨 ${level}: Codex ${d.c.n}회, Claude ${d.a.n}회의 응답별 입력 토큰. 마지막 응답 Codex ${fmt(d.c.steps.at(-1))}, Claude ${fmt(d.a.steps.at(-1))}.`)}
+function updateScenario(d){const c=d.c,a=d.a;let count=a.n,avg=a.input/a.n,label='Claude 실제 기록',note='저장된 Claude 호출의 누적 입력입니다.';if(factor==='count'){count=c.n;label='Claude 응답 수만 Codex와 같다면';note='Claude의 응답당 평균 입력을 유지하고 응답 수만 바꿉니다.'}if(factor==='average'){avg=c.input/c.n;label='Claude 평균 문맥만 Codex와 같다면';note='Claude의 응답 수를 유지하고 평균 입력만 바꿉니다.'}if(factor==='both'){count=c.n;avg=c.input/c.n;label='두 요소가 모두 Codex와 같다면';note='두 값 모두 Codex 기록을 대입하므로 결과는 Codex 입력과 같습니다.'}const value=count*avg,max=Math.max(a.input,c.input,value);q('scenario-bars').innerHTML=bar('Codex 실제',c.input,max,'c')+bar(label,value,max,'a');q('scenario-description').innerHTML=`<strong>${fmt(value)} 토큰</strong><br>${note} 실제 Claude 입력 ${fmt(a.input)} 대비 ${pct(value/a.input)} 수준. <span class="muted">품질과 실행 시간이 같다는 뜻은 아닙니다.</span>`}
+function render(){const d=DATA[level],c=d.c,a=d.a,ratio=a.input/c.input;document.querySelectorAll('.controls button').forEach(b=>b.setAttribute('aria-pressed',String(b.id==='level'+level)));document.querySelectorAll('.factor-buttons button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.factor===factor)));q('metrics').innerHTML=`<div class="metric"><span class="number">${ratio.toFixed(2)}배</span><span class="caption">Claude / Codex 누적 입력</span></div><div class="metric"><span class="number">${c.n} / ${a.n}회</span><span class="caption">내부 응답 · Codex / Claude</span></div><div class="metric"><span class="number">${fmt(c.input/c.n)} / ${fmt(a.input/a.n)}</span><span class="caption">응답당 평균 입력 · Codex / Claude</span></div><div class="metric"><span class="number">${c.minutes} / ${a.minutes}분</span><span class="caption">경과 시간 · Codex / Claude</span></div>`;q('input-bars').innerHTML=bar('Codex',c.input,a.input,'c')+bar('Claude',a.input,a.input,'a');q('input-note').textContent=`Codex 입력은 Claude의 ${pct(c.input/a.input)}. 출력은 ${fmt(c.output)} 대 ${fmt(a.output)} 토큰이다.`;q('cache-bars').innerHTML=[['Codex',c],['Claude',a]].map(([name,x])=>{const read=x.cached/x.input*100,create=x.created/x.input*100,rest=100-read-create;return `<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><b>${name}</b><span>${pct((x.cached+x.created)/x.input)}</span></div><div class="cache-track"><div class="cache-read" style="width:${read}%" title="읽기 캐시 ${fmt(x.cached)}"></div><div class="cache-create" style="width:${create}%" title="생성 캐시 ${fmt(x.created)}"></div><div class="cache-rest" style="width:${rest}%"></div></div></div>`}).join('');chart(d);q('chart-caption').textContent=`마지막 내부 응답의 입력: Codex ${fmt(c.steps.at(-1))}, Claude ${fmt(a.steps.at(-1))} 토큰. 그래프는 각각의 응답별 입력이며 누적합 그래프가 아니다.`;q('codex-factors').innerHTML=`<b>${c.n}회</b> × 평균 <b>${fmt(c.input/c.n)}</b> = <b>${fmt(c.input)}</b>`;q('claude-factors').innerHTML=`<b>${a.n}회</b> × 평균 <b>${fmt(a.input/a.n)}</b> = <b>${fmt(a.input)}</b>`;updateScenario(d);q('detail-rows').innerHTML=[['레벨 4 Codex',DATA[4].c],['레벨 4 Claude',DATA[4].a],['레벨 5 Codex',DATA[5].c],['레벨 5 Claude',DATA[5].a]].map(([name,x])=>`<tr><td>${name}</td><td>${x.n}</td><td>${fmt(x.input)}</td><td>${fmt(x.input/x.n)}</td><td>${fmt(x.output)}</td><td>${x.tools}</td><td>${x.minutes}분</td><td>${x.qa}</td></tr>`).join('')}
+q('level4').addEventListener('click',()=>{level=4;render()});q('level5').addEventListener('click',()=>{level=5;render()});document.querySelectorAll('.factor-buttons button').forEach(b=>b.addEventListener('click',()=>{factor=b.dataset.factor;render()}));render();
+</script>
+</body>
+</html>
