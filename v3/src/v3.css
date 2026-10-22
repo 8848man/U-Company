@@ -11,3 +11,201 @@
 .v3 .v3-deliverables li.fail{color:#ff8a80}
 .v3 .v3-deliverables small{color:#98ab9f}
 @media (max-width:1120px){.v3 .v2-row{flex-wrap:wrap}}
+/* ADR-0046 one conversation per goal */
+.v3 .gc .gc-goal{align-self:flex-end;max-width:85%}
+.v3 .gc .gc-line{align-self:center;margin:0;padding:2px 10px;font-size:12px;color:#98ab9f;text-align:center}
+.v3 .gc .gc-line::before,.v3 .gc .gc-line::after{content:" — ";color:#4b6953}
+.v3 .gc .gc-plan{display:grid;gap:8px;padding:14px 16px;border:2px solid #8fd694;border-radius:12px;background:#1d2d24}
+.v3 .gc .gc-plan h3{margin:0;font-size:16px}
+.v3 .gc .gc-plan p{margin:0}
+.v3 .gc .gc-plan-counts{color:#cceb9f;font-weight:600}
+.v3 .gc .gc-plan-detail summary{cursor:pointer;color:#cceb9f;font-size:13px}
+.v3 .gc .gc-plan-detail[open]{display:grid;gap:10px}
+.v3 .gc .gc-plan-actions{display:flex;flex-wrap:wrap;gap:8px}
+.v3 .gc .gc-plan-actions button{min-width:76px;white-space:nowrap}
+.v3 .gc .gc-plan.is-closed{display:block;padding:8px 12px;border:1px solid #3c5843;border-radius:10px;background:none;font-size:13px}
+.v3 .gc .gc-plan.is-closed span{color:#98ab9f}
+.v3 .gc .gc-plan.is-closed details{margin-top:4px;font-size:12px}
+.v3 .gc .gc-version{align-self:stretch;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:10px 0 4px;padding:8px 0 0;border-top:1px dashed #4b6953;font-size:13px;color:#98ab9f}
+.v3 .gc .gc-version strong{color:#d8e6dc;font-size:12px;letter-spacing:.02em}
+.v3 .gc .gc-version small{color:#7f9787}
+.v3 .gc .gc-version details{flex-basis:100%;font-size:12px}
+.v3 .gc .gc-version details p{white-space:pre-wrap}
+.v3 .gc .gc-plan .sdd-origin{margin:0}
+.v3 .gc .gc-result{border-color:#8fd694}
+.v3 .gc .gc-progress{display:flex;align-items:center;gap:8px;margin:0 20px 8px;padding:7px 14px;border:1px solid #3c5843;border-radius:999px;background:#1d2d24;color:#e5eee3;font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.v3 .gc .gc-progress:hover{border-color:#8fd694}
+.v3 .gc .gc-progress-dot{flex:none;width:8px;height:8px;border-radius:50%;background:#8fd694;animation:gc-pulse 1.6s ease-in-out infinite}
+@keyframes gc-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.v3 .gc .gc-progress-dot{animation:none}}
+.v3 .gc .gc-plan-extra{padding-top:6px;border-top:1px solid #3c5843}.v3 .gc .gc-plan-extra .spec-preview{padding:0;border:0;background:none}.v3 .gc .gc-plan-extra h3{font-size:13px;color:#98ab9f}
+/* ADR-0046 chat home: goal list + conversation */
+.v3 .v3-chat-home{display:grid;grid-template-columns:260px minmax(0,1fr);height:calc(100dvh - 71px);min-height:480px}
+.v3 .v3-goal-list{display:flex;flex-direction:column;gap:10px;min-height:0;padding:16px 12px;border-right:1px solid #26303e;overflow-y:auto}
+.v3 .v3-goal-list nav{display:grid;gap:4px}
+.v3 .v3-new-goal{width:100%}
+.v3 .v3-goal-item{display:grid;gap:2px;width:100%;padding:8px 10px;border:1px solid transparent;border-radius:8px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.v3 .v3-goal-item:hover{background:#17221d}
+.v3 .v3-goal-item.is-selected{border-color:#4b6953;background:#1d2d24}
+.v3 .v3-goal-item-title{font-size:13px;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.v3 .v3-goal-item small{display:flex;gap:6px;align-items:center;color:#98ab9f;font-size:11.5px}
+.v3 .v3-goal-flag{padding:0 6px;border-radius:999px;background:#5a4524;color:#ffd38a;font-weight:600}
+.v3 .v3-chat-main{min-width:0;min-height:0;overflow-y:auto}
+.v3 .v3-chat-main > .gc-panel{height:100%;max-height:none;border:0;border-radius:0;background:#17221d}
+@media (max-width:860px){.v3 .v3-chat-home{grid-template-columns:1fr;height:auto}.v3 .v3-goal-list{border-right:0;border-bottom:1px solid #26303e;max-height:220px}.v3 .v3-chat-main > .gc-panel{height:calc(100dvh - 300px)}}
+.v3 .gc .chat-workspace-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.v3 .gc .chat-workspace-header .button-row{flex:none;flex-wrap:nowrap}
+/* ADR-0046 in-app Office window */
+.office-window{position:fixed;z-index:60;display:flex;flex-direction:column;min-width:320px;min-height:44px;background:#17221d;border:1px solid #4b6953;border-radius:12px;box-shadow:0 18px 50px #000a;color:#e5eee3;overflow:hidden}
+.office-window.is-floating{resize:both}
+.office-window.is-docked{top:71px;right:0;bottom:0;width:min(440px,90vw);border-radius:0;border-width:0 0 0 1px}
+.office-window.is-minimized{left:16px;bottom:16px;width:228px;height:auto}
+.office-window-bar{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 8px 14px;background:#1d2d24;border-bottom:1px solid #3c5843;cursor:move;user-select:none;touch-action:none}
+.office-window.is-docked .office-window-bar,.office-window.is-minimized .office-window-bar{cursor:default}
+.office-window-bar strong{min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.office-window-controls{display:flex;gap:4px;flex:none}
+.office-window-controls button{width:28px;height:26px;padding:0;border:1px solid #3c5843;border-radius:6px;background:none;color:#cfe0d2;font:inherit;font-size:14px;line-height:1;cursor:pointer}
+.office-window-controls button:hover{border-color:#8fd694;color:#fff}
+.office-window-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:10px 12px 12px;overflow-y:auto}
+.office-stages{display:flex;gap:4px;margin:0;padding:0;list-style:none}
+.office-stages li{flex:1;padding:4px 0;border-radius:6px;background:#203028;color:#7f948a;font-size:11.5px;text-align:center;white-space:nowrap}
+.office-stages li.is-done{color:#cfe0d2}
+.office-stages li.is-current{background:#2f5a3d;color:#fff;font-weight:700;box-shadow:inset 0 -2px 0 #8fd694}
+.office-stages li.is-waiting{background:#5a4524;color:#ffd38a;font-weight:700}
+.office-stages li.is-blocked{background:#5a2a2a;color:#ffb4ab;font-weight:700}
+.office-window-status{margin:0;font-size:12.5px;color:#cceb9f}
+.office-window-room{position:relative;flex:1 1 220px;min-height:200px;border-radius:8px;overflow:hidden;background:linear-gradient(90deg,#1f3527 0 15%,transparent 15% 85%,#1f3527 85%),#294032}
+.office-window-room .office-avatar{transform:translate(-50%,-50%) scale(.8)}
+.office-avatar.dimmed{opacity:.35}
+.office-members{display:grid;gap:4px;margin:0;padding:0;list-style:none}
+.office-members li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:5px 8px;border-radius:6px;background:#1b2a22;font-size:12.5px}
+.office-members li span{color:#cfe0d2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.office-members li small{color:#98ab9f}
+.office-members li.is-active small{color:#8fd694;font-weight:700}
+.office-members li.is-blocked small{color:#ffb4ab;font-weight:700}
+@media (prefers-reduced-motion:reduce){.office-window *{animation:none!important;transition:none!important}}
+body.office-docked .v3 .main{margin-right:min(440px,90vw)}
+.office-window.is-docked .office-window-room{flex:0 0 320px}
+.office-window.is-minimized{min-width:0}
+/* Compact icon rail (v3): fixed 64px; hover or focus shows a card to the right without widening the rail */
+.v3 .sidebar.rail{width:64px;padding:16px 8px;align-items:center;gap:6px;overflow:visible;position:relative;z-index:950}
+.v3 .rail-brand{padding:0 0 14px}
+.v3 .rail-brand .brand-mark{width:36px;height:36px;font-size:22px}
+.v3 .rail-nav{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.v3 .rail-item{position:relative}
+.v3 .rail-button{display:grid;place-items:center;width:44px;height:44px;border:1px solid transparent;border-radius:10px;background:transparent;color:#8d98ac;cursor:pointer}
+.v3 .rail-button:hover,.v3 .rail-button:focus-visible{color:#e6f2dc;background:#1b2530}
+.v3 .rail-button.active{background:#26332b;color:#d4f7a0;border-color:#3c5843}
+.v3 .rail-project .rail-button{border-color:#3c5843;color:#c6ef87}
+.v3 .rail-card{position:absolute;left:calc(100% + 10px);top:50%;transform:translate(-4px,-50%);display:grid;gap:2px;min-width:max-content;padding:9px 14px;border:1px solid #4b6953;border-radius:10px;background:#17221d;color:#e5eee3;box-shadow:0 10px 30px #000a;font-size:13px;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .12s,transform .12s,visibility .12s;white-space:nowrap}
+.v3 .rail-card small{color:#98ab9f;font-size:11px}
+.v3 .rail-item:hover .rail-card,.v3 .rail-item:focus-within .rail-card{opacity:1;visibility:visible;transform:translate(0,-50%)}
+.v3 .rail-menu{left:calc(100% + 10px);top:0;z-index:960}
+.v3 .rail-menu-head{display:block;padding:4px 8px 8px;color:#98ab9f}
+.v3 .rail-foot{display:flex;flex-direction:column;align-items:center;gap:4px;color:#7f948a;font-size:10px}
+@media (prefers-reduced-motion:reduce){.v3 .rail-card{transition:none}}
+/* '지금 할 일' as one line above the composer; details open in a dialog */
+.v3 .gc .gc-todo{display:flex;align-items:center;gap:10px;margin:0 20px 8px;padding:8px 14px;border:1px solid #aa8550;border-radius:10px;background:#32291e;color:#f3e6cf;font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.v3 .gc .gc-todo:hover,.v3 .gc .gc-todo:focus-visible{border-color:#ffd38a}
+.v3 .gc .gc-todo-kicker{flex:none;padding:1px 8px;border-radius:999px;background:#5a4524;color:#ffd38a;font-size:11px;font-weight:700}
+.v3 .gc .gc-todo strong{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v3 .gc .gc-todo-more{flex:none;color:#ffd38a;font-size:12px}
+.v3 .gc-todo-dialog{position:relative;width:min(640px,calc(100vw - 32px));max-height:calc(100dvh - 60px);overflow:auto;text-align:left}
+.v3 .gc-todo-close{position:absolute;top:12px;right:14px}
+/* ADR-0047: member rows open the mini chat; the chat card sits over the room, the floor stays visible beside it. */
+.office-members li:has(> button){display:block;padding:0;background:none}
+.office-members li > button{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:baseline;width:100%;padding:5px 8px;border:1px solid transparent;border-radius:6px;background:#1b2a22;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.office-members li > button:hover,.office-members li > button:focus-visible{border-color:#5d8a67}
+.office-members li.is-chatting > button{border-color:#8fd694;background:#21352a}
+.office-mini-chat{position:absolute;right:8px;top:8px;bottom:8px;z-index:5;display:flex;flex-direction:column;width:min(280px,calc(100% - 16px));background:#111a16f2;border:1px solid #4b6953;border-radius:10px;box-shadow:0 10px 30px #0008;color:#e5eee3;font-size:12.5px}
+.office-mini-chat header{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 10px;border-bottom:1px solid #2f4637}
+.office-mini-chat header div{flex:1;min-width:0;display:grid}
+.office-mini-chat header strong{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.office-mini-chat header small{color:#98ab9f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.office-mini-chat header button{width:26px;height:24px;padding:0;border:1px solid #3c5843;border-radius:6px;background:none;color:#cfe0d2;font:inherit;cursor:pointer}
+.office-mini-avatar{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#2f5a3c;color:#dff5d8;font-weight:700}
+.office-mini-turns{flex:1;min-height:0;margin:0;padding:8px 10px;list-style:none;overflow-y:auto;display:grid;align-content:start;gap:8px}
+.office-mini-turns li{display:grid;gap:4px}
+.office-mini-turns p{margin:0;padding:6px 9px;border-radius:9px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.office-mini-turns .is-ceo{justify-self:end;max-width:88%;background:#2f5a3c;color:#f1fbef}
+.office-mini-turns .is-agent{justify-self:start;max-width:92%;background:#1d2d24;color:#dbe8dc}
+.office-mini-turns .is-pending{color:#cceb9f;font-style:italic}
+.office-mini-turns .is-failed,.office-mini-turns .is-interrupted{color:#ffb4ab}
+.office-mini-empty{color:#98ab9f}
+.office-mini-block{margin:0;padding:10px;border-top:1px solid #2f4637;color:#cfe0d2}
+.office-mini-chat form{display:flex;gap:6px;align-items:flex-end;padding:8px;border-top:1px solid #2f4637}
+.office-mini-chat textarea{flex:1;min-width:0;resize:none;padding:6px 8px;border:1px solid #3c5843;border-radius:8px;background:#17221d;color:inherit;font:inherit}
+.office-mini-chat form button{flex:none;padding:6px 10px;font-size:12.5px}
+/* ADR-0049: reference material under the goal box and in the goal conversation. */
+.reference-tray{display:grid;gap:8px;margin-top:8px}
+.reference-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.reference-chip{display:flex;align-items:stretch;max-width:100%;border:1px solid #3c5843;border-radius:10px;background:#17221d;overflow:hidden}
+.reference-chip.is-pending{border-style:dashed}
+.reference-chip-main{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:8px;align-items:center;min-width:0;max-width:360px;padding:6px 10px;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.reference-chip-main span{grid-row:span 2;color:#8fd694;font-size:15px}
+.reference-chip-main strong{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reference-chip-main small{color:#98ab9f;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reference-chip.is-pending small{color:#cceb9f}
+.reference-chip-remove{width:30px;border:0;border-left:1px solid #3c5843;background:none;color:#cfe0d2;font:inherit;cursor:pointer}
+.reference-chip-remove:hover,.reference-chip-main:hover{background:#21352a}
+.reference-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.reference-actions small{color:#98ab9f}
+.reference-detail{display:flex;align-items:center;gap:4px;font-size:12px;color:#cfe0d2}
+.reference-dialog{max-width:620px;max-height:80vh;overflow-y:auto}
+.reference-caption{display:grid;gap:4px;font-size:12.5px}
+.reference-caption input{padding:6px 8px;border:1px solid #3c5843;border-radius:8px;background:#111a16;color:inherit;font:inherit}
+.reference-index{display:grid;gap:10px;margin:8px 0 0;padding:0;list-style:none}
+.reference-index > li{display:grid;gap:3px;padding:8px 10px;border:1px solid #2f4637;border-radius:8px}
+.reference-index > li.is-missing{border-color:#ffb4ab}
+.reference-index p{margin:2px 0}
+.reference-index ol{margin:4px 0 0;padding-left:18px;font-size:12.5px}
+.reference-index code{font-size:11px;word-break:break-all}
+.reference-dialog{position:relative}
+.reference-detail{flex-direction:row;white-space:nowrap}
+.reference-detail input{width:auto;margin:0;flex:none}
+.reference-tray label.reference-detail{display:inline-flex;align-items:center;gap:5px;margin:0;font-size:12px;font-weight:400;color:#cfe0d2}
+.reference-tray label.reference-detail input[type=checkbox]{display:inline-block;width:auto;height:auto;margin:0;padding:0}
+.reference-chip-role{padding:0 10px;border:0;border-left:1px solid #3c5843;background:none;color:#98ab9f;font:inherit;font-size:11.5px;cursor:pointer;white-space:nowrap}
+.reference-chip-role.is-requirement{background:#2f5a3c;color:#f1fbef;font-weight:700}
+.gc-plan-coverage{margin:4px 0 0;font-size:12.5px;color:#8fd694}
+.gc-plan-coverage.is-partial{color:#ffcf8a}
+/* Attachment boxes (Cowork-style) and the drop zone. */
+.v3 .command-card{position:relative}
+.command-drop{position:absolute;inset:6px;z-index:5;display:grid;place-content:center;gap:4px;text-align:center;border:2px dashed #8fd694;border-radius:14px;background:#0f1a14e6;pointer-events:none}
+.command-drop strong{font-size:16px;color:#e5eee3}
+.command-drop small{color:#98ab9f}
+.reference-boxes{display:flex;flex-wrap:wrap;gap:10px;margin:0;padding:0;list-style:none}
+.reference-box{position:relative;display:grid;width:176px;border:1px solid #3c5843;border-radius:12px;background:#17221d;overflow:hidden}
+.reference-box.is-pending{border-style:dashed}
+.reference-box-main{display:grid;gap:3px;padding:0 0 8px;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;min-width:0}
+.reference-box-main:hover .reference-box-preview{filter:brightness(1.12)}
+.reference-box-preview{display:grid;place-items:center;height:84px;margin-bottom:4px;background:#1f3527;overflow:hidden}
+.reference-box-preview img{width:100%;height:100%;object-fit:cover}
+.reference-box-preview b{padding:6px 10px;border:1px solid #5d8a67;border-radius:6px;color:#cceb9f;font-size:12px;letter-spacing:.04em}
+.reference-box-name{padding:0 10px;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reference-box small{padding:0 10px;color:#98ab9f;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reference-box.is-pending small{color:#cceb9f}
+.reference-box-role{justify-self:start;margin:0 10px 9px;padding:2px 8px;border:1px solid #3c5843;border-radius:999px;background:none;color:#98ab9f;font:inherit;font-size:11px;cursor:pointer}
+.reference-box-role.is-requirement{border-color:#8fd694;background:#2f5a3c;color:#f1fbef;font-weight:700}
+.reference-box-remove{position:absolute;top:6px;right:6px;display:grid;place-items:center;width:24px;height:24px;padding:0;border:1px solid #ffffff33;border-radius:50%;background:#0b120ecc;color:#e5eee3;font:inherit;font-size:14px;line-height:1;cursor:pointer;opacity:.75}
+.reference-box:hover .reference-box-remove,.reference-box-remove:focus-visible{opacity:1}
+.reference-box-remove:hover{background:#7a2b2b;border-color:#ffb4ab}
+.reference-box.is-preparing{opacity:.75}
+.reference-box.is-preparing i{width:22px;height:22px;border:2px solid #5d8a67;border-top-color:#cceb9f;border-radius:50%;animation:reference-spin .9s linear infinite}
+@keyframes reference-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.reference-box.is-preparing i{animation:none}}
+.reference-dialog-image{max-width:100%;max-height:260px;border-radius:8px;border:1px solid #2f4637}
+/* ADR-0052: mock AI card inside the AI 추가 dialog */
+.v2-mock-ai{margin-top:16px}.v2-mock-ai p{margin:6px 0 10px;color:#a9bba9;font-size:13px;line-height:1.5}.v2-mock-ai select{padding:9px;border:1px solid #485e50;border-radius:7px;background:#17221c;color:#e8f2e0}
+/* ADR-0053: repair scope-addition card */
+.v3 .gc .gc-plan.is-scope{border-color:#c9a94a}.v3 .gc .gc-plan.is-scope h3{color:#f0d68a}
+/* ADR-0054: plan-card estimate */
+.v3 .gc .gc-plan .gc-plan-estimate{color:#cfe3c9;font-size:13px;line-height:1.5}.v3 .gc .gc-plan .gc-plan-estimate small{color:#9fb59c}
+/* ADR-0054: finished-goal summary and block statistics */
+.v3 .gc .gc-result-summary{display:grid;gap:6px;margin:6px 0 10px}.v3 .gc .gc-result-summary p{display:flex;align-items:center;gap:10px;margin:0}.v3 .gc .gc-result-summary ul{margin:0;padding-left:18px}.v3 .gc .gc-result-summary code{font-size:12.5px}
+.v3 .v3-block-stats{margin-top:16px}.v3 .v3-block-stats ul{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:8px}.v3 .v3-block-stats li{display:grid;grid-template-columns:1fr auto;gap:4px 10px}.v3 .v3-block-bar{grid-column:1/-1;height:6px;border-radius:3px;background:#c9a94a}
+/* ADR-0054 R6: first-run check */
+.v3 .v3-first-run ul{list-style:none;padding:0;margin:10px 0;display:grid;gap:8px}.v3 .v3-first-run li{display:grid;grid-template-columns:22px 92px 1fr auto;align-items:center;gap:8px}.v3 .v3-first-run li span{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#2e6b3c;color:#e8f2e0;font-size:12px}.v3 .v3-first-run li.is-missing span{background:#8a5a18}.v3 .v3-first-run li small{color:#b8c9b5}
+@media (max-width:640px){.v3 .v3-first-run li{grid-template-columns:22px 1fr}.v3 .v3-first-run li small,.v3 .v3-first-run li button{grid-column:2}}
+.v3 .v3-examples{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:6px}.v3 .v3-examples small{color:#9fb59c}
+.v3 .gc .gc-result-summary p,.v3 .gc .gc-result-summary li{font-size:14px;line-height:1.55}.v3 .gc .gc-result-more summary{cursor:pointer;font-size:14px;margin:4px 0}
+.v3 .v3-block-stats{max-width:900px}

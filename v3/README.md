@@ -13,6 +13,7 @@ What changes from v2 is the CEO's minimal flow for the first pilot — three lau
 - Windows PowerShell: `D:\projects\utopia_company\v3\start-windows.ps1`
 - Prerequisites only: `D:\projects\utopia_company\v3\start-windows.ps1 -CheckOnly`
 - Pilot with separate data: `D:\projects\utopia_company\v3\start-windows.ps1 -DataDir .run-data\v3-pilot` (manual QA-39)
+- Sample app with the token-free mock AI: `D:\projects\utopia_company\v3\start-windows.ps1 -DataDir .run-data\sample-mock`, then follow [QA-50](../qa/SAMPLE-APP-FLOW.md)
 - Ubuntu 24.04: `bash v3/start-ubuntu.sh` (desktop run not yet verified)
 - Build only: `npm run build:v3`
 

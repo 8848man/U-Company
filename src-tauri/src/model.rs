@@ -805,6 +805,11 @@ pub struct Snapshot {
     pub usage: Vec<TokenUsageRecord>,
     pub spec_profiles: Vec<crate::spec_import::SpecProfile>,
     pub spec_drafts: Vec<crate::spec_import::SpecDraft>,
+    /// ADR-0049: reference material records (staged ones have no goal yet).
+    #[serde(default)]
+    pub references: Vec<crate::references::Reference>,
+    #[serde(default)]
+    pub curator_enabled: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

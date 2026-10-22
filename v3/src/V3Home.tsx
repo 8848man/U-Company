@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { PASTE_FILE_OVER } from '../../src/referenceAttach';
 import { GoalGraph } from '../../src/OfficeActivity';
 import { ListDisclosure, useLimitedItems } from '../../src/ContentDensity';
 import { goalTitle } from '../../src/progress';
@@ -14,6 +15,21 @@ export type HomeMode = 'goal' | 'meeting';
 /** First-pilot example (v3 plan): local material only, three named deliverables, no web/outreach. */
 export const LAUNCH_PILOT_EXAMPLE = 'notes/ 폴더의 자료만 사용해서 출시 준비 문서 세 가지를 launch/ 폴더에 만들어 줘: (1) launch/customer-hypothesis.md 고객·문제 가설 (2) launch/offer-message.md 제안·메시지 초안 (3) launch/prelaunch-checklist.md 출시 전 확인 목록. 자료로 확인되지 않은 시장·고객 주장은 \'미확인\'으로 표시하고, 웹 조사·외부 게시·고객 연락은 하지 마.';
 
+/** ADR-0054 R6: the sample-app goal of the first-run check and the mock AI scenario (`scripts/mock-ai/scenarios/todo-app.json`). */
+export const SAMPLE_APP_GOAL = '브라우저에서 바로 여는 할 일 목록 웹앱을 만들어 줘: 할 일 추가, 눌러서 완료 표시, 삭제, 새로고침해도 남도록 저장. 화면과 분리된 할 일 규칙(todo.js)과 `node --test`로 돌리는 테스트도 함께 만들어 줘. 외부 라이브러리나 서버 없이 파일만으로 동작해야 해.';
+
+/** What the first goal still needs, in plain words; an empty list means ready. Nothing here is a blocker the engine does not also check. */
+export function firstRunChecks(project: Project, agents: Agent[], connections: AiConnection[]): { label: string; ok: boolean; detail: string; action?: 'connections' | 'settings' }[] {
+  const usable = (id: string) => connections.some(item => item.id === id && !['missing', 'failed', 'needs_setup'].includes(item.status));
+  const active = agents.filter(agent => agent.enabled);
+  const missing = active.filter(agent => !agent.connectionId || !usable(agent.connectionId));
+  return [
+    { label: '작업할 폴더', ok: true, detail: project.name },
+    { label: 'Git', ok: project.kind === 'git', detail: project.kind === 'git' ? 'Git 저장소예요. 작업마다 따로 떼어 만든 뒤 합쳐요' : '일반 폴더예요. 그래도 괜찮아요(작업마다 복사본에서 만든 뒤 합쳐요)' },
+    { label: 'AI 연결', ok: missing.length === 0 && active.length > 0, detail: missing.length === 0 ? `팀원 ${active.length}명 모두 연결됨` : `팀원 ${missing.length}명이 쓸 AI가 없어요: ${missing.slice(0, 3).map(agent => agent.name).join(', ')}${missing.length > 3 ? ' 외' : ''}`, action: missing.length ? 'connections' : undefined },
+  ];
+}
+
 type Props = {
   project: Project | null; goals: Goal[]; tasks: Task[]; approvals: Approval[]; agents: Agent[]; connections: AiConnection[];
   guidance: GoalGuidance[]; events: Event[]; reviews: DeliverableReview[];
@@ -22,16 +38,23 @@ type Props = {
   intent: string; busy: boolean; teamBlock: BlockReason | null; runBlock: (goal: Goal) => BlockReason | null;
   onIntent: (value: string) => void; onSubmit: () => void; onRun: (id: string) => void; onOpen: (id: string) => void;
   onSettings: () => void; onConnections: () => void; onOffice: () => void; onExplain: (title: string, reason: string, next: string) => void;
+  /** ADR-0046: the chat home lists goals on the left, so this pane shows only the new-goal box and decisions. */
+  hideGoalList?: boolean;
+  /** ADR-0049: attached material under the goal box, and where a long paste or dropped files go. */
+  attachments?: ReactNode; onPasteLong?: (text: string) => void; onDropFiles?: (files: File[]) => void;
 };
 
 function stageLabel(goal: Goal): string {
-  return ({ new: '시작 전', analyzing: '목표 분석', planning: '산출물 계획', awaiting_approval: 'CEO 승인 대기', executing: '팀 작업 중', integrating: '결과 합치는 중', validating: 'QA 검증', completed: '인수 확인', blocked: '확인 필요' } as Record<string, string>)[goal.status] ?? goal.status;
+  return ({ new: '시작 전', analyzing: '목표 분석', planning: '산출물 계획', awaiting_approval: 'CEO 승인 대기', executing: '팀 작업 중', integrating: '결과 합치는 중', validating: 'QA 검증', completed: '인수 확인', blocked: '확인 필요', cancelled: '취소됨' } as Record<string, string>)[goal.status] ?? goal.status;
 }
 
 /** Home of the v3 shell: readiness, one command box, a decision inbox and per-deliverable goal cards. */
 export function V3Home(props: Props) {
-  const { project, goals, tasks, approvals, agents, connections, guidance, events, reviews, mode, onMode, readiness, readinessError, onStartMeeting, draftSource, onClearDraftSource, meetingStatus, intent, busy, teamBlock, runBlock, onIntent, onSubmit, onRun, onOpen, onSettings, onConnections, onOffice, onExplain } = props;
+  const { project, goals, tasks, approvals, agents, connections, guidance, events, reviews, mode, onMode, readiness, readinessError, onStartMeeting, draftSource, onClearDraftSource, meetingStatus, intent, busy, teamBlock, runBlock, onIntent, onSubmit, onRun, onOpen, onSettings, onConnections, onOffice, onExplain, hideGoalList = false, attachments, onPasteLong, onDropFiles } = props;
   const [showGraph, setShowGraph] = useState<string | null>(null);
+  // ADR-0049: depth counter so the drop highlight does not flicker over child elements.
+  const [dragDepth, setDragDepth] = useState(0);
+  const acceptsFiles = (event: React.DragEvent) => mode === 'goal' && Boolean(onDropFiles) && event.dataTransfer.types.includes('Files');
   const decisions = goals.filter(goal => goal.kind === 'deliberation' ? meetingStatus(goal).needsDecision : Boolean(blockFacts(goal, tasks, approvals, guidance, agents, events)));
   const ordered = [...goals].sort((a, b) => Number(decisions.includes(b)) - Number(decisions.includes(a)) || b.createdAt.localeCompare(a.createdAt));
   const window = useLimitedItems(ordered);
@@ -44,10 +67,12 @@ export function V3Home(props: Props) {
     <div className="v2-stack">
       {teamBlock && <section className="card v3-setup" aria-label="시작 전 준비"><strong>시작 전 준비 · {teamBlock.title}</strong><small>{teamBlock.reason}</small><small>AI 연결 {readyConnections}개 사용 가능 · {teamBlock.next}</small><div className="button-row"><button className="primary" onClick={onConnections}>AI 연결 확인</button><button className="secondary" onClick={onOffice}>팀 확인</button></div></section>}
 
-      <section className="card command-card"><div className="v2-row"><div className="card-kicker">{mode === 'goal' ? '새 목표' : '새 회의'}</div><label className="home-mode">명령 방식<select aria-label="명령 방식" value={mode} onChange={event => onMode(event.target.value as HomeMode)}><option value="goal">목표 수행</option><option value="meeting">회의</option></select></label></div>
+      <section className={`card command-card${dragDepth > 0 ? ' is-dropping' : ''}`} onDragEnter={event => { if (acceptsFiles(event)) { event.preventDefault(); setDragDepth(depth => depth + 1); } }} onDragLeave={event => { if (acceptsFiles(event)) setDragDepth(depth => Math.max(0, depth - 1)); }} onDragOver={event => { if (acceptsFiles(event)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } }} onDrop={event => { setDragDepth(0); if (!acceptsFiles(event) || !event.dataTransfer.files.length) return; event.preventDefault(); onDropFiles?.(Array.from(event.dataTransfer.files)); }}>
+        {dragDepth > 0 && <div className="command-drop" aria-hidden="true"><strong>여기에 놓으면 자료로 첨부돼요</strong><small>md·txt 글, PNG·JPEG·WebP·GIF 이미지</small></div>}<div className="v2-row"><div className="card-kicker">{mode === 'goal' ? '새 목표' : '새 회의'}</div><label className="home-mode">명령 방식<select aria-label="명령 방식" value={mode} onChange={event => onMode(event.target.value as HomeMode)}><option value="goal">목표 수행</option><option value="meeting">회의</option></select></label></div>
         <h2>{mode === 'goal' ? '팀에 무엇을 맡길까요?' : '팀이 무엇을 먼저 토론할까요?'}</h2>
-        <textarea aria-label={mode === 'goal' ? '새 목표' : '회의 안건'} value={intent} onChange={event => onIntent(event.target.value)} placeholder={mode === 'goal' ? '만들 결과, 사용할 자료, 지켜야 할 조건을 한두 문장으로 적어 주세요.' : '결정할 질문과 기대하는 결과를 적어 주세요. 의장이 목표·제한·참여자를 제안합니다.'}/>
-        {mode === 'goal' && !intent.trim() && <div className="v3-example"><small>예시 · 첫 파일럿: 로컬 자료로 출시 준비 문서 세 가지</small><button type="button" className="text-button" onClick={() => onIntent(LAUNCH_PILOT_EXAMPLE)}>출시 준비 예시 넣기 →</button></div>}
+        <textarea aria-label={mode === 'goal' ? '새 목표' : '회의 안건'} value={intent} onChange={event => onIntent(event.target.value)} onPaste={event => { const text = event.clipboardData.getData('text'); if (mode === 'goal' && onPasteLong && text.length > PASTE_FILE_OVER) { event.preventDefault(); onPasteLong(text); } }} placeholder={mode === 'goal' ? '만들 결과, 사용할 자료, 지켜야 할 조건을 한두 문장으로 적어 주세요.' : '결정할 질문과 기대하는 결과를 적어 주세요. 의장이 목표·제한·참여자를 제안합니다.'}/>
+        {mode === 'goal' && attachments}
+        {mode === 'goal' && !intent.trim() && <div className="v3-examples"><small>예시로 채우기</small><button type="button" className="secondary" title="브라우저로 여는 할 일 목록 웹앱과 테스트" onClick={() => onIntent(SAMPLE_APP_GOAL)}>샘플 앱 만들어 보기</button><button type="button" className="text-button" title="로컬 자료로 출시 준비 문서 세 가지" onClick={() => onIntent(LAUNCH_PILOT_EXAMPLE)}>출시 준비 문서 예시</button></div>}
         {draftSource && (mode === 'goal' ? <p className="meeting-draft-note" role="note">회의 결정 자료 {draftSource.slice(0, 12)}…에서 가져온 <strong>초안</strong>입니다. 고친 뒤 직접 전달해야 목표가 만들어지며, 파일 변경은 이후 별도 승인을 받습니다. <button className="text-button" onClick={onClearDraftSource}>출처 연결 해제</button></p> : <p className="meeting-draft-note" role="note">회의 결정 초안의 출처 연결은 <strong>목표 수행</strong>으로 전달할 때만 기록됩니다.</p>)}
         {mode === 'meeting' && <div className="meeting-disclosure" aria-live="polite">{readiness?.chair ? <><strong>의장 {readiness.chair.name} ({readiness.chair.role})</strong><small>{readiness.chair.connectionName} · {readiness.chair.modelId || '기본 모델'} · {profileLabel[readiness.chair.profile] ?? readiness.chair.profile}</small><small>안건이 이 AI에 전송되고, AI는 프로젝트 폴더를 읽을 수 있으며 파일은 바꾸지 않습니다.</small></> : <><strong>회의를 시작할 수 없습니다</strong><small>{readinessError || readiness?.chairReason || '의장 준비 상태를 확인하는 중입니다.'}</small></>}</div>}
         <div className="card-actions"><span>작업할 곳: {project.name}{mode === 'goal' ? ' · 다음: 팀이 산출물 계획 → CEO 승인' : ''}</span>{mode === 'goal'
@@ -55,12 +80,13 @@ export function V3Home(props: Props) {
           : <button className={busy || intent.trim().length < 10 || !readiness?.chair ? 'primary is-blocked' : 'primary'} onClick={() => busy ? onExplain('잠시 기다려 주세요', '다른 작업을 처리하고 있습니다.', '끝난 뒤 다시 눌러 주세요.') : !readiness?.chair ? onExplain('의장을 준비해 주세요', readinessError || readiness?.chairReason || '의장 상태를 확인하지 못했습니다.', 'PM 또는 CTO에게 Claude/Codex CLI 연결을 배정하세요.') : intent.trim().length < 10 ? onExplain('안건을 조금 더 적어 주세요', '의장이 계획을 세울 정보가 부족합니다.', '결정할 질문과 조건을 한 문장 이상 적어 주세요.') : onStartMeeting()}>회의 시작 ↗</button>}</div>
       </section>
 
+      {mode === 'goal' && goals.length === 0 && <section className="card v3-first-run" aria-label="첫 목표 준비"><strong>첫 목표 준비</strong><ul>{firstRunChecks(project, agents, connections).map(check => <li key={check.label} className={check.ok ? 'is-ok' : 'is-missing'}><span aria-hidden="true">{check.ok ? '✓' : '!'}</span><b>{check.label}</b><small>{check.detail}</small>{check.action === 'connections' && <button type="button" className="secondary" onClick={onConnections}>AI 연결하기</button>}</li>)}</ul><small className="muted">처음이라면 위의 `샘플 앱 만들어 보기`로 목표를 채운 뒤 보내 보세요. 토큰 없이 흐름만 보려면 AI 연결에서 모의 AI를 추가할 수 있어요.</small></section>}
       {decisions.length > 0 && <section className="card v3-inbox" aria-label="결정할 일"><div className="v2-row"><strong>결정할 일 {decisions.length}건</strong><small>이유 → 마지막 확인 → 담당 → 다음 행동</small></div>
         {inbox.visible.map(goal => { const facts = goal.kind === 'deliberation' ? null : blockFacts(goal, tasks, approvals, guidance, agents, events); const meeting = goal.kind === 'deliberation' ? meetingStatus(goal) : null; return <article key={goal.id} className="v3-inbox-item"><div className="v2-row"><strong title={goal.intent}>{goalTitle(goal, 90)}</strong><button className="primary" onClick={() => onOpen(goal.id)}>결정 열기 →</button></div>{facts ? <BlockFactsView facts={facts} /> : <small>{meeting?.label} · {meeting?.detail}</small>}</article>; })}
         <ListDisclosure label="결정할 일" total={inbox.total} hidden={inbox.hidden} expanded={inbox.expanded} onToggle={inbox.toggle}/>
       </section>}
 
-      <div className="section-head"><h2>목표</h2><span className="count">{goals.length} GOALS</span></div>
+      {!hideGoalList && <><div className="section-head"><h2>목표</h2><span className="count">{goals.length} GOALS</span></div>
       <div className="v2-stack">{window.visible.map(goal => {
         const isMeeting = goal.kind === 'deliberation';
         const rows = deliverableRows(goal, tasks, reviews, agents);
@@ -80,6 +106,6 @@ export function V3Home(props: Props) {
           </div>
           {!isMeeting && showGraph === goal.id && <GoalGraph goal={goal} tasks={tasks}/>}
         </article>;
-      })}{!goals.length && <div className="empty-state compact">아직 목표가 없습니다. 위에서 첫 목표를 전달해 주세요. 출시 준비 예시로 시작할 수 있습니다.</div>}<ListDisclosure label="목표" total={window.total} hidden={window.hidden} expanded={window.expanded} onToggle={window.toggle}/></div>
+      })}{!goals.length && <div className="empty-state compact">아직 목표가 없습니다. 위에서 첫 목표를 전달해 주세요. 출시 준비 예시로 시작할 수 있습니다.</div>}<ListDisclosure label="목표" total={window.total} hidden={window.hidden} expanded={window.expanded} onToggle={window.toggle}/></div></>}
     </div></div>;
 }

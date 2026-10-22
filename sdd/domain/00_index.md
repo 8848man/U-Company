@@ -9,5 +9,6 @@
 | DM-03 | [업무·증거·승인](DM-03-execution.md) | Task, Session, Event, 통합 증거와 승인 엔티티 |
 | DM-04 | [수명주기](DM-04-lifecycle.md) | 목표·업무 상태 전이와 QA 재작업 루프 |
 | DM-05 | [중단 복구](DM-05-recovery.md) | 재시작 때 미완료 실행의 보수적 판정 |
+| DM-06 | [참조 자료](DM-06-references.md) | 첨부한 긴 글·이미지, 절, 인덱스, 자료 사이 관계 |
 
 관계 `owns`는 하위 기록의 소유, `belongs_to`는 저장된 소속, `requires`는 선행 상태, `records`는 증거 생성, `transitions`는 상태 이동, `recovers`는 재시작 후 재판정, `reads`는 저장된 사실의 조회를 뜻한다. 실제 전이와 복구의 원본은 DM-04/DM-05이며 개별 엔티티 파일은 그 정의를 참조한다. [사용자 여정](../userFlow/UF-03-goal.md)은 CEO가 보는 순서를, [목표 대화](../goalConversation/00_index.md)는 대화의 상세 계약을 소유한다.

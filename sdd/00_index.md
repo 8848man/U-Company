@@ -17,6 +17,7 @@ This index is the entry point for a new contributor or AI agent. Read the affect
 | User attention sounds and OS notifications | [Attention notifications](notifications.md) |
 | Repeated lists and long content | [정보 밀도 UI 정책](content-density.md) |
 | Goal conversation and CEO steering | [Goal conversation](goalConversation/00_index.md) |
+| Completion and usability rounds (mock AI, end-to-end tests, sample-app flow) | [완주율·사용성 개선 라운드](completion-usability-rounds.md) |
 | Goal-centered improvement delivery | [Workflow improvement plan](workflow-improvement-plan.md) |
 | Planned Office current-goal layout | [Office goal visibility plan](office-goal-visibility-plan.md) |
 | AI discovery and adapter contract | [Integrations](aiIntegration/00_index.md) |

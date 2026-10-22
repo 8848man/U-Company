@@ -3,6 +3,10 @@ mod discovery;
 mod engine;
 mod git_bootstrap;
 mod meeting;
+mod mock_ai;
+mod goal_result;
+#[cfg(test)]
+mod engine_e2e;
 mod model;
 mod platform;
 mod presets;
@@ -11,6 +15,10 @@ pub mod provider_harness;
 mod runtime;
 mod spec_import;
 mod sdd_origin;
+mod plan_review;
+mod team_fix;
+mod references;
+mod curation;
 mod squad;
 mod archive;
 mod storage;
@@ -24,7 +32,7 @@ use tauri::{Emitter, Manager};
 struct BackendInfo { protocol_version: u32, build_id: String }
 
 #[tauri::command]
-fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 34, build_id: meeting::meeting_build() } }
+fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 39, build_id: meeting::meeting_build() } }
 
 #[tauri::command]
 fn get_snapshot(store: tauri::State<'_, Store>) -> Result<Snapshot, String> { store.snapshot() }
@@ -313,8 +321,97 @@ fn save_connection(mut connection: AiConnection, store: tauri::State<'_, Store>,
     Ok(connection)
 }
 
+/// ADR-0054: files a finished goal changed and plain ways to try them. Read-only.
 #[tauri::command]
-fn submit_goal(intent: String, lineage_meeting_id: Option<String>, lineage_package_sha256: Option<String>, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<Goal, String> {
+fn get_goal_result(goal_id: String, store: tauri::State<'_, Store>) -> Result<goal_result::GoalResult, String> { goal_result::result(&store, &goal_id) }
+
+/// ADR-0054: where this project's goals stopped, by kind.
+#[tauri::command]
+fn get_block_stats(project_id: String, store: tauri::State<'_, Store>) -> Result<Vec<goal_result::BlockStat>, String> {
+    Ok(goal_result::block_stats(&store.list::<goal_result::BlockRecord>("goal_block")?, &project_id))
+}
+
+/// ADR-0054: opens a registered project's folder in the system file manager.
+#[tauri::command]
+fn open_project_folder(project_id: String, store: tauri::State<'_, Store>) -> Result<(), String> {
+    let project: Project = store.get("project_entry", &project_id)?.ok_or("프로젝트를 찾을 수 없습니다")?;
+    goal_result::open_folder(&project.path)
+}
+
+/// ADR-0052: register the token-free mock AI (a `plugin` connection running the repository's adapter).
+/// Like any new connection it fills only teammates that have no connection yet.
+#[tauri::command]
+fn add_mock_connection(modes: Vec<String>, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<AiConnection, String> {
+    let connection = mock_ai::local_connection(&modes)?;
+    store.register_connection_and_assign_unassigned(&connection)?;
+    let _ = app.emit("state-changed", ());
+    Ok(connection)
+}
+
+/// ADR-0049: pasted text over 4,000 characters, or an attached `.md`/`.txt`, held until the goal is sent.
+#[tauri::command]
+fn stage_text_reference(name: String, text: String, source: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<references::Reference, String> {
+    let project: Project = store.get("project", "selected")?.ok_or("먼저 프로젝트 폴더를 선택해 주세요")?;
+    if source == "paste" && text.chars().count() <= references::INLINE_MAX { return Err("짧은 글은 목표 문장에 그대로 넣어 주세요".into()); }
+    let reference = references::stage_text(&store, &curation::staging_root(&app)?, &project, &name, &text, &source)?;
+    if reference.curation == "pending" { curation::start(app.clone(), reference.id.clone()); }
+    let _ = app.emit("state-changed", ());
+    Ok(reference)
+}
+
+/// ADR-0049: an image the screen already resized to WebP without metadata.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+fn stage_image_reference(name: String, data_base64: String, original_bytes: u64, original_sha256: String, caption: String, detail: bool, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<references::Reference, String> {
+    let project: Project = store.get("project", "selected")?.ok_or("먼저 프로젝트 폴더를 선택해 주세요")?;
+    if data_base64.len() > references::IMAGE_MAX_BYTES * 4 / 3 + 16 { return Err("변환한 이미지가 4MB를 넘어요".into()); }
+    let bytes = references::decode_base64(&data_base64)?;
+    let reference = references::stage_image(&store, &curation::staging_root(&app)?, &project, &bytes, references::ImageMeta { original_name: name, original_bytes, original_sha256, caption, detail })?;
+    curation::start(app.clone(), reference.id.clone());
+    let _ = app.emit("state-changed", ());
+    Ok(reference)
+}
+
+#[tauri::command]
+fn discard_reference(id: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
+    references::discard_staged(&store, &curation::staging_root(&app)?, &id)?;
+    let _ = app.emit("state-changed", ());
+    Ok(())
+}
+
+/// ADR-0049: `요구사항` or `참고` on a chip; may start the curator when it is on.
+#[tauri::command]
+fn set_reference_role(id: String, role: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<references::Reference, String> {
+    let (reference, start) = references::set_role(&store, &curation::staging_root(&app)?, &id, &role)?;
+    if start { curation::start(app.clone(), reference.id.clone()); }
+    if reference.status != "staged" {
+        if let Some(project) = store.get::<Project>("project_entry", &reference.project_id)? { references::write_indexes(&store, &project)?; }
+    }
+    let _ = app.emit("state-changed", ());
+    Ok(reference)
+}
+
+/// ADR-0049: the curator is off by default (an extra call per long text); the CEO turns it on.
+#[tauri::command]
+fn set_curator_enabled(enabled: bool, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
+    references::set_curator_enabled(&store, enabled)?;
+    let _ = app.emit("state-changed", ());
+    Ok(())
+}
+
+#[tauri::command]
+fn set_reference_caption(id: String, caption: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<references::Reference, String> {
+    let reference = references::set_caption(&store, &id, &caption)?;
+    if reference.status != "staged" {
+        if let Some(project) = store.get::<Project>("project_entry", &reference.project_id)? { references::write_indexes(&store, &project)?; }
+    }
+    let _ = app.emit("state-changed", ());
+    Ok(reference)
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+fn submit_goal(intent: String, lineage_meeting_id: Option<String>, lineage_package_sha256: Option<String>, reference_ids: Option<Vec<String>>, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<Goal, String> {
     if intent.trim().len() < 10 { return Err("Describe the goal in at least 10 characters".into()); }
     let project: Project = store.get("project", "selected")?.ok_or("먼저 프로젝트 폴더를 선택해 주세요")?;
     let goal = Goal { id: model::id(), kind: "execution".into(), project_id: Some(project.id), intent: intent.trim().into(), status: "new".into(), report: String::new(), created_at: model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(project.review_loop_limit), work_group: None, block_kind: String::new() };
@@ -322,6 +419,24 @@ fn submit_goal(intent: String, lineage_meeting_id: Option<String>, lineage_packa
         (Some(meeting_id), Some(sha)) => meeting::submit_with_lineage(&store, &goal, &meeting_id, &sha)?,
         (None, None) => store.put("goal", &goal.id, &goal, Some(NewEvent::goal("goal_created", &goal, "CEO goal received")))?,
         _ => return Err("회의 인계 정보가 불완전합니다".into()),
+    }
+    // ADR-0049: attached material moves into the goal folder; the goal sentence gets one line per item.
+    let reference_ids = reference_ids.unwrap_or_default();
+    let mut goal = goal;
+    if !reference_ids.is_empty() {
+        let project: Project = store.get("project", "selected")?.ok_or("먼저 프로젝트 폴더를 선택해 주세요")?;
+        match references::attach_to_goal(&store, &curation::staging_root(&app)?, &project, &goal, &reference_ids) {
+            Ok(attached) => {
+                let lines = attached.iter().map(|item| format!("- {} {}: {} ({})", item.label, if item.kind == "image" { "이미지" } else { "글" }, references::one_line(&item.title, 60), if item.kind == "image" { format!("{}×{}", item.width, item.height) } else { format!("{}자", item.chars) })).collect::<Vec<_>>().join("\n");
+                goal.intent = format!("{}\n\n참조 자료 (목록: {}/INDEX.md, 필요한 것만 열어 보세요):\n{lines}", goal.intent, references::goal_folder(&goal));
+                store.put("goal", &goal.id, &goal, None)?;
+            }
+            Err(error) => {
+                store.transact(|tx| { tx.execute("DELETE FROM objects WHERE kind='goal' AND id=?1", [goal.id.as_str()]).map_err(|e| e.to_string())?; Ok(()) })?;
+                let _ = app.emit("state-changed", ());
+                return Err(format!("참조 자료를 목표에 넣지 못해 목표를 만들지 않았습니다: {error}"));
+            }
+        }
     }
     let _ = app.emit("state-changed", ());
     Ok(goal)
@@ -496,6 +611,12 @@ fn send_goal_message(goal_id: String, agent_id: String, message: String, store: 
     Ok(turn)
 }
 
+/// ADR-0048: the recovery card's one-click fix request.
+#[tauri::command]
+fn request_team_fix(goal_id: String, app: tauri::AppHandle) -> Result<GoalTurn, String> {
+    engine::request_team_fix(app, goal_id)
+}
+
 #[tauri::command]
 fn propose_goal_change(goal_id: String, text: String, agent_id: Option<String>, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<GoalGuidance, String> {
     let text = text.trim();
@@ -608,6 +729,22 @@ fn decide_approval(id: String, approved: bool, squad_digest: Option<String>, sto
     Ok(())
 }
 
+/// ADR-0046 `개선`: the CEO's note sends the pending plan back to the PM on the same goal. Not an approval.
+#[tauri::command]
+fn revise_plan(goal_id: String, approval_id: String, note: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<GoalTurn, String> {
+    let turn = plan_review::request_revision(&store, &goal_id, &approval_id, &note)?;
+    let _ = app.emit("state-changed", ());
+    Ok(turn)
+}
+
+/// ADR-0046 `거부`: deny the pending plan and close the goal as cancelled. No project file changes.
+#[tauri::command]
+fn cancel_goal(goal_id: String, approval_id: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
+    plan_review::cancel(&store, &goal_id, &approval_id)?;
+    let _ = app.emit("state-changed", ());
+    Ok(())
+}
+
 #[tauri::command]
 fn swap_squad_member(goal_id: String, from_agent_id: String, to_agent_id: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<model::Squad, String> {
     let squad = squad::swap(&store, &goal_id, &from_agent_id, &to_agent_id)?;
@@ -651,7 +788,15 @@ fn backup_usage(store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result
 
 #[tauri::command]
 fn purge_goal(goal_id: String, confirmed: bool, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<usize, String> {
+    // ADR-0049: read what the reference cleanup needs before the goal's records are deleted.
+    let goal: Option<Goal> = store.get("goal", &goal_id)?;
+    let heir = references::heir_of(&store, &goal_id)?;
     let removed = archive::purge(&store, &goal_id, confirmed, &worktree_root(&app)?)?;
+    if let Some(goal) = goal {
+        if let Some(project) = goal.project_id.as_deref().and_then(|id| store.get::<Project>("project_entry", id).ok().flatten()) {
+            references::purge_goal(&store, &project, &goal, heir).map_err(|error| format!("목표는 삭제했지만 참조 자료를 정리하지 못했습니다: {error}"))?;
+        }
+    }
     let _ = app.emit("state-changed", ());
     Ok(removed)
 }
@@ -711,9 +856,15 @@ pub fn run() {
             }
             app.manage(store);
             engine::resume_auto_guidance(app.handle());
+            // ADR-0049: unsent attachments older than a week go; indexes are rebuilt from the records.
+            if let Ok(root) = curation::staging_root(app.handle()) {
+                let store = app.state::<Store>();
+                let _ = references::cleanup_stale(&store, &root);
+                if let Ok(projects) = store.list::<Project>("project_entry") { for project in projects { let _ = references::write_indexes(&store, &project); } }
+            }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
+        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, add_mock_connection, get_goal_result, get_block_stats, open_project_folder, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, request_team_fix, stage_text_reference, stage_image_reference, discard_reference, set_reference_caption, set_reference_role, set_curator_enabled, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, revise_plan, cancel_goal, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
         .run(tauri::generate_context!())
         .expect("error while running AI Organization OS");
 }

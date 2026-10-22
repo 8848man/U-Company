@@ -14,6 +14,8 @@ type Props = {
   /** Squad slot / external staff label per character, from saved squads (ADR-0041). */
   badges?: Record<string, string>;
   selectedId: string | null;
+  /** ADR-0046 Office window: members of the watched goal stay clear, everyone else is dimmed. */
+  focusIds?: string[];
   onSelect: (id: string) => void;
   onMove: (id: string, x: number, y: number) => void;
 };
@@ -22,11 +24,14 @@ type Drag = { id: string; startX: number; startY: number; moved: boolean };
 
 const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
 
-export default function OfficeCanvas({ agents, connections, activities, events, badges, selectedId, onSelect, onMove }: Props) {
+export default function OfficeCanvas({ agents, connections, activities, events, badges, selectedId, focusIds, onSelect, onMove }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<Drag | null>(null);
   const [preview, setPreview] = useState<Record<string, Position>>({});
+  // Where the floor map is drawn inside the stage (CSS px). Characters are placed on this map, not on the stage box,
+  // so the Office page and the smaller Office window put everyone on the same floor spot.
+  const [mapRect, setMapRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   const seenHandoff = useRef(0);
   const handoffTimers = useRef<number[]>([]);
   const [interaction, setInteraction] = useState<{ from: string; to: string; moving: boolean } | null>(null);
@@ -62,7 +67,9 @@ export default function OfficeCanvas({ agents, connections, activities, events, 
       const cols = 36;
       const rows = 22;
       const tile = 16;
-      const zoom = Math.max(1, Math.floor(Math.min(canvas.width / (cols * tile), canvas.height / (rows * tile))));
+      // Whole-number zoom keeps pixel art sharp; a stage smaller than the map scales down instead of cropping it.
+      const fit = Math.min(canvas.width / (cols * tile), canvas.height / (rows * tile));
+      const zoom = fit >= 1 ? Math.floor(fit) : fit;
       const { offsetX, offsetY } = mapOffset(canvas.width, canvas.height, cols, rows, zoom, 0, 0);
       const box = (x: number, y: number, width: number, height: number, color: string) => {
         context.fillStyle = color;
@@ -75,6 +82,8 @@ export default function OfficeCanvas({ agents, connections, activities, events, 
       box(0, 0, 8, rows * tile, '#385845');
       box(15 * tile, 8 * tile, 6 * tile, 4 * tile, '#3d2c26');
       box(15 * tile + 5, 8 * tile + 5, 6 * tile - 10, 4 * tile - 10, '#805c3c');
+      const next = { left: offsetX / dpr, top: offsetY / dpr, width: (cols * tile * zoom) / dpr, height: (rows * tile * zoom) / dpr };
+      setMapRect(current => current && Math.abs(current.left - next.left) < 0.5 && Math.abs(current.top - next.top) < 0.5 && Math.abs(current.width - next.width) < 0.5 && Math.abs(current.height - next.height) < 0.5 ? current : next);
     };
     draw();
     const observer = new ResizeObserver(draw);
@@ -83,11 +92,17 @@ export default function OfficeCanvas({ agents, connections, activities, events, 
   }, []);
 
   function positionFromPointer(event: PointerEvent<HTMLButtonElement>): Position {
-    const rect = stageRef.current!.getBoundingClientRect();
+    const stage = stageRef.current!.getBoundingClientRect();
+    const map = mapRect ?? { left: 0, top: 0, width: stage.width, height: stage.height };
     return {
-      x: clamp((((event.clientX - rect.left) / rect.width) * 100 - 8) / 0.84),
-      y: clamp((((event.clientY - rect.top) / rect.height) * 100 - 10) / 0.78),
+      x: clamp((((event.clientX - stage.left - map.left) / map.width) * 100 - 8) / 0.84),
+      y: clamp((((event.clientY - stage.top - map.top) / map.height) * 100 - 10) / 0.78),
     };
+  }
+  /** Saved 0–100 coordinates → a spot on the drawn floor map. */
+  function placeOnMap(x: number, y: number) {
+    if (!mapRect) return { left: `${8 + x * 0.84}%`, top: `${10 + y * 0.78}%` };
+    return { left: `${mapRect.left + ((8 + x * 0.84) / 100) * mapRect.width}px`, top: `${mapRect.top + ((10 + y * 0.78) / 100) * mapRect.height}px` };
   }
 
   function beginDrag(event: PointerEvent<HTMLButtonElement>, id: string) {
@@ -127,8 +142,8 @@ export default function OfficeCanvas({ agents, connections, activities, events, 
       return <button
         type="button"
         key={agent.id}
-        className={`office-avatar ${selectedId === agent.id ? 'selected' : ''} ${working ? 'working' : ''} ${blocked ? 'blocked' : ''} ${recipient ? 'interacting' : ''}`}
-        style={{ left: `${8 + visualX * 0.84}%`, top: `${10 + visualY * 0.78}%` }}
+        className={`office-avatar ${selectedId === agent.id ? 'selected' : ''} ${working ? 'working' : ''} ${blocked ? 'blocked' : ''} ${recipient ? 'interacting' : ''} ${focusIds && !focusIds.includes(agent.id) ? 'dimmed' : ''}`}
+        style={placeOnMap(visualX, visualY)}
         title={`${agent.name}: 클릭해 활동 보기, 드래그해 위치 변경`}
         aria-label={`${agent.name}, ${state}${badges?.[agent.id] ? `, ${badges[agent.id]}` : ''}. 클릭해 활동을 보거나 드래그해 이동`}
         onPointerDown={event => beginDrag(event, agent.id)}

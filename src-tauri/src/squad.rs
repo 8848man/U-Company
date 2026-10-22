@@ -21,6 +21,8 @@ fn slots(name: &str) -> (usize, usize) {
 }
 
 pub fn is_analyst(agent: &Agent) -> bool { agent.id == "cto" || agent.role.to_ascii_lowercase().contains("architect") }
+/// ADR-0049: the reference curator, by seed id or role text.
+pub fn is_curator(agent: &Agent) -> bool { agent.id == "curator" || agent.role.to_ascii_lowercase().contains("curat") }
 pub fn is_planner(agent: &Agent) -> bool { agent.id == "pm" || agent.role.to_ascii_lowercase().contains("plan") }
 pub fn is_reviewer(agent: &Agent) -> bool {
     let role = agent.role.to_ascii_lowercase();
@@ -294,7 +296,7 @@ pub fn end_contract(store: &Store, agent_id: &str) -> Result<Agent, String> {
             "contracted" => {
                 let goal_id = contract.goal_id.clone().unwrap_or_default();
                 if let Some(goal) = tx_get::<Goal>(tx, "goal", &goal_id)? {
-                    if !["blocked", "completed"].contains(&goal.status.as_str()) { return Err("계약한 목표가 진행 중입니다. 목표가 멈추거나 끝난 뒤 계약을 끝낼 수 있습니다".into()); }
+                    if !["blocked", "completed", "cancelled"].contains(&goal.status.as_str()) { return Err("계약한 목표가 진행 중입니다. 목표가 멈추거나 끝난 뒤 계약을 끝낼 수 있습니다".into()); }
                 }
                 if tx_list::<Task>(tx, "task")?.iter().any(|task| task.goal_id == goal_id && task.assignee_id == agent.id && task.status == "running") { return Err("실행 중인 업무가 있어 계약을 끝낼 수 없습니다".into()); }
             }

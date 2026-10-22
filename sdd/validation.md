@@ -27,6 +27,10 @@ For the [v2 multi-perspective meeting](meeting/00_index.md), verify in gated ord
 
 An opt-in local integration test may create a fresh Git repository below the workspace's ignored `.run-data` directory. It uses an already authenticated Codex CLI to run two independent file tasks concurrently in separate worktrees, integrates only their declared files, and asks a read-only QA instance to inspect the result. Keep the fixture and run evidence for diagnosis; the test must not install software, change another repository, or report UI recovery as verified. A passing fixture proves the CLI, parallel worktree, integration, and QA path, while the Tauri approval and restart flow still needs its own app-level check.
 
+## Whole-goal tests with the mock AI (ADR-0052)
+
+`cargo test --locked --lib engine_e2e` runs the real engine on `tauri::test::mock_app()` against a temporary committed Git project, with the team on the [mock AI](aiIntegration/AI-03-adapter.md). Required paths: a sample-app goal from analysis through approval, two isolated worktrees, integration, per-deliverable QA and the report, with the integrated app's own `node --test` passing; a first QA failure reworked inside the approved files and passing; a malformed plan sent back once and continuing; a restart while waiting for approval leaving the approval pending and the project unchanged. Task folders go to a harness-managed folder, never the app data folder. The tests skip with a note when Node or Git is missing. They prove the engine's control flow, not provider behaviour; real Claude/Codex runs remain the [sample-app flow](../qa/SAMPLE-APP-FLOW.md) check.
+
 ## Per-change checks
 
 Run formatting/type/compile checks, focused domain and adapter tests, relevant UI tests, and cross-boundary contract checks. Finish with a spec/code/ADR drift review. A release is recorded only when actually shipped.

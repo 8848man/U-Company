@@ -352,8 +352,39 @@ pub fn managed_block() -> String {
 1. 작업 전에 `{INDEX_FILE}`를 읽으세요. 진행 중인 기능, 다음 작업, 먼저 읽을 파일이 적혀 있습니다.\n\
 2. 전부 읽지 말고 `{GRAPH_FILE}`에서 지금 작업과 연결된 문서만 여세요.\n\
 3. 단계(스펙 → 계획 → 작업 → 구현)를 넘어가기 전에 사용자에게 확인받으세요.\n\
-4. 작업 후 작업 목록 체크박스와 `00_index.md`, `graph.json`, `handoff.md`를 갱신하세요.\n\
+4. `{SDD_DIR}/`는 PM(계획 리드)이 관리합니다. U 컴퍼니 팀에서 다른 업무를 맡았다면 SDD 파일은 읽기만 하세요. 바꾸면 결과를 합칠 때 거절됩니다.\n\
+5. PM은 계획이 승인되면 기능·요구사항·계획·작업 목록을, QA를 통과하면 작업 체크박스·결정·`handoff.md`·`00_index.md`·`graph.json`을 갱신합니다.\n\
 이 구간은 U 컴퍼니 앱이 관리합니다. 구간 밖의 내용은 앱이 바꾸지 않습니다.\n{MANAGED_END}")
+}
+
+/// ADR-0050: whether the project has a U-SDD folder the PM maintains.
+pub fn exists(root: &Path) -> bool { real_dir(&root.join(SDD_DIR)) && real_file(&root.join(INDEX_FILE)) }
+
+/// What the PM and CTO read about the SDD before planning (bounded).
+pub fn planning_context(root: &Path) -> String {
+    let take = |path: &str, max: usize| read_text(&root.join(path)).map(|text| text.chars().take(max).collect::<String>()).unwrap_or_default();
+    let mut out = format!("U-SDD index ({INDEX_FILE}):\n{}\n", take(INDEX_FILE, 5000));
+    let constitution = take(&format!("{SDD_DIR}/constitution.md"), 2500);
+    if !constitution.is_empty() { out.push_str(&format!("\nconstitution.md:\n{constitution}\n")); }
+    let handoff = take(&format!("{SDD_DIR}/handoff.md"), 2000);
+    if !handoff.is_empty() { out.push_str(&format!("\nhandoff.md:\n{handoff}\n")); }
+    if let Some(task) = next_task(root) { out.push_str(&format!("\nNext open task of the focus feature: {task}\n")); }
+    out
+}
+
+/// Keeps an existing managed block in AGENTS.md current (never adds one, never touches text outside it).
+/// Returns true when the file changed.
+pub fn refresh_managed_block(root: &Path) -> Result<bool, String> {
+    let path = root.join("AGENTS.md");
+    if !real_file(&path) { return Ok(false); }
+    let Some(bytes) = read_bounded(&path)? else { return Ok(false) };
+    let text = String::from_utf8_lossy(&bytes).into_owned();
+    let (Some(i), Some(j)) = (text.find(MANAGED_START), text.find(MANAGED_END)) else { return Ok(false) };
+    if i > j { return Ok(false); }
+    let next = with_block(&text, &managed_block(), false);
+    if next == text { return Ok(false); }
+    std::fs::write(&path, next).map_err(|e| e.to_string())?;
+    Ok(true)
 }
 
 fn claude_bridge_block() -> String { format!("{MANAGED_START}\n@AGENTS.md\n{MANAGED_END}") }
@@ -650,6 +681,27 @@ mod tests {
         plan(&f.project, "add_section").unwrap();
         plan(&f.project, "convert").unwrap();
         assert_eq!((f.files(), f.read("AGENTS.md")), before);
+    }
+
+    #[test]
+    fn the_pm_reads_the_sdd_and_an_old_agents_block_is_refreshed_in_place() {
+        let f = Fixture::new(&[APP]);
+        let p = plan(&f.project, "bootstrap").unwrap();
+        apply(&f.project, "bootstrap", &p.digest, true).unwrap();
+        assert!(exists(&f.root));
+        assert!(f.read("AGENTS.md").contains("PM(계획 리드)이 관리합니다"), "new projects get the PM duty");
+        // A project bootstrapped with the old wording ("update the checkboxes yourself").
+        let old = format!("# 팀 규칙\n\n{MANAGED_START}\n4. 작업 후 작업 목록 체크박스와 `00_index.md`를 갱신하세요.\n{MANAGED_END}\n\n## 내 규칙\n- 그대로\n");
+        std::fs::write(f.root.join("AGENTS.md"), &old).unwrap();
+        assert!(refresh_managed_block(&f.root).unwrap());
+        let now = f.read("AGENTS.md");
+        assert!(now.starts_with("# 팀 규칙") && now.ends_with("## 내 규칙\n- 그대로\n"), "text outside the block is untouched");
+        assert!(now.contains("읽기만 하세요") && !now.contains("체크박스와 `00_index.md`를 갱신하세요"));
+        assert!(!refresh_managed_block(&f.root).unwrap(), "already current");
+        std::fs::write(f.root.join("AGENTS.md"), "# 블록 없음\n").unwrap();
+        assert!(!refresh_managed_block(&f.root).unwrap(), "never adds a block");
+        let context = planning_context(&f.root);
+        assert!(context.contains("SDD 색인") && context.contains("constitution.md"));
     }
 
     #[test]
