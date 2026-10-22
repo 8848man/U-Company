@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CLI 에이전트 집중 작업 지침 · Before / After</title>
+  <style>
+    :root{color-scheme:dark;--bg:#101523;--surface:#192238;--surface2:#243149;--border:#3b4c68;--text:#f4f7fc;--muted:#bfcbdf;--before:#ffbc78;--after:#68dbc5;--reference:#76beff;--track:#293751}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,'Malgun Gothic',sans-serif}main{max-width:1120px;margin:auto;padding:28px 22px 66px}h1{font-size:clamp(1.7rem,3.5vw,2.65rem);line-height:1.18;margin:7px 0 13px}h2{font-size:1.35rem;margin:0 0 14px}h3{font-size:1.04rem;margin:0 0 7px}p{margin:0 0 12px}small,.subtle{color:var(--muted)}code{font:13px/1.5 Consolas,ui-monospace,monospace;color:var(--text)}.kicker{color:var(--after);font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700}.intro{max-width:79ch;color:var(--muted);font-size:1.05rem}.status{display:inline-block;background:var(--surface2);padding:5px 10px;border-radius:999px;font-size:.83rem;color:var(--after);font-weight:700}.section{margin-top:34px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px}.card strong.metric{display:block;font-size:1.45rem;line-height:1.2;margin:5px 0}.card small{display:block}.flow{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin:12px 0 16px}.flow span{background:var(--surface);padding:7px 10px;border-radius:7px;font-size:.9rem}.flow span.active{outline:2px solid var(--after)}.flow b{color:var(--muted)}.comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.comparison article{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px}.comparison article.before{border-top:4px solid var(--before)}.comparison article.after{border-top:4px solid var(--after)}.comparison ol{padding-left:21px;margin:9px 0 0}.comparison li{margin:8px 0}.comparison .head{font-size:.85rem;font-weight:700;letter-spacing:.08em}.before .head{color:var(--before)}.after .head{color:var(--after)}.controls{display:flex;flex-wrap:wrap;gap:9px;margin:6px 0 16px}.controls button{font:inherit;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:999px;padding:7px 13px;cursor:pointer}.controls button[aria-pressed=true]{background:var(--surface2);border-color:var(--after)}.sim{display:grid;grid-template-columns:1fr 1fr;gap:22px}.slider label{display:flex;justify-content:space-between;gap:10px;font-weight:700}.slider input{width:100%;accent-color:var(--after);margin:13px 0 5px}.slider small{display:block}.chart{display:grid;gap:13px;margin-top:17px}.bar{display:grid;grid-template-columns:117px 1fr 96px;gap:10px;align-items:center}.track{height:29px;background:var(--track);border-radius:5px;overflow:hidden}.fill{height:100%;transition:width .25s ease}.fill.before{background:var(--before)}.fill.after{background:var(--after)}.fill.reference{background:var(--reference)}.bar strong{text-align:right;font-variant-numeric:tabular-nums}.result{margin-top:15px;padding:13px;background:var(--surface2);border-radius:10px}.result strong{font-size:1.22rem;font-variant-numeric:tabular-nums}.callout{border-left:3px solid var(--after);padding:11px 15px;background:var(--surface);margin-top:17px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:13px}.grid .card{height:100%}.grid ul{padding-left:21px;margin:6px 0}.grid li{margin:6px 0}.sources{font-size:.87rem;color:var(--muted);overflow-wrap:anywhere;border-top:1px solid var(--border);padding-top:16px;margin-top:34px}.sources a{color:var(--reference)}.fine{font-size:.88rem;color:var(--muted)}@media(max-width:700px){.cards{grid-template-columns:1fr}.comparison,.sim,.grid{grid-template-columns:1fr}.bar{grid-template-columns:94px 1fr 80px}}@media(max-width:390px){main{padding:20px 13px 45px}.bar{grid-template-columns:1fr 75px}.bar span:first-child{grid-column:1/-1}.track{grid-column:1}.bar strong{grid-column:2}}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="kicker">Utopia Company · 다음 실행 적용안 · 2026-10-21</div>
+    <h1>업무 흐름은 그대로.<br>에이전트의 조사 방식만 더 집중한다.</h1>
+    <p class="intro">PM과 개발자에게 전달되는 지침을 바꿨다. 레벨 4·5의 실제 실행 기록은 변경 전 기준선이다. 변경 후 Claude 실행 결과와 토큰 절감은 아직 측정하지 않았다.</p>
+    <span class="status">구현됨 · 실제 Claude 재실행 대기</span>
+  </header>
+
+  <section class="section" aria-labelledby="unchanged-title">
+    <h2 id="unchanged-title">유지되는 구현 프로세스</h2>
+    <div class="flow" aria-label="기존 업무 순서"><span>CTO 분석</span><b>→</b><span class="active">PM 계획 지침</span><b>→</b><span>CEO 파일 승인</span><b>→</b><span class="active">격리 개발 지침</span><b>→</b><span>허용 파일 통합</span><b>→</b><span>독립 QA·재작업</span></div>
+    <p class="fine">강조한 두 단계의 요청문만 달라졌다. 승인 범위, 수용 기준, 격리 작업, 통합 검사와 QA 판정은 변경하지 않았다.</p>
+  </section>
+
+  <section class="section" aria-labelledby="change-title">
+    <h2 id="change-title">Before / After: 다음 실행에서 달라지는 지시</h2>
+    <div class="comparison">
+      <article class="before"><div class="head">BEFORE · 이전 요청문</div><h3>업무는 상세하지만 조사 순서는 넓다</h3><ol>
+        <li>PM이 산출물·파일·수용 기준·근거 경로를 제안한다.</li>
+        <li>개발자는 격리 폴더에서 선언 파일을 구현하고 집중 테스트를 한다.</li>
+        <li>필수 지침과 근거를 언제 읽고, 전체 검색·긴 명령 출력을 얼마나 제한할지는 일반적으로 안내하지 않는다.</li>
+        <li>QA 재작업 계획에도 같은 집중 조사 지침은 없었다.</li>
+      </ol></article>
+      <article class="after"><div class="head">AFTER · 다음 요청문</div><h3>먼저 문맥을 줄이고, 불필요한 왕복을 줄인다</h3><ol>
+        <li>PM은 업무마다 필요한 기존 근거 파일과 유용한 집중 검증을 지시문에 명시한다. QA 재작업 계획에도 적용된다.</li>
+        <li>개발자는 필수 프로젝트 지침과 선언된 근거를 먼저 읽고, 수용 기준에 필요한 다른 파일을 확인한다.</li>
+        <li>대상 경로 검색과 필요한 범위의 명령 출력을 우선하고, 바뀌지 않은 큰 파일이나 긴 출력을 필요 없이 반복해서 읽지 않는다.</li>
+        <li>중간 설명과 최종 요약을 간결하게 쓰되 변경 사항과 검증 근거는 남긴다. 요구된 넓은 검증은 완료 전에 모두 실행한다.</li>
+      </ol></article>
+    </div>
+    <div class="callout"><strong>유지 조건:</strong> 토큰을 줄이려고 필수 지침, 근거, 승인된 산출물 파일, 수용 기준 또는 필수 검증을 생략할 수 없다. 모델이 이 권고를 실제로 따랐는지는 다음 실행에서 확인해야 한다.</div>
+  </section>
+
+  <section class="section" aria-labelledby="priority-title">
+    <h2 id="priority-title">새 분석으로 정한 우선순위</h2>
+    <div class="grid">
+      <div class="card"><h3>① 응답마다 읽는 문맥</h3><p>Claude의 응답당 평균 입력은 같은 레벨 Codex의 약 2.0배(레벨 4), 2.5배(레벨 5)였다. 파일·도구 출력을 필요한 범위로 읽는지 먼저 확인한다.</p></div>
+      <div class="card"><h3>② 내부 응답 횟수</h3><p>Claude의 내부 응답은 약 1.65배였다. 반복 조사와 확인을 줄일 수 있는지 본다. 도구 호출 건수만을 목표로 삼지는 않는다.</p></div>
+    </div>
+    <p class="fine">두 수치는 같은 종류의 업무 두 쌍에서 관측한 차이다. 특정 CLI 전략이 원인이라는 증거는 아니며, 양쪽 모두 입력 캐시를 많이 사용했다.</p>
+  </section>
+
+  <section class="section" aria-labelledby="baseline-title">
+    <h2 id="baseline-title">변경 전 기준선</h2>
+    <div class="controls" role="group" aria-label="기준선 선택"><button type="button" id="level4" aria-pressed="true">레벨 4 독립 구현</button><button type="button" id="level5" aria-pressed="false">레벨 5 독립 구현</button></div>
+    <div class="cards" id="baseline-cards" aria-live="polite"></div>
+    <p class="fine">Dev1과 Dev2는 각 레벨에서 수용 기준이 같고 파일 구성도 dev1/dev2 경로 부분만 다르다. 작업 이벤트 기준 시간이며, 이후 재작업 비용은 위 구현 호출 수치에 포함하지 않았다.</p>
+  </section>
+
+  <section class="section" aria-labelledby="sim-title">
+    <h2 id="sim-title">가정으로 살펴보는 기대 효과</h2>
+    <p class="fine">아래 조절값은 실제 측정 결과나 절감 약속이 아니다. 변경된 지침이 내부 응답 횟수와 응답당 평균 입력을 줄였을 때 총 입력이 어떻게 달라지는지만 계산한다.</p>
+    <div class="sim">
+      <div class="card">
+        <div class="slider"><label for="context-reduction">① 응답당 평균 입력 감소 가정 <strong id="context-value">0%</strong></label><input id="context-reduction" type="range" min="0" max="40" step="5" value="0"><small>큰 파일·출력의 불필요한 반복 읽기가 줄어드는 경우</small></div>
+        <div class="slider" style="margin-top:17px"><label for="turn-reduction">② 내부 응답 횟수 감소 가정 <strong id="turn-value">0%</strong></label><input id="turn-reduction" type="range" min="0" max="40" step="5" value="0"><small>반복 조사·도구 왕복이 줄어드는 경우</small></div>
+        <div class="result" id="result" aria-live="polite"></div>
+      </div>
+      <div class="card"><h3>입력 토큰 비교</h3><div class="chart" id="chart" role="img" aria-label="Codex 기준, Claude 변경 전, 가정한 변경 후 입력 비교"></div><p class="fine" style="margin-top:17px">Codex는 같은 레벨의 참고선이다. 새 지침은 모든 개발자에게 적용되지만, 이 계산은 Claude의 이전 기록만 변경한다고 가정한다. 캐시 읽기·생성 비율과 비용은 예측하지 않는다.</p></div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="expect-title">
+    <h2 id="expect-title">기대 효과와 확인 기준</h2>
+    <div class="grid">
+      <div class="card"><h3>기대하는 변화</h3><ul><li>응답당 다시 읽는 문맥과 긴 결과 출력의 반복 감소</li><li>그다음 불필요한 내부 모델 왕복과 처리 시간 감소</li><li>필수 검사와 독립 QA를 유지하며 변경 사항·검증 근거를 간결하게 보고</li></ul></div>
+      <div class="card"><h3>다음 실행에서 판단할 값</h3><ul><li>업무별 앱 입력·출력 사용량과 작업 시작→종료 시간</li><li>로컬 CLI의 내부 응답 횟수, 평균·마지막 응답 입력, 캐시 읽기·생성</li><li>동일 수용 기준의 첫 QA 판정과 뒤따른 재작업</li></ul></div>
+    </div>
+    <div class="callout"><strong>성공 판단:</strong> 레벨별 동일 업무 쌍에서 토큰·시간이 줄어도 첫 QA 판정이나 필수 검증이 나빠지면 개선으로 보지 않는다. 한 번의 결과만으로 모델 고유 성능 차이를 단정하지 않는다.</div>
+  </section>
+
+  <footer class="sources">
+    <strong>근거</strong><p>기준선은 2026-10-21 앱의 task·usage·event·deliverable_review와 해당 로컬 CLI 세션을 대조한 고정 기록이다. 변경 내용은 <code>src-tauri/src/engine.rs</code>의 일반 계획, 재작업 계획, 개발자 업무 요청문과 <code>sdd/domain/DM-03-execution.md</code>에 있다. 검증 조건은 <code>sdd/validation.md</code>에 기록했다. 실제 Claude 재실행은 보류 중이다.</p>
+    <p>관련 자료: <a href="codex-claude-cli-efficiency.html">CLI 문맥 효율 분석</a>. 이 보고서에는 업무 본문, 파일 내용, 비밀 정보가 없다.</p>
+  </footer>
+</main>
+<script>
+  const levels={
+    4:{files:13,codex:{input:870626,turns:17,minutes:6.3,qa:'통과'},claude:{input:2874251,turns:28,minutes:16.5,qa:'실패',cacheRead:2739658}},
+    5:{files:15,codex:{input:840393,turns:15,minutes:6.9,qa:'통과'},claude:{input:3556941,turns:25,minutes:22.1,qa:'통과',cacheRead:3360539}}
+  };
+  const fmt=x=>Math.round(x).toLocaleString('ko-KR');let level=4;
+  const turnSlider=document.getElementById('turn-reduction');const contextSlider=document.getElementById('context-reduction');
+  function bar(label,value,max,kind){return `<div class="bar"><span>${label}</span><div class="track"><div class="fill ${kind}" style="width:${100*value/max}%"></div></div><strong>${fmt(value)}</strong></div>`}
+  function render(){const d=levels[level],tr=Number(turnSlider.value)/100,cr=Number(contextSlider.value)/100,projected=d.claude.input*(1-tr)*(1-cr),saved=d.claude.input-projected;
+    document.getElementById('turn-value').textContent=turnSlider.value+'%';document.getElementById('context-value').textContent=contextSlider.value+'%';
+    document.getElementById('baseline-cards').innerHTML=`<div class="card"><small>Codex · Dev1</small><strong class="metric">${fmt(d.codex.input)} 입력</strong><small>${d.codex.turns}회 내부 응답 · ${d.codex.minutes}분 · QA ${d.codex.qa}</small></div><div class="card"><small>Claude · Dev2</small><strong class="metric">${fmt(d.claude.input)} 입력</strong><small>${d.claude.turns}회 내부 응답 · ${d.claude.minutes}분 · QA ${d.claude.qa}</small></div><div class="card"><small>Claude 캐시 읽기</small><strong class="metric">${fmt(d.claude.cacheRead)}</strong><small>입력의 ${(100*d.claude.cacheRead/d.claude.input).toFixed(1)}% · 변경 전</small></div>`;
+    document.getElementById('chart').innerHTML=bar('Codex 기준',d.codex.input,d.claude.input,'reference')+bar('Claude 변경 전',d.claude.input,d.claude.input,'before')+bar('Claude 가정 후',projected,d.claude.input,'after');
+    document.getElementById('chart').setAttribute('aria-label',`레벨 ${level}: Codex ${fmt(d.codex.input)}, Claude 변경 전 ${fmt(d.claude.input)}, 가정 후 ${fmt(projected)} 입력 토큰`);
+    document.getElementById('result').innerHTML=`<strong>${fmt(projected)} 입력 토큰</strong><br><span class="subtle">가정상 ${fmt(saved)} 감소 · ${(100*saved/d.claude.input).toFixed(1)}% 감소</span>`;
+  }
+  function choose(v){level=v;for(const x of [4,5])document.getElementById('level'+x).setAttribute('aria-pressed',x===v?'true':'false');render()}
+  document.getElementById('level4').addEventListener('click',()=>choose(4));document.getElementById('level5').addEventListener('click',()=>choose(5));turnSlider.addEventListener('input',render);contextSlider.addEventListener('input',render);render();
+</script>
+</body>
+</html>

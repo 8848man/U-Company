@@ -173,6 +173,20 @@
 - [x] 검증: `cargo test --lib` 148(+1 버전 보관·복원, team_fix 경로 단언 추가), `vitest` 104(+6), tsc 3종, 빌드 3종, 모의 화면(목록 한 줄, v2 구분선, 펼친 v1 기록).
 - 남은 위험: v1·v2 셸은 여전히 버전별 대화다. 실제 앱 흐름은 QA-49로 확인한다.
 
+## M13 — CLI 작업 문맥 집중 지침 (2026-10-21, Codex)
+
+- [x] 동일 종류의 레벨 4·5 독립 구현 기록을 다시 집계해 내부 응답 수와 응답당 평균 입력의 차이를 확인했다. 이 두 쌍에서는 평균 입력의 배율이 더 컸고 양쪽 모두 캐시를 많이 사용했다. 특정 CLI 내부 전략의 인과관계나 비용 절감은 입증하지 않았다.
+- [x] PM의 최초·재작업 계획에 업무별 기존 근거 파일과 집중 검증을 요청하고, 개발자에게 산출물·수용 기준·근거 경로를 명시적으로 전달하도록 했다. 개발자 지침은 필요한 범위의 검색·명령 출력과 간결한 보고를 우선하며 필수 프로젝트 지침, 승인 파일 범위, 모든 수용 기준·필수 검증과 독립 QA를 유지한다. 소유 명세 [DM-03](sdd/domain/DM-03-execution.md)과 [Validation](sdd/validation.md)을 갱신했다.
+- [x] [Before/After 인터랙티브 보고서](analysis/focused-cli-execution-before-after.html)를 이번 우선순위로 갱신하고 [CLI 문맥 효율 분석](analysis/codex-claude-cli-efficiency.html)을 함께 추가했다. 가정 계산은 실제 절감 측정이 아니다.
+- 검증: `cargo check --locked --all-targets` 통과. HTML 파서·JavaScript 문법·문서 링크·Before/After 상호작용 검사 통과. `cargo test --locked --lib`는 112 통과·2 무시·3 실패했다. 실패 3건은 `delegation.rs`의 임시 SQLite 파일 정리에서 Windows 파일 잠금(오류 32)이 발생했으며 직렬 재실행에서도 같았다. 이번 변경은 그 파일을 수정하지 않았다. 실제 Claude 재실행과 브라우저 화면 검증은 하지 않았다.
+- 다음: Claude 한도 복구 후 새 동일 기준 업무 쌍을 실행해 내부 응답 수, 평균·마지막 입력, 출력, 캐시 종류, 경과 시간, 첫 QA와 재작업을 기준선과 비교한다.
+
+## PR #21 최신 main 병합 충돌 해결 (2026-10-22, Codex)
+
+- [x] `main`에 병합된 CLI 문맥 집중 지침(PR #10)과 목표 흐름 통합 브랜치의 `WORKLOG.md`, `src-tauri/src/engine.rs` 충돌을 해결했다. 기록은 양쪽을 보존하고, 엔진은 참고자료·재작업 범위 승인·완료 기준을 유지하면서 최초 계획과 재작업 계획에 집중 지침을 추가하고 개발자 작업 지시에도 같은 지침을 전달한다.
+- [x] 검증: `cargo check --locked --all-targets` 통과, `npm test` 26개 파일·119개 테스트 통과, 충돌 마커와 공백 오류 없음.
+- 남은 확인: PR #21을 갱신한 뒤 GitHub의 병합 가능 상태를 확인한다. 실제 Claude/Codex CLI 재실행은 이번 충돌 해결 범위에서 수행하지 않았다.
+
 ## 프로젝트 작업 규칙 감지와 구조 잡기 (2026-10-12, Claude Cowork)
 
 작업 중 파일(다른 작업자는 동시에 수정하지 말 것): `src-tauri/src/sdd_origin.rs`, `src-tauri/src/spec_import.rs`(`project_root` 공개만), `src-tauri/src/lib.rs`(명령 3개·프로토콜), `src/sddOrigin.ts`, `src/SddOriginCard.tsx`, `src/SpecImportPanel.tsx`, `src/ux.css`, `tests/sdd-origin/` 및 아래 소유 문서.
