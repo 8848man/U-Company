@@ -35,6 +35,7 @@
 | 개요 | 브랜치 feature/permission-approval. PostGen 후속 차수 분석, ADR-0057·0058. | 기록 | [00_overview.md](programs/permission-approval/00_overview.md) |
 | P0 | 기준선, 2번 안 검증, 결정 기록 | 완료 | [P0.md](programs/permission-approval/P0.md) |
 | P1 | 파일 이름 대소문자 | 완료 | [P1.md](programs/permission-approval/P1.md) |
+| P2 | 결과 전달과 목표 대화 QA 맥락 | 완료 | [P2.md](programs/permission-approval/P2.md) |
 
 ## 완주율·사용성 개선 라운드 (2026-10-20, Claude)
 
