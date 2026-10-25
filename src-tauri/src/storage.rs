@@ -101,13 +101,23 @@ impl Store {
     }
 
     pub fn propose_goal_guidance(&self, goal_id: &str, text: &str, addressed_agent_id: Option<&str>, auto_continue: bool) -> Result<GoalGuidance, String> {
+        self.propose_goal_guidance_inner(goal_id, text, addressed_agent_id, auto_continue, false)
+    }
+
+    pub fn propose_goal_followup(&self, goal_id: &str, text: &str, addressed_agent_id: &str) -> Result<GoalGuidance, String> {
+        self.propose_goal_guidance_inner(goal_id, text, Some(addressed_agent_id), true, true)
+    }
+
+    fn propose_goal_guidance_inner(&self, goal_id: &str, text: &str, addressed_agent_id: Option<&str>, auto_continue: bool, followup: bool) -> Result<GoalGuidance, String> {
         let mut db = self.0.lock().map_err(|e| e.to_string())?;
         let tx = db.transaction().map_err(|e| e.to_string())?;
         let payload: String = tx.query_row("SELECT payload FROM objects WHERE kind='goal' AND id=?1", [goal_id], |r| r.get(0)).optional().map_err(|e| e.to_string())?.ok_or("목표를 찾을 수 없습니다")?;
         let mut goal: Goal = serde_json::from_str(&payload).map_err(|e| e.to_string())?;
         if goal.kind != "execution" { return Err("회의 목표는 실행 방향 변경을 사용할 수 없습니다".into()); }
         if goal.project_id.is_none() { return Err("프로젝트가 연결되지 않은 목표는 수정할 수 없습니다".into()); }
-        if goal.status == "completed" { return Err("완료된 목표는 새 목표로 후속 작업을 만들어 주세요".into()); }
+        if followup && tx.query_row("SELECT 1 FROM objects WHERE kind='goal_archive' AND id=?1", [goal_id], |r| r.get::<_, i32>(0)).optional().map_err(|e| e.to_string())?.is_some() { return Err("보관한 목표는 되돌린 뒤 후속 작업을 요청해 주세요".into()); }
+        if followup && goal.status != "completed" { return Err("완료된 목표에서만 후속 작업을 시작할 수 있습니다".into()); }
+        if !followup && goal.status == "completed" { return Err("완료된 목표의 후속 작업은 목표 대화에서 요청해 주세요".into()); }
         if let Some(agent_id) = addressed_agent_id {
             let payload: Option<String> = tx.query_row("SELECT payload FROM objects WHERE kind='agent' AND id=?1", [agent_id], |r| r.get(0)).optional().map_err(|e| e.to_string())?;
             let agent: Agent = serde_json::from_str(&payload.ok_or("지침을 받을 팀원을 찾지 못했습니다")?).map_err(|e| e.to_string())?;
@@ -120,8 +130,8 @@ impl Store {
         };
         if existing.iter().any(|item| item.goal_id == goal_id && ["pending", "review_required"].contains(&item.status.as_str())) { return Err("이 목표에는 검토 중인 방향 변경 제안이 이미 있습니다".into()); }
         if existing.iter().any(|item| item.goal_id == goal_id && item.status == "revised" && item.replacement_goal_id.is_some()) { return Err("이 목표는 새 버전으로 이어졌습니다. 새 목표를 열어 변경 지침을 전달해 주세요".into()); }
-        let waiting_for_engine = !["new", "blocked"].contains(&goal.status.as_str());
-        let guidance = GoalGuidance { id: crate::model::id(), goal_id: goal_id.into(), text: text.into(), status: if waiting_for_engine { "pending" } else { "review_required" }.into(), created_at: crate::model::now(), checkpoint: if waiting_for_engine { None } else { Some("실행 대기 상태".into()) }, replacement_goal_id: None, addressed_agent_id: addressed_agent_id.map(str::to_string), worker_handoff: None, continuation: None, auto_continue };
+        let waiting_for_engine = !["new", "blocked", "completed"].contains(&goal.status.as_str());
+        let guidance = GoalGuidance { id: crate::model::id(), goal_id: goal_id.into(), text: text.into(), status: if waiting_for_engine { "pending" } else { "review_required" }.into(), created_at: crate::model::now(), checkpoint: if followup { Some("완료 후 후속 작업".into()) } else if waiting_for_engine { None } else { Some("실행 대기 상태".into()) }, replacement_goal_id: None, addressed_agent_id: addressed_agent_id.map(str::to_string), worker_handoff: None, continuation: None, auto_continue };
         tx.execute("INSERT INTO objects(kind,id,payload) VALUES('goal_guidance',?1,?2)", params![guidance.id, serde_json::to_string(&guidance).map_err(|e| e.to_string())?]).map_err(|e| e.to_string())?;
         if goal.status == "new" {
             goal.resumed_from = Some("new".into());
@@ -138,7 +148,7 @@ impl Store {
             approval.status = "superseded".into();
             tx.execute("UPDATE objects SET payload=?1 WHERE kind='approval' AND id=?2", params![serde_json::to_string(&approval).map_err(|e| e.to_string())?, approval.id]).map_err(|e| e.to_string())?;
         }
-        tx.execute("INSERT INTO events(at,kind,goal_id,task_id,agent_id,message) VALUES(?1,'goal_guidance_proposed',?2,NULL,?3,'CEO proposed a goal direction change; teammate routing is queued until revision analysis')", params![crate::model::now(), goal_id, addressed_agent_id]).map_err(|e| e.to_string())?;
+        tx.execute("INSERT INTO events(at,kind,goal_id,task_id,agent_id,message) VALUES(?1,?2,?3,NULL,?4,?5)", params![crate::model::now(), if followup { "goal_followup_proposed" } else { "goal_guidance_proposed" }, goal_id, addressed_agent_id, if followup { "CEO requested another work pass in this conversation" } else { "CEO proposed a goal direction change; teammate routing is queued until revision analysis" }]).map_err(|e| e.to_string())?;
         tx.commit().map_err(|e| e.to_string())?;
         Ok(guidance)
     }
@@ -161,6 +171,14 @@ impl Store {
     }
 
     pub fn create_goal_revision(&self, guidance_id: &str, intent: &str) -> Result<Goal, String> {
+        // Build the handoff before entering the write transaction; the transaction still decides
+        // whether this guidance may create a version, so duplicate requests cannot fork it.
+        let snapshot = self.snapshot()?;
+        let handoff_guidance = snapshot.goal_guidance.iter().find(|item| item.id == guidance_id).ok_or("방향 변경 제안을 찾을 수 없습니다")?;
+        let source = snapshot.goals.iter().find(|goal| goal.id == handoff_guidance.goal_id).ok_or("기존 목표를 찾을 수 없습니다")?;
+        let mut latest = handoff_guidance.clone();
+        latest.text = intent.into();
+        let structured_intent = crate::goal_context::revision_intent(source, &latest, &snapshot.goals, &snapshot.goal_guidance, &snapshot.tasks, &snapshot.goal_turns)?;
         let mut db = self.0.lock().map_err(|e| e.to_string())?;
         let tx = db.transaction().map_err(|e| e.to_string())?;
         let payload: String = tx.query_row("SELECT payload FROM objects WHERE kind='goal_guidance' AND id=?1", [guidance_id], |r| r.get(0)).optional().map_err(|e| e.to_string())?.ok_or("방향 변경 제안을 찾을 수 없습니다")?;
@@ -169,7 +187,7 @@ impl Store {
         let payload: String = tx.query_row("SELECT payload FROM objects WHERE kind='goal' AND id=?1", [&guidance.goal_id], |r| r.get(0)).optional().map_err(|e| e.to_string())?.ok_or("기존 목표를 찾을 수 없습니다")?;
         let old: Goal = serde_json::from_str(&payload).map_err(|e| e.to_string())?;
         if old.kind != "execution" { return Err("회의 목표는 실행 목표 버전을 만들 수 없습니다".into()); }
-        if old.status != "blocked" { return Err("기존 목표가 중단되었는지 먼저 확인해 주세요".into()); }
+        if old.status != "blocked" && !(old.status == "completed" && guidance.auto_continue && guidance.checkpoint.as_deref() == Some("완료 후 후속 작업")) { return Err("기존 목표가 안전 지점에 있는지 먼저 확인해 주세요".into()); }
         let tasks: Vec<Task> = {
             let mut stmt = tx.prepare("SELECT payload FROM objects WHERE kind='task'").map_err(|e| e.to_string())?;
             let rows = stmt.query_map([], |r| r.get::<_, String>(0)).map_err(|e| e.to_string())?;
@@ -179,7 +197,7 @@ impl Store {
         let project_id = old.project_id.clone().ok_or("기존 프로젝트를 확인할 수 없습니다")?;
         let registered: Option<String> = tx.query_row("SELECT payload FROM objects WHERE kind='project_entry' AND id=?1", [&project_id], |r| r.get(0)).optional().map_err(|e| e.to_string())?;
         if registered.is_none() { return Err("기존 프로젝트가 등록되어 있지 않습니다".into()); }
-        let revised = Goal { id: crate::model::id(), kind: "execution".into(), project_id: Some(project_id), intent: intent.into(), status: "new".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: old.review_loop_limit, work_group: old.work_group.clone(), block_kind: String::new() };
+        let revised = Goal { id: crate::model::id(), kind: "execution".into(), project_id: Some(project_id), intent: structured_intent, status: "new".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: old.review_loop_limit, work_group: old.work_group.clone(), block_kind: String::new() };
         tx.execute("INSERT INTO objects(kind,id,payload) VALUES('goal',?1,?2)", params![revised.id, serde_json::to_string(&revised).map_err(|e| e.to_string())?]).map_err(|e| e.to_string())?;
         guidance.status = "revised".into();
         guidance.replacement_goal_id = Some(revised.id.clone());
@@ -720,6 +738,51 @@ mod tests {
         let resolved = dir.canonicalize().unwrap();
         assert!(resolved.starts_with(std::env::temp_dir().canonicalize().unwrap()));
         assert!(resolved.file_name().unwrap().to_string_lossy().starts_with("utopia-revision-race-"));
+        std::fs::remove_dir_all(resolved).unwrap();
+    }
+    #[test]
+    fn completed_goal_followup_keeps_finished_evidence_and_needs_new_approval() {
+        let dir = std::env::temp_dir().join(format!("utopia-goal-followup-{}", crate::model::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let store = Store::open(&dir.join("state.sqlite")).unwrap();
+        store.select_project(&Project { id: "p".into(), path: "C:/test".into(), name: "Test".into(), kind: "git".into(), review_loop_limit: 2 }).unwrap();
+        let agent = Agent { id: "cto".into(), name: "CTO".into(), role: "CTO".into(), instructions: String::new(), reports_to: None, connection_id: String::new(), model_id: String::new(), x: 0, y: 0, enabled: true, external: None, appearance: None };
+        store.put("agent", &agent.id, &agent, None).unwrap();
+        let done = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Original outcome".into(), status: "completed".into(), report: "QA passed".into(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 1, review_loop_limit: Some(2), work_group: None, block_kind: String::new() };
+        store.put("goal", &done.id, &done, None).unwrap();
+        let prior = Approval { id: "old".into(), goal_id: Some(done.id.clone()), operation: "project_write".into(), reason: "Original files".into(), status: "approved".into(), created_at: crate::model::now() };
+        store.put("approval", &prior.id, &prior, None).unwrap();
+        assert!(store.propose_goal_guidance("g", "Another task", Some("cto"), true).is_err());
+        let followup = store.propose_goal_followup("g", "Add another deliverable", "cto").unwrap();
+        assert_eq!(followup.status, "review_required");
+        assert_eq!(followup.checkpoint.as_deref(), Some("완료 후 후속 작업"));
+        assert!(store.propose_goal_followup("g", "Duplicate request", "cto").is_err());
+        let long_answer = GoalTurn { id: "long-prior".into(), goal_id: "g".into(), question: "Earlier question".into(), answer: "x".repeat(32_000), status: "answered".into(), asked_at: crate::model::now(), answered_at: Some(crate::model::now()), agent_id: "cto".into(), agent_name: "CTO".into(), connection_name: "test".into(), model_id: "test".into(), guidance_id: None, route: Some("discuss".into()) };
+        store.put("goal_turn", &long_answer.id, &long_answer, None).unwrap();
+        let next = store.create_goal_revision(&followup.id, "Original outcome; add another deliverable").unwrap();
+        assert_eq!(next.status, "new");
+        assert!(next.intent.contains("원래 CEO 목표"));
+        assert!(next.intent.contains("Original outcome; add another deliverable"));
+        assert!(next.intent.contains("8,000토큰 이상"));
+        assert!(!next.intent.contains("직전 대화 일부:"));
+        assert!(next.intent.chars().count() <= 12_000);
+        assert_eq!(store.get::<Goal>("goal", "g").unwrap().unwrap().report, "QA passed");
+        assert_eq!(store.get::<Goal>("goal", "g").unwrap().unwrap().status, "completed");
+        assert_eq!(store.get::<Approval>("approval", "old").unwrap().unwrap().status, "approved");
+        assert!(!store.list::<Approval>("approval").unwrap().iter().any(|item| item.goal_id.as_deref() == Some(next.id.as_str())));
+        assert!(store.create_goal_revision(&followup.id, "Duplicate revision").is_err());
+        let mut finished_next = next.clone();
+        finished_next.status = "completed".into();
+        store.put("goal", &next.id, &finished_next, None).unwrap();
+        let another = store.propose_goal_followup(&next.id, "One more change", "cto").unwrap();
+        let third = store.create_goal_revision(&another.id, &another.text).unwrap();
+        assert_eq!(third.intent.matches("원래 CEO 목표").count(), 1);
+        assert_eq!(third.intent.matches("One more change").count(), 1);
+        assert!(third.intent.chars().count() <= 12_000);
+        drop(store);
+        let resolved = dir.canonicalize().unwrap();
+        assert!(resolved.starts_with(std::env::temp_dir().canonicalize().unwrap()));
+        assert!(resolved.file_name().unwrap().to_string_lossy().starts_with("utopia-goal-followup-"));
         std::fs::remove_dir_all(resolved).unwrap();
     }
     #[test]

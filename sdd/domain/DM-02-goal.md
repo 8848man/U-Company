@@ -5,6 +5,8 @@
 - **Goal:** CEO intent, immutable project ID, kind (`execution` or `deliberation`), constraints, status, and final report. Execution Goals own an independent QA rework cap and optional display-only work-group label; the cap is copied from the project's preset at creation. A deliberation Goal has exactly one [Meeting](../meeting/ME-01-process.md) and does not use development QA caps or work groups. Switching projects or later changing the preset never rewrites an existing goal. A work-group label never changes task ownership or approval scope.
 - **Goal conversation turn:** goal-scoped CEO question and read-only AI answer, with actual agent/connection/model, timestamp, and pending/answered/failed/interrupted state. It does not mutate the goal.
 - **Goal guidance:** exact CEO direction-change proposal with pending/review-required/revised state, addressed team member, optional read-only worker escalation memo, engine checkpoint, linked replacement goal, and continuation decision. A replacement goal re-enters CTO/PM review; new file work requires a new approval. Old tasks and approvals remain attributable to the old goal. The versions linked this way are one conversation on screen and are archived and restored together ([ADR-0051](../architecture/decisions/ADR-0051.md)).
+- **Post-completion follow-up:** a completed execution Goal can receive a new CEO work instruction in its visible conversation ([ADR-0055](../architecture/decisions/ADR-0055.md)). The engine records the exact instruction and creates a linked Goal ID for the next work pass. The completed record stays completed; the new ID owns its plan, approvals, tasks and QA. This is a continuation of one user-facing goal conversation, not permission to reuse an earlier write approval.
+- **Work-pass handoff:** the next Goal's planning intent includes a bounded structured context from saved earlier records ([ADR-0056](../architecture/decisions/ADR-0056.md)). Exact source records stay with their original Goal IDs. This context is descriptive and carries no approval or proof of reused work.
 - **Revision continuation decision:** the linked old/new goal IDs, accepted source task IDs, verified file digests, and remaining work decision. CTO and PM recommend; the engine validates. The decision is saved independently of the model's prose and rechecked before final QA.
 
 ## 관계와 소유 경계
@@ -18,4 +20,4 @@
 
 ## 검증 참조
 
-[검증 기준](../validation.md), [수동 QA](../../qa/MANUAL-QA.md). 구현 증거와 미완료 항목은 [WORKLOG](../../WORKLOG.md)를 따른다.
+[검증 기준](../validation.md), [수동 QA](../../qa/MANUAL-QA.md). 구현 증거와 미완료 항목은 [WORKLOG](../../worklog/00_index.md)를 따른다.

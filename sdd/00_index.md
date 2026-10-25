@@ -29,9 +29,9 @@ This index is the entry point for a new contributor or AI agent. Read the affect
 | Implementation lifecycle | [Workflow](workflow.md) |
 | Branches, pull request titles and summaries | [PR workflow](pr-workflow.md) |
 | Architecture rationale | [ADR index](architecture/decisions/00_index.md) |
-| Current implementation progress | [Worklog](../WORKLOG.md) |
+| Current implementation progress | [Worklog index](../worklog/00_index.md) |
 | Source and verification map | [Implementation map](implementation-map.md) |
 
 Only the canonical document defines each fact. Other documents link to it. Add a document when a real new ownership area emerges; update this index at the same time.
 
-Specs describe the target behavior. `WORKLOG.md` records which acceptance criteria are implemented and actually verified; an unchecked item is not a delivered capability.
+Specs describe the target behavior. The [worklog index](../worklog/00_index.md) leads to round files that record which acceptance criteria are implemented and actually verified; an unchecked item is not a delivered capability.

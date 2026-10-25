@@ -12,4 +12,4 @@
 
 관계 어휘는 `produces`(상태·턴을 만듦), `routes_to`(사용자 행동이 해당 개념으로 이어짐), `reads`(저장된 사실을 표시), `constrains`(대상 규칙에 의해 제한됨)이다. 이 링크는 실행 권한이 아니다. GC-03에서 대화에 들어가면 GC-01이 턴을 저장하고, 방향 변경이면 GC-02가 체크포인트를 소유한다. 실패한 목표는 GC-04가 판단하며 GC-05는 어느 탭에서든 같은 목표 작업공간으로 들어오는 길이다.
 
-[수용 기준](acceptance.md)은 이 다섯 원본을 함께 검사한다. 실제 구현·데스크톱 검증은 [WORKLOG](../../WORKLOG.md)와 [수동 QA](../../qa/MANUAL-QA.md)를 따른다. [사용자 여정](../userFlow/UF-04-conversation.md)은 CEO가 보는 순서만 소유한다.
+[수용 기준](acceptance.md)은 이 다섯 원본을 함께 검사한다. 실제 구현·데스크톱 검증은 [WORKLOG](../../worklog/00_index.md)와 [수동 QA](../../qa/MANUAL-QA.md)를 따른다. [사용자 여정](../userFlow/UF-04-conversation.md)은 CEO가 보는 순서만 소유한다.

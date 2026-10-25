@@ -5,6 +5,7 @@ mod git_bootstrap;
 mod meeting;
 mod mock_ai;
 mod goal_result;
+mod goal_context;
 #[cfg(test)]
 mod engine_e2e;
 mod model;
