@@ -156,7 +156,7 @@ fn claude_permission_args(writable: bool, options: &CallOptions) -> Vec<String> 
 
 /// ADR-0058: `permission_denials` of Claude's final `result` event.
 fn claude_denials(stdout: &str) -> Vec<crate::permissions::Denial> {
-    let Some(result) = stdout.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()).filter(|value| value.get("type").and_then(Value::as_str) == Some("result")).last() else { return Vec::new() };
+    let Some(result) = stdout.lines().rev().filter_map(|line| serde_json::from_str::<Value>(line).ok()).find(|value| value.get("type").and_then(Value::as_str) == Some("result")) else { return Vec::new() };
     let mut denials: Vec<crate::permissions::Denial> = Vec::new();
     for item in result.get("permission_denials").and_then(Value::as_array).into_iter().flatten() {
         let tool = item.get("tool_name").and_then(Value::as_str).unwrap_or("").to_string();
