@@ -28,6 +28,14 @@
 | v2 화면·알림·회의 | 실제 Windows QA-36/37/38 대기, 회의 제공자별 격리 검증 별도 필요 | [회의 구현 기록](milestones/WLG-012.md), [v3 검증 범위](programs/v3-first-package/open-verification.md) |
 | 런타임 이벤트·취소·세션 재개, 추가 승인, Ubuntu | 초기 체크리스트에서 미완료; 현행 명세·코드를 대조해 별도 마일스톤으로 진행 | [초기 체크리스트](milestones/WLG-054.md), [개선 계획](../sdd/workflow-improvement-plan.md) |
 
+## 명령 권한 승인과 재작업 원인 수정 (2026-10-26, Claude)
+
+| 라운드 | 작업 요약 | 상태 | 파일 |
+| --- | --- | --- | --- |
+| 개요 | 브랜치 feature/permission-approval. PostGen 후속 차수 분석, ADR-0057·0058. | 기록 | [00_overview.md](programs/permission-approval/00_overview.md) |
+| P0 | 기준선, 2번 안 검증, 결정 기록 | 완료 | [P0.md](programs/permission-approval/P0.md) |
+| P1 | 파일 이름 대소문자 | 완료 | [P1.md](programs/permission-approval/P1.md) |
+
 ## 완주율·사용성 개선 라운드 (2026-10-20, Claude)
 
 | 라운드 | 작업 요약 | 상태 | 파일 |
