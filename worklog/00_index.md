@@ -36,6 +36,7 @@
 | P0 | 기준선, 2번 안 검증, 결정 기록 | 완료 | [P0.md](programs/permission-approval/P0.md) |
 | P1 | 파일 이름 대소문자 | 완료 | [P1.md](programs/permission-approval/P1.md) |
 | P2 | 결과 전달과 목표 대화 QA 맥락 | 완료 | [P2.md](programs/permission-approval/P2.md) |
+| P3 | 명령 권한 승인 | 완료 | [P3.md](programs/permission-approval/P3.md) |
 
 ## 완주율·사용성 개선 라운드 (2026-10-20, Claude)
 

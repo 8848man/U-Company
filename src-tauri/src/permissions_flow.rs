@@ -120,7 +120,13 @@ pub fn settle_task_denials<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id
         let rules: Vec<Rule> = permissions::rules_for_denials(&denials).into_iter().filter(|rule| !granted.iter().any(|item| item.key() == rule.key())).collect();
         let approved = if rules.iter().all(|rule| rule.class == "blocked") && !rules.is_empty() { false }
             else if rules.is_empty() { true }
-            else { ask(app, goal_id, rules, pending.iter().map(|item| item.task_id.clone()).collect(), "팀원", "executing")? };
+            else {
+                let snapshot = store.snapshot()?;
+                let mut names: Vec<String> = pending.iter().filter_map(|item| snapshot.tasks.iter().find(|task| task.id == item.task_id)).filter_map(|task| snapshot.agents.iter().find(|agent| agent.id == task.assignee_id).map(|agent| agent.name.clone())).collect();
+                names.dedup();
+                let who = if names.is_empty() { "팀원".to_string() } else { names.join(", ") };
+                ask(app, goal_id, rules, pending.iter().map(|item| item.task_id.clone()).collect(), &who, "executing")?
+            };
         if !approved { for record in &pending { clear(&store, record)?; } return Ok(()); }
         for record in pending {
             if record.resumes >= permissions::MAX_RESUMES { clear(&store, &record)?; continue; }
@@ -184,7 +190,7 @@ pub fn review_with_commands<R: tauri::Runtime>(app: &tauri::AppHandle<R>, projec
             if open.is_empty() { break; }
             let _ = store.append_event(NewEvent { kind: "permission_denied".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: Some(reviewer.id.clone()), message: format!("QA refused: {}", open.iter().map(|item| item.command.clone()).collect::<Vec<_>>().join(" / ").chars().take(300).collect::<String>()) });
             let rules: Vec<Rule> = permissions::rules_for_denials(&open).into_iter().filter(|rule| !granted.iter().any(|item| item.key() == rule.key())).collect();
-            if rules.is_empty() || rules.iter().all(|rule| rule.class == "blocked") || !ask(app, goal_id, rules, Vec::new(), "QA", "validating")? { break; }
+            if rules.is_empty() || rules.iter().all(|rule| rule.class == "blocked") || !ask(app, goal_id, rules, Vec::new(), &format!("QA({})", reviewer.name), "validating")? { break; }
             let approved = grants(&store, goal_id)?.iter().map(label).collect::<Vec<_>>().join(", ");
             let follow = format!("The CEO approved these commands for this goal conversation: {approved}. Run the checks that were refused before, then give your complete review again in exactly the format requested earlier.\n\nThe original request, for reference:\n{prompt}");
             record_progress(app, goal_id, None, &reviewer.id, "QA가 승인된 명령으로 검토를 이어서 하고 있습니다");

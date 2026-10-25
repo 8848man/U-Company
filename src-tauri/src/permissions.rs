@@ -152,7 +152,7 @@ pub fn classify(tool: &str, prefix: &str) -> (String, String) {
     if INDIVIDUAL.contains(&program.as_str()) { return ("individual".into(), reason_for(&program).into()); }
     if let Some((_, subs)) = INDIVIDUAL_SUB.iter().find(|(name, _)| *name == program) {
         if let Some(sub) = words.get(1).map(|word| word.to_ascii_lowercase()) {
-            if subs.contains(&sub.as_str()) { return ("individual".into(), format!("`{program} {sub}`는 설치·배포·저장소 변경처럼 작업 폴더 밖에 영향을 줄 수 있어요")); }
+            if subs.contains(&sub.as_str()) { return ("individual".into(), format!("{program} {sub}: 설치·배포·저장소 변경처럼 작업 폴더 밖에 영향을 줄 수 있어요")); }
         }
     }
     ("safe".into(), String::new())

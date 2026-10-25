@@ -80,6 +80,11 @@ export function stageLines(goal: Goal, events: Event[]): StreamLine[] {
     else if (event.kind === 'sdd_update_failed') text = `SDD를 갱신하지 못했어요(작업은 계속돼요): ${event.message.replace(/^(plan|close): /, '').slice(0, 120)}`;
     else if (event.kind === 'approval_decided' && /^project_write: /.test(event.message)) text = event.message.endsWith('approved') ? 'CEO가 계획을 승인했어요' : null;
     else if (event.kind === 'approval_decided' && /^project_write_scope: /.test(event.message)) text = event.message.endsWith('approved') ? 'CEO가 새 파일 추가를 승인했어요' : 'CEO가 새 파일 추가를 거절해 목표가 멈췄어요';
+    else if (event.kind === 'approval_decided' && /^command_permission: /.test(event.message)) text = /: approved/.test(event.message) ? `CEO가 명령 실행을 승인했어요${event.message.replace(/^command_permission: approved/, '')}` : 'CEO가 명령 실행을 승인하지 않아 지금 결과로 진행해요';
+    else if (event.kind === 'commands_granted') text = `계획과 함께 명령을 이 대화에서 허용했어요: ${event.message.replace(/^plan: /, '')}`;
+    else if (event.kind === 'permission_denied') text = '팀원이 승인되지 않은 명령에 막혔어요';
+    else if (event.kind === 'task_resumed_with_commands') text = '승인된 명령으로 작업을 이어서 했어요';
+    else if (event.kind === 'review_copy_skipped') text = 'QA가 복사본을 만들지 못해 명령 없이 읽기만 해서 검토해요';
     else if (event.kind === 'task_unchanged') text = '재작업 담당이 고칠 것이 없다고 판단해 QA가 다시 확인해요';
     if (text) lines.push({ id: `event:${event.id}`, at: event.at, text });
   }
@@ -88,8 +93,10 @@ export function stageLines(goal: Goal, events: Event[]): StreamLine[] {
 
 /** ADR-0053: approval operation for files added to a repair on the same goal. */
 export const SCOPE_OPERATION = 'project_write_scope';
+/** ADR-0058: approval operation for commands a teammate was refused. */
+export const PERMISSION_OPERATION = 'command_permission';
 
-export type PlanCard = { approval: Approval; current: boolean; status: 'pending' | 'approved' | 'denied' | 'other'; summary: string; counts: string; firstLine: string; scope: boolean };
+export type PlanCard = { approval: Approval; current: boolean; status: 'pending' | 'approved' | 'denied' | 'other'; summary: string; counts: string; firstLine: string; scope: boolean; permission: boolean };
 
 /** Plan cards for this goal's project-write approvals, oldest first. Only the pending one is current. */
 export function planCards(goal: Goal, approvals: Approval[], tasks: Task[], summary: string | null): PlanCard[] {
@@ -98,17 +105,19 @@ export function planCards(goal: Goal, approvals: Approval[], tasks: Task[], summ
   const files = new Set(owned.flatMap(task => task.files)).size;
   const counts = owned.length ? `작업 ${owned.length}개 · 팀원 ${assignees}명 · 파일 ${files}개` : '';
   return approvals
-    .filter(item => item.goalId === goal.id && (item.operation === 'project_write' || item.operation === SCOPE_OPERATION))
+    .filter(item => item.goalId === goal.id && (item.operation === 'project_write' || item.operation === SCOPE_OPERATION || item.operation === PERMISSION_OPERATION))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     .map(approval => {
       const status = approval.status === 'pending' || approval.status === 'approved' || approval.status === 'denied' ? approval.status : 'other';
       const scope = approval.operation === SCOPE_OPERATION;
-      return { approval, current: status === 'pending', status, summary: scope ? '' : summary ?? '', counts: !scope && (status === 'pending' || status === 'approved') ? counts : '', firstLine: approval.reason.split('\n')[0], scope };
+      const permission = approval.operation === PERMISSION_OPERATION;
+      return { approval, current: status === 'pending', status, summary: scope || permission ? '' : summary ?? '', counts: !scope && !permission && (status === 'pending' || status === 'approved') ? counts : '', firstLine: approval.reason.split('\n')[0], scope, permission };
     });
 }
 
 /** Collapsed label of a decided plan card. */
 export function planCardLabel(card: PlanCard): string {
+  if (card.permission) return card.status === 'pending' ? '명령 실행 승인이 필요해요' : card.status === 'approved' ? '명령 권한 · CEO가 승인함' : card.status === 'denied' ? '명령 권한 · 승인하지 않음' : '명령 권한 · 바뀜';
   if (card.scope) return card.status === 'pending' ? '고칠 때 새 파일이 필요해요' : card.status === 'approved' ? '파일 추가 · CEO가 승인함' : card.status === 'denied' ? '파일 추가 · CEO가 거절함' : '파일 추가 · 바뀜';
   return card.status === 'pending' ? '계획이 나왔어요' : card.status === 'approved' ? '계획 · CEO가 승인함' : card.status === 'denied' ? '계획 · CEO가 거부함' : '계획 · 바뀜';
 }

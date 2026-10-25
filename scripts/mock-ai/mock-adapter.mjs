@@ -96,7 +96,7 @@ export function mayRunTests(allowed = []) {
   return allowed.some(rule => rule === 'Bash(node --test)' || rule === 'Bash(node --test *)');
 }
 
-const TEST_DENIAL = { tool: 'Bash', command: 'node --test; echo "=== exit: $? ==="' };
+const TEST_DENIAL = { tool: 'Bash', command: 'npm install && node --test; echo "=== exit: $? ==="' };
 
 /** Text plus the calls this mock was refused, like Claude's `permission_denials`. */
 export function respondWithDenials(prompt, cwd, options, scenario, allowed = []) {

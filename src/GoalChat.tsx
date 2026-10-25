@@ -14,8 +14,10 @@ import { SquadPanel } from './SquadPanel';
 import { PlanningOriginPanel } from './PlanningOriginPanel';
 import { planCardLabel, planCards, progressLine, stageLines, type PlanCard } from './goalStream';
 import { planEstimate } from './planEstimate';
+import { CommandPermissionCard } from './CommandPermissionCard';
+import { planCommandLine } from './commandPermission';
 import type { GoalOrigin } from './sddOrigin';
-import type { Agent, AiConnection, Approval, DeliverableReview, Event, Goal, GoalGuidance, GoalResult, GoalTurn, Project, Reference, Squad, Task, TokenUsageRecord } from './types';
+import type { Agent, AiConnection, Approval, CommandRequest, DeliverableReview, Event, Goal, GoalGuidance, GoalResult, GoalTurn, Project, Reference, Squad, Task, TokenUsageRecord } from './types';
 import { ReferenceButton } from './ReferenceList';
 import { requirementCoverage } from './referenceAttach';
 import { versionReason } from './goalChain';
@@ -44,6 +46,8 @@ type Props = {
   onDecide: (approvalId: string, approved: boolean, squadDigest: string | null) => Promise<boolean>;
   /** ADR-0054: optional result summary of a finished goal and a way to open its folder (v3). */
   result?: GoalResult | null; onOpenFolder?: () => void;
+  /** ADR-0058: command requests (plan cards and refused calls) and the CEO's choice on a refused-command card. */
+  commandRequests?: CommandRequest[]; onDecideCommands?: (approvalId: string, rules: string[]) => Promise<boolean>;
   /** ADR-0046 M3: `개선` (same goal, new plan) and `거부` (cancel the goal); `다시 시작` sends the same goal again. */
   onRevise: (approvalId: string, note: string) => Promise<boolean>; onCancel: (approvalId: string) => Promise<boolean>; onRestart: (intent: string) => Promise<boolean>;
   onSwapSquad: (from: string, to: string) => void; onAddSquad: (slot: 'writer' | 'reviewer', agentId: string, taskId: string | null) => void;
@@ -68,7 +72,7 @@ type StreamItem =
 
 /** v3 goal conversation (ADR-0046): the goal, stage lines, plan cards and recovery in one stream, with a progress line. */
 export function GoalChat(props: Props) {
-  const { result = null, onOpenFolder } = props;
+  const { result = null, onOpenFolder, commandRequests = [], onDecideCommands } = props;
   const { goal, projectKind, focusTaskId = null, turns: chainTurns, guidance, earlier = [], agents, connections, tasks, approvals, events, usage, reviews, runBlock, squad, squads, summary, goalOrigins, projects, layout = 'dialog', onClose, onSend, onArchive, onRevision, onOpenGoal, onRetry, onResume, onRequestFix, onDecide, onRevise, onCancel, onRestart, onSwapSquad, onAddSquad, onOpenConnections, onOpenOffice, onOpenTeam, onOpenProject, onError, onPreviewGit, onBootstrapGit } = props;
   const turns = chainTurns.filter(turn => turn.goalId === goal.id);
   // ADR-0051: earlier versions of this goal read as the top of the same conversation.
@@ -157,6 +161,8 @@ export function GoalChat(props: Props) {
   }
 
   function planCardView(card: PlanCard) {
+    // ADR-0058: a refused command waits for the CEO here; 모두 승인 grants it for this conversation only.
+    if (card.permission && card.current) return <CommandPermissionCard key={card.approval.id} approval={card.approval} request={commandRequests.find(item => item.id === card.approval.id)} working={working || !onDecideCommands} onDecide={keys => { if (onDecideCommands) void guarded(() => onDecideCommands(card.approval.id, keys)).then(scrollDown); }} />;
     // ADR-0053: a repair that needs new files asks once on the same goal; 거절 stops the goal (no cancel).
     if (card.scope && card.current) return <section className="gc-plan is-scope" key={card.approval.id} aria-label="파일 추가 확인">
       <h3>{planCardLabel(card)}</h3>
@@ -173,6 +179,7 @@ export function GoalChat(props: Props) {
       <h3>{planCardLabel(card)}</h3>
       {card.summary && <p>{card.summary}</p>}
       {card.counts && <p className="gc-plan-counts">{card.counts}</p>}
+      {planCommandLine(commandRequests.find(item => item.id === card.approval.id)) && <p className="gc-plan-commands">{planCommandLine(commandRequests.find(item => item.id === card.approval.id))}</p>}
       {(() => { const estimate = planEstimate(goal, card.approval, tasks, squad, usage); return <p className="gc-plan-estimate">{estimate.text}<br /><small>{estimate.tokens} · {estimate.rework}</small></p>; })()}
       {coverage && <p className={`gc-plan-coverage${coverage.covered < coverage.total ? ' is-partial' : ''}`}>요구사항 {coverage.total}절 중 {coverage.covered}절을 업무에 반영{coverage.covered < coverage.total ? ' · 나머지는 승인 범위에 이유가 적혀 있어요' : ''}</p>}
       <details className="gc-plan-detail"><summary>작업과 팀 자세히 보기</summary>

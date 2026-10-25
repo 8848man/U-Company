@@ -31,6 +31,8 @@ An opt-in local integration test may create a fresh Git repository below the wor
 
 `cargo test --locked --lib engine_e2e` runs the real engine on `tauri::test::mock_app()` against a temporary committed Git project, with the team on the [mock AI](aiIntegration/AI-03-adapter.md). Required paths: a sample-app goal from analysis through approval, two isolated worktrees, integration, per-deliverable QA and the report, with the integrated app's own `node --test` passing; a first QA failure reworked inside the approved files and passing; a malformed plan sent back once and continuing; a restart while waiting for approval leaving the approval pending and the project unchanged. Task folders go to a harness-managed folder, never the app data folder. The tests skip with a note when Node or Git is missing. They prove the engine's control flow, not provider behaviour; real Claude/Codex runs remain the [sample-app flow](../qa/SAMPLE-APP-FLOW.md) check.
 
+Command permissions ([ADR-0058](architecture/decisions/ADR-0058.md)) add whole-goal tests: plan commands granted with the plan and a risky one held back, a refused test command stopping before integration and resuming after `모두 승인` without the risky rule, declining continuing as reported, and QA asking for its command, reviewing in a copy that is removed afterwards.
+
 ## Per-change checks
 
 Run formatting/type/compile checks, focused domain and adapter tests, relevant UI tests, and cross-boundary contract checks. Finish with a spec/code/ADR drift review. A release is recorded only when actually shipped.

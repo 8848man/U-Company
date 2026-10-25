@@ -278,6 +278,16 @@ fn dump_screen_snapshots() {
     let scope_project = scope.goal(&scope_id).project_id.unwrap();
     write("blocked", serde_json::json!({ "snapshot": scope.store().snapshot().unwrap(), "goalId": scope_id, "stats": crate::goal_result::block_stats(&scope.store().list("goal_block").unwrap(), &scope_project) }));
     let _ = project_id;
+    let Some(plan_cmd) = harness(&["plan-commands"]) else { return };
+    let cmd_id = plan_cmd.submit(GOAL);
+    plan_cmd.wait(&cmd_id, &["awaiting_approval"]);
+    write("plancmd", serde_json::json!({ "snapshot": plan_cmd.store().snapshot().unwrap(), "goalId": cmd_id }));
+    let Some(perm) = harness(&["needs-permission-once"]) else { return };
+    let perm_id = perm.submit(GOAL);
+    perm.wait(&perm_id, &["awaiting_approval"]);
+    perm.approve(&perm_id);
+    let _ = wait_operation(&perm, &perm_id, crate::permissions::OPERATION);
+    write("permission", serde_json::json!({ "snapshot": perm.store().snapshot().unwrap(), "goalId": perm_id }));
 }
 
 fn granted(h: &Harness, goal_id: &str) -> Vec<String> {
@@ -309,14 +319,15 @@ fn a_refused_test_command_stops_before_integration_and_resumes_after_approve_all
     let card = wait_operation(&h, &id, crate::permissions::OPERATION);
     assert!(!h.root.join("todo.js").exists(), "the refused task is not integrated while the card waits");
     let request: crate::permissions::CommandRequest = h.store().get("command_request", &card.id).unwrap().unwrap();
+    assert_eq!(request.rules.iter().map(|rule| (rule.key(), rule.class.as_str())).collect::<Vec<_>>(), vec![("Bash(npm install)".to_string(), "individual"), ("Bash(node --test)".to_string(), "safe"), ("Bash(echo \"=== exit: $? ===\")".to_string(), "safe")], "one rule per chained command");
     let keys: Vec<String> = request.rules.iter().filter(|rule| rule.class == "safe").map(crate::permissions::Rule::key).collect();
-    assert_eq!(keys, vec!["Bash(node --test)", "Bash(echo \"=== exit: $? ===\")"], "one rule per chained command");
     crate::permissions_flow::decide(&h.store(), &card.id, &keys).unwrap();
     let goal = h.wait(&id, &["completed"]);
     assert!(h.event_kinds(&id).contains(&"task_resumed_with_commands".to_string()));
     let tests_task = h.tasks(&id).into_iter().find(|task| task.files.iter().any(|file| file == "todo.test.js")).unwrap();
     assert!(tests_task.result.contains("pass 3"), "the resumed session ran the approved command: {}", tests_task.result);
     assert!(granted(&h, &id).contains(&"Bash(node --test)".to_string()));
+    assert!(!granted(&h, &id).contains(&"Bash(npm install)".to_string()), "approve-all leaves the risky command out");
     assert!(goal.report.contains("QA result:\nPASS"));
 }
 
@@ -341,7 +352,7 @@ fn qa_asks_for_its_test_command_reviews_in_a_copy_and_continues() {
     h.wait(&id, &["awaiting_approval"]);
     h.approve(&id);
     let card = wait_operation(&h, &id, crate::permissions::OPERATION);
-    assert!(card.reason.starts_with("QA"), "{}", card.reason);
+    assert!(card.reason.starts_with("QA("), "{}", card.reason);
     assert!(std::fs::read_dir(h.data.parent().unwrap().join("worktrees").join(&id)).unwrap().filter_map(Result::ok).any(|entry| entry.file_name().to_string_lossy().starts_with("review-")), "QA works in a review copy");
     crate::permissions_flow::decide(&h.store(), &card.id, &["Bash(node --test)".into()]).unwrap();
     h.wait(&id, &["completed"]);

@@ -86,7 +86,7 @@ describe('mock AI command permissions (ADR-0058)', () => {
     const { respondWithDenials, mayRunTests } = await import('./mock-adapter.mjs');
     const folder = mkdtempSync(join(tmpdir(), 'mock-perm-'));
     const refused = respondWithDenials(implement, folder, options(['needs-permission-once']), scenario, []);
-    expect(refused.denials).toEqual([{ tool: 'Bash', command: 'node --test; echo "=== exit: $? ==="' }]);
+    expect(refused.denials).toEqual([{ tool: 'Bash', command: 'npm install && node --test; echo "=== exit: $? ==="' }]);
     expect(respondWithDenials(implement, folder, options(['needs-permission-once']), scenario, ['Bash(node --test)', 'Bash(node --test *)']).denials).toEqual([]);
     expect(respondWithDenials(implement, folder, options(), scenario, []).denials).toEqual([]);
     expect(mayRunTests(['Bash(npm test)'])).toBe(false);

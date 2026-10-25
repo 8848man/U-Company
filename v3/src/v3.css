@@ -209,3 +209,8 @@ body.office-docked .v3 .main{margin-right:min(440px,90vw)}
 .v3 .v3-examples{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:6px}.v3 .v3-examples small{color:#9fb59c}
 .v3 .gc .gc-result-summary p,.v3 .gc .gc-result-summary li{font-size:14px;line-height:1.55}.v3 .gc .gc-result-more summary{cursor:pointer;font-size:14px;margin:4px 0}
 .v3 .v3-block-stats{max-width:900px}
+/* ADR-0058: command permission card and plan-card command line */
+.v3 .gc .gc-plan.is-permission{border-color:#7fb3e6}.v3 .gc .gc-plan.is-permission h3{color:#b9dcff}
+.v3 .gc .gc-commands{list-style:none;margin:2px 0;padding:0;display:grid;gap:6px}.v3 .gc .gc-commands li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.v3 .gc .gc-commands code{padding:3px 7px;border-radius:6px;background:#122019;border:1px solid #31493a;font-size:12.5px}.v3 .gc .gc-commands small{color:#b8c9b5}.v3 .gc .gc-commands li button{margin-left:auto;padding:5px 10px;font-size:12.5px}.v3 .gc .gc-commands.is-blocked code{text-decoration:line-through;opacity:.7}
+.v3 .gc .gc-commands-head{margin:6px 0 0;font-size:13px;color:#d9c48a}
+.v3 .gc .gc-plan .gc-plan-commands{font-size:13px;color:#b9dcff}
