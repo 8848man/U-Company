@@ -110,8 +110,9 @@ export function respond(prompt, cwd, options, scenario) {
       return JSON.stringify({ tasks, reusedTaskIds: [], squad: { structure: 'standard', reason: '모의 AI: 독립된 파일 묶음 두 개라 기본 팀이면 충분해요' } });
     }
     case 'repair_plan': {
-      const approved = prompt.includes('Use these CEO-approved files: ')
-        ? listAfter(prompt, 'Use these CEO-approved files: ', '. A new file needs')
+      const marker = ['Use these CEO-approved files (exact names): ', 'Use these CEO-approved files: '].find(item => prompt.includes(item));
+      const approved = marker
+        ? listAfter(prompt, marker, '. A new file needs').map(file => file.toLowerCase())
         : listAfter(prompt, 'You may modify ONLY these CEO-approved files: ', '. Never request');
       // The engine lists approved files in lower case; the repair fixes the first task's files.
       const first = scenario.tasks[0];
