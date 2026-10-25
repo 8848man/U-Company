@@ -37,6 +37,7 @@ export function stageOf(prompt) {
   if (prompt.includes('planning repairs after QA rejected')) return 'repair_plan';
   if (prompt.includes('Decompose the CEO goal into remaining FILE-CHANGING')) return 'plan';
   if (prompt.includes("maintains this project's U-SDD")) return 'sdd';
+  if (prompt.includes('Continue your task in this isolated folder')) return 'resume';
   if (prompt.includes('Work only inside this isolated task folder')) return 'implement';
   if (prompt.includes("independently reviewing the team's deliverables")) return 'review_deliverables';
   if (prompt.includes("reviewing the team's work for this CEO goal")) return 'review';
@@ -90,7 +91,24 @@ function insideFolder(root, relative) {
   return target.startsWith(resolve(root) + sep) ? target : null;
 }
 
-export function respond(prompt, cwd, options, scenario) {
+/** ADR-0058: whether the call may run `node --test` (granted rules arrive as `allowedCommands`). */
+export function mayRunTests(allowed = []) {
+  return allowed.some(rule => rule === 'Bash(node --test)' || rule === 'Bash(node --test *)');
+}
+
+const TEST_DENIAL = { tool: 'Bash', command: 'node --test; echo "=== exit: $? ==="' };
+
+/** Text plus the calls this mock was refused, like Claude's `permission_denials`. */
+export function respondWithDenials(prompt, cwd, options, scenario, allowed = []) {
+  const stage = stageOf(prompt);
+  const text = respond(prompt, cwd, options, scenario, allowed);
+  const denials = [];
+  if (stage === 'implement' && options.modes.has('needs-permission-once') && !mayRunTests(allowed) && listAfter(prompt, 'change ONLY these declared files: ', '. The engine').some(file => /test/i.test(file))) denials.push(TEST_DENIAL);
+  if (stage === 'review_deliverables' && options.modes.has('qa-needs-permission-once') && !mayRunTests(allowed)) denials.push({ tool: 'Bash', command: 'node --test' });
+  return { text, denials };
+}
+
+export function respond(prompt, cwd, options, scenario, allowed = []) {
   const stage = stageOf(prompt);
   switch (stage) {
     case 'conversation_decision':
@@ -107,6 +125,8 @@ export function respond(prompt, cwd, options, scenario) {
       if (options.modes.has('plan-form-once') && !retried) {
         tasks[0] = { ...tasks[0], acceptance: Array.from({ length: 9 }, (_, index) => `기준 ${index + 1}`) };
       }
+      // plan-commands: the plan says which commands its test task runs (approved with the plan).
+      if (options.modes.has('plan-commands')) tasks[0] = { ...tasks[0], commands: ['node --test', 'npm install'] };
       return JSON.stringify({ tasks, reusedTaskIds: [], squad: { structure: 'standard', reason: '모의 AI: 독립된 파일 묶음 두 개라 기본 팀이면 충분해요' } });
     }
     case 'repair_plan': {
@@ -142,7 +162,7 @@ export function respond(prompt, cwd, options, scenario) {
     }
     case 'review_deliverables': {
       const items = reviewItems(prompt);
-      const failNow = options.modes.has('qa-fail-once') && counter(options, `qa:${resolve(cwd)}:${goalOf(prompt)}`) === 0;
+      const failNow = options.modes.has('qa-fail-once') && counter(options, `qa:${goalOf(prompt)}`) === 0;
       const deliverables = items.map((item, index) => {
         const missing = item.files.filter(file => { const target = insideFolder(cwd, file); return !target || !existsSync(target); });
         const criteria = Array.from({ length: item.criteria }, (_, position) => {
@@ -154,6 +174,8 @@ export function respond(prompt, cwd, options, scenario) {
       const verdict = deliverables.every(item => item.verdict === 'PASS') ? 'PASS' : 'FAIL';
       return JSON.stringify({ verdict, deliverables, risks: ['모의 AI 판정이라 실제 품질은 확인되지 않았어요'] });
     }
+    case 'resume':
+      return mayRunTests(allowed) ? '모의 AI가 승인된 `node --test`를 실행했어요: tests 3, pass 3, fail 0.' : '모의 AI: 아직 테스트 명령이 승인되지 않았어요.';
     case 'review':
       return 'PASS\n모의 AI 확인: 재사용 결과를 그대로 받아들였어요.';
     case 'sdd':
@@ -189,8 +211,8 @@ function main() {
     } else if (message.method === 'send_task') {
       const { prompt = '', cwd = process.cwd() } = message.params ?? {};
       try {
-        const text = respond(prompt, cwd, options, scenario);
-        process.stdout.write(`${JSON.stringify({ id: message.id, result: { text, sessionId: null, usage: usageFor(prompt, text) } })}\n`);
+        const { text, denials } = respondWithDenials(prompt, cwd, options, scenario, message.params?.allowedCommands ?? []);
+        process.stdout.write(`${JSON.stringify({ id: message.id, result: { text, sessionId: `mock-${Date.now()}`, usage: usageFor(prompt, text), permissionDenials: denials } })}\n`);
       } catch (error) {
         process.stderr.write(`${error?.stack ?? error}\n`);
         process.stdout.write(`${JSON.stringify({ id: message.id, error: { message: String(error?.message ?? error) } })}\n`);

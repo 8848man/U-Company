@@ -83,6 +83,9 @@ struct ProposedTask {
     evidence: Vec<String>,
     #[serde(default)]
     capability: String,
+    /// ADR-0058: shell commands the teammate will run (tests, builds); approved with the plan.
+    #[serde(default)]
+    commands: Vec<String>,
 }
 
 impl ProposedTask {
@@ -91,7 +94,7 @@ impl ProposedTask {
     }
 }
 
-const TASK_SCHEMA: &str = r#"{"title":"...","deliverable":"one line: what this task delivers","instructions":"...","files":["relative/path.ext"],"acceptance":["checkable criterion", "..."],"evidence":["existing/project/input.md"],"capability":"document|code","dependsOn":[]}"#;
+const TASK_SCHEMA: &str = r#"{"title":"...","deliverable":"one line: what this task delivers","instructions":"...","files":["relative/path.ext"],"acceptance":["checkable criterion", "..."],"evidence":["existing/project/input.md"],"capability":"document|code","commands":["npm test"],"dependsOn":[]}"#;
 const FOCUSED_PLAN_GUIDANCE: &str = concat!(
     "Planning process for each task: name the specific existing evidence files needed for its acceptance criteria ",
     "and describe useful focused checks in `instructions`. Name focused owning SDD files when applicable; ",
@@ -366,7 +369,7 @@ fn block_goal<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, error
     let _ = app.emit("state-changed", ());
 }
 
-fn record_progress<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, task_id: Option<&str>, agent_id: &str, message: &str) {
+pub(crate) fn record_progress<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, task_id: Option<&str>, agent_id: &str, message: &str) {
     let store = app.state::<Store>();
     let event = NewEvent { kind: "runtime_progress".into(), goal_id: Some(goal_id.into()), task_id: task_id.map(str::to_string), agent_id: Some(agent_id.into()), message: message.chars().take(160).collect() };
     if store.append_event(event).is_ok() { let _ = app.emit("state-changed", ()); }
@@ -378,7 +381,7 @@ fn record_handoff<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, f
     let _ = app.emit("state-changed", ());
 }
 
-fn check_goal_guidance<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, checkpoint: &str) -> Result<(), String> {
+pub(crate) fn check_goal_guidance<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, checkpoint: &str) -> Result<(), String> {
     let store = app.state::<Store>();
     let mut proposals: Vec<GoalGuidance> = store.list::<GoalGuidance>("goal_guidance")?.into_iter()
         .filter(|item| item.goal_id == goal_id && ["pending", "review_required"].contains(&item.status.as_str())).collect();
@@ -399,13 +402,19 @@ fn check_goal_guidance<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &s
     Err(format!("CEO 방향 변경 제안이 {checkpoint} 단계에서 대기 중입니다. 목표 대화를 열어 새 목표 버전을 검토해 주세요"))
 }
 
-fn execute_tracked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, project_id: &str, goal_id: &str, task_id: Option<&str>, agent_id: &str, connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool) -> Result<provider::AiResponse, String> {
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn execute_tracked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, project_id: &str, goal_id: &str, task_id: Option<&str>, agent_id: &str, connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool) -> Result<provider::AiResponse, String> {
+    execute_tracked_with(app, project_id, goal_id, task_id, agent_id, connection, prompt, cwd, writable, &provider::CallOptions::default())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn execute_tracked_with<R: tauri::Runtime>(app: &tauri::AppHandle<R>, project_id: &str, goal_id: &str, task_id: Option<&str>, agent_id: &str, connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool, options: &provider::CallOptions) -> Result<provider::AiResponse, String> {
     let store = app.state::<Store>();
     let mut usage = TokenUsageRecord { id: crate::model::id(), project_id: project_id.into(), goal_id: goal_id.into(), agent_id: agent_id.into(), task_id: task_id.map(str::to_string), connection_id: connection.id.clone(), connection_name: connection.name.clone(), model_id: connection.model_id.clone(), input_tokens: prompt.chars().count().div_ceil(4) as u64, output_tokens: 0, source: "estimated".into(), status: "active".into(), updated_at: crate::model::now(), meeting_id: None };
     store.put("usage", &usage.id, &usage, None)?;
     let _ = app.emit("state-changed", ());
     let mut last_usage_flush = Instant::now();
-    let result = provider::execute_with_observer(connection, prompt, cwd, writable,
+    let result = provider::execute_with_options(connection, prompt, cwd, writable, options,
         &mut |message| record_progress(app, goal_id, task_id, agent_id, message),
         &mut |output, reported| {
             if reported || output > usage.output_tokens { usage.output_tokens = output; }
@@ -674,7 +683,7 @@ fn run<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<()
     let pm = &snapshot.agents.iter().find(|agent| agent.id == planner_id).cloned().ok_or("계획 리드를 찾을 수 없습니다")?;
     let pm_connection = connection(&snapshot.connections, pm)?;
     record_handoff(app, goal_id, &cto.id, &pm.id);
-    let plan_prompt = format!("You are {} ({}) in an AI company. Decompose the CEO goal into remaining FILE-CHANGING implementation tasks. If the CEO requests one standalone file, propose exactly one task owning that file; do not invent extra artifacts merely for parallelism. Split independent tasks only for genuinely separate changes. The engine runs separate QA, so NEVER include QA, testing-only, review-only, or reporting-only tasks. Every new task must change explicitly named files. For a linked revision you may nominate only engine-verified completed task IDs in reusedTaskIds; QA will review the whole revised outcome. Return ONLY JSON: {{\"tasks\":[{TASK_SCHEMA}],\"reusedTaskIds\":[],\"squad\":{{\"structure\":\"standard|launch_prep\",\"reason\":\"why this team structure fits\"}}}}. Propose the squad structure for the CEO to approve: `standard` (up to 2 writers, 1 reviewer) for ordinary work, or `launch_prep` (출시 준비 팀: up to 3 writers, 2 reviewers) for a multi-document launch package. Do not name members; the engine fills them with checked, free teammates. Every task needs a one-line deliverable, 1-8 checkable acceptance criteria (each at most 300 characters), the existing project files it must be based on as evidence (read-only, may be empty), and capability `document` for documents/plans/research write-ups or `code` for software changes. Do not name an assignee; the engine assigns capable, free teammates. Claims that cannot be verified from local evidence must be marked as assumptions or unverified inside the deliverable, never stated as fact. A no-write revision may have zero tasks only if it reuses verified work. Use forward-slash relative paths and zero-based dependency indices. Tasks own distinct files; include focused tests with code implementation. Do not modify files.\nRole instructions:\n{}\nCEO goal: {}\nCTO analysis:\n{}\nProject context:\n{}\nRevision context:\n{}", pm.name, pm.role, pm.instructions, goal.intent, analysis, format!("{context}{sdd_context}{pm_refs}"), change_context);
+    let plan_prompt = format!("You are {} ({}) in an AI company. Decompose the CEO goal into remaining FILE-CHANGING implementation tasks. If the CEO requests one standalone file, propose exactly one task owning that file; do not invent extra artifacts merely for parallelism. Split independent tasks only for genuinely separate changes. The engine runs separate QA, so NEVER include QA, testing-only, review-only, or reporting-only tasks. Every new task must change explicitly named files. For a linked revision you may nominate only engine-verified completed task IDs in reusedTaskIds; QA will review the whole revised outcome. Return ONLY JSON: {{\"tasks\":[{TASK_SCHEMA}],\"reusedTaskIds\":[],\"squad\":{{\"structure\":\"standard|launch_prep\",\"reason\":\"why this team structure fits\"}}}}. Propose the squad structure for the CEO to approve: `standard` (up to 2 writers, 1 reviewer) for ordinary work, or `launch_prep` (출시 준비 팀: up to 3 writers, 2 reviewers) for a multi-document launch package. Do not name members; the engine fills them with checked, free teammates. List in `commands` the exact shell commands the teammate must run for the task (focused tests, builds, checks), or []; the CEO approves them with the plan, and commands that delete files, install packages, publish or use the network are asked about separately. Every task needs a one-line deliverable, 1-8 checkable acceptance criteria (each at most 300 characters), the existing project files it must be based on as evidence (read-only, may be empty), and capability `document` for documents/plans/research write-ups or `code` for software changes. Do not name an assignee; the engine assigns capable, free teammates. Claims that cannot be verified from local evidence must be marked as assumptions or unverified inside the deliverable, never stated as fact. A no-write revision may have zero tasks only if it reuses verified work. Use forward-slash relative paths and zero-based dependency indices. Tasks own distinct files; include focused tests with code implementation. Do not modify files.\nRole instructions:\n{}\nCEO goal: {}\nCTO analysis:\n{}\nProject context:\n{}\nRevision context:\n{}", pm.name, pm.role, pm.instructions, goal.intent, analysis, format!("{context}{sdd_context}{pm_refs}"), change_context);
     let plan_prompt = format!("{plan_prompt}\n{FOCUSED_PLAN_GUIDANCE}");
     record_progress(app, goal_id, None, &pm.id, "PM이 파일별 작업과 완료 기준을 계획하고 있습니다");
     let mut proposed = plan_with_retry(app, &project.id, goal_id, pm, &pm_connection, &plan_prompt, &root, "PM 계획 후", |plan| {
@@ -715,6 +724,7 @@ fn run<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<()
     store.put("squad", goal_id, &proposed_squad, Some(NewEvent { kind: "squad_proposed".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: Some(pm.id.clone()), message: format!("Planner proposed {}; engine filled members", squad::structure_label(&proposed_squad.structure)) }))?;
     let assignees = filled.assignees;
     let ids: Vec<String> = (0..proposed.tasks.len()).map(|_| crate::model::id()).collect();
+    let proposed_commands: Vec<Vec<String>> = proposed.tasks.iter().map(|task| task.commands.clone()).collect();
     for (index, proposal) in proposed.tasks.into_iter().enumerate() {
         let title = proposal.title.clone();
         let task = task_from(proposal, ids[index].clone(), goal_id, title, &ids, &assignees[index]);
@@ -735,6 +745,10 @@ fn run<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<()
     let approval = Approval { id: crate::model::id(), goal_id: Some(goal_id.into()), operation: "project_write".into(), reason: format!("AI 팀이 {}에서 계획된 {}개 작업을 {}에 구현하고, 승인된 파일 변경만 원래 폴더에 적용합니다. 대상: {}\n{}", project.path, ids.len(), workspace_label, planned_files, delegation::approval_lines(&planned, &snapshot.agents)), status: "pending".into(), created_at: crate::model::now() };
     let sdd_note = if crate::sdd_origin::exists(&root) { format!("\nSDD: 승인하면 PM({})이 `{}/`를 함께 관리합니다(작업 전 기능·요구사항·계획·작업 목록, QA 통과 뒤 작업 체크·결정·handoff·색인). AGENTS.md의 U 컴퍼니 구간 문구도 최신으로 맞춥니다.", pm.name, crate::sdd_origin::SDD_DIR) } else { String::new() };
     let approval = Approval { reason: format!("{}\n{}{requirement_note}{sdd_note}", approval.reason, squad::approval_lines(&proposed_squad, &snapshot.agents)), ..approval };
+    // ADR-0058: the commands the plan says it will run are shown on the plan card and approved with it.
+    let plan_commands: Vec<String> = proposed_commands.iter().flatten().cloned().collect();
+    let command_note = crate::permissions_flow::plan_request(&store, goal_id, &approval.id, &plan_commands)?;
+    let approval = Approval { reason: format!("{}{command_note}", approval.reason), ..approval };
     store.put("approval", &approval.id, &approval, Some(NewEvent { kind: "approval_requested".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: None, message: approval.reason.clone() }))?;
     transition_goal(app, goal_id, "awaiting_approval", "CEO approval requested before implementation")?;
     let deadline = Instant::now() + Duration::from_secs(24 * 60 * 60);
@@ -753,6 +767,7 @@ fn run<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<()
             _ => return Err("Unknown approval status".into()),
         }
     }
+    if !revise { crate::permissions_flow::grant_plan_commands(&store, goal_id, &approval.id)?; }
     if revise {
         let note = crate::plan_review::take_revision(&store, goal_id, &approval.id)?;
         replans += 1;
@@ -831,6 +846,8 @@ fn execute_planned<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, 
             }
         }
         if !failures.is_empty() { return Err(delegation::mark("provider", failures.join("; "))); }
+        // ADR-0058: commands a teammate was refused are asked about before its work is integrated.
+        crate::permissions_flow::settle_task_denials(app, goal_id, project, goal, &wave_ids)?;
         check_goal_guidance(app, goal_id, "개발 업무 완료 후 통합 전")?;
         for task_id in wave_ids {
             integrate_task(&store, &root, &task_id, &project.kind).map_err(|error| delegation::mark("integration_conflict", error))?;
@@ -877,7 +894,7 @@ fn execute_planned<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, 
         // ADR-0057: QA also sees what this round's repair tasks reported (to verify, not to trust).
         let qa_prompt = if repair_note.is_empty() { qa_prompt } else { format!("{qa_prompt}\n{repair_note}") };
         record_progress(app, goal_id, None, &reviewer.id, "QA가 통합 결과와 테스트를 확인하고 있습니다");
-        let text = execute_tracked(app, &project.id, goal_id, None, &reviewer.id, &reviewer_connection, &qa_prompt, &root, false)?.text;
+        let text = crate::permissions_flow::review_with_commands(app, project, goal_id, reviewer, &reviewer_connection, &qa_prompt, &root, &worktree_root)?;
         let _ = store.append_event(NewEvent { kind: "qa_review".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: Some(reviewer.id.clone()), message: text.chars().take(500).collect() });
         check_goal_guidance(app, goal_id, "QA 검증 후")?;
         if group.is_empty() {
@@ -1221,9 +1238,13 @@ fn run_task<R: tauri::Runtime>(app: &tauri::AppHandle<R>, mut task: Task, agent:
     // ADR-0057: results of finished work this task builds on, and the criteria the last QA failed.
     let earlier = crate::goal_context::earlier_results(&task, &store.list::<Task>("task")?, &store.list::<crate::model::DeliverableReview>("deliverable_review")?);
     let prompt = if earlier.is_empty() { prompt } else { format!("{prompt}\n{earlier}") };
+    // ADR-0058: commands approved in this goal conversation run without a prompt.
+    let options = crate::permissions_flow::options_for(&store, &task.goal_id, None, false)?;
+    let prompt = format!("{prompt}{}", crate::permissions_flow::approved_note(&store, &task.goal_id)?);
     record_progress(app, &task.goal_id, Some(&task.id), &agent.id, "담당 파일을 구현하고 검증하고 있습니다");
-    match execute_tracked(app, project_id, &task.goal_id, Some(&task.id), &agent.id, &connection, &prompt, worktree, true) {
+    match execute_tracked_with(app, project_id, &task.goal_id, Some(&task.id), &agent.id, &connection, &prompt, worktree, true, &options) {
         Ok(result) => {
+            crate::permissions_flow::record_task_denials(&store, &task, &result.permission_denials, 0)?;
             task.status = "awaiting_integration".into();
             task.result = result.text.chars().take(10_000).collect();
             task.session_id = result.session_id;
@@ -1288,7 +1309,7 @@ fn summary_line(text: &str) -> String {
         .map(|rest| crate::meeting::plain_summary(Some(&serde_json::Value::String(rest.trim().trim_matches('*').trim().to_string())), 80)).unwrap_or_default()
 }
 
-fn transition_goal<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str, status: &str, message: &str) -> Result<(), String> {
+pub(crate) fn transition_goal<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str, status: &str, message: &str) -> Result<(), String> {
     let store = app.state::<Store>();
     let mut goal: Goal = store.get("goal", id)?.ok_or("Goal not found")?;
     goal.status = status.into();

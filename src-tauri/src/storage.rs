@@ -282,7 +282,7 @@ impl Store {
         }
         let mut references = self.list::<crate::references::Reference>("reference")?;
         references.retain(|item| item.goal_id.as_ref().is_none_or(|id| !hidden.contains(id)));
-        Ok(Snapshot { project, projects, agents, connections, goals, meetings, meeting_packets, transmission_approvals, meeting_contributions, goal_lineage, goal_turns, goal_guidance, tasks, deliverable_reviews, squads, goal_summaries, goal_origins, archived_goals, events, approvals, usage, spec_profiles, spec_drafts, references, curator_enabled: crate::references::curator_enabled(self)? })
+        Ok(Snapshot { project, projects, agents, connections, goals, meetings, meeting_packets, transmission_approvals, meeting_contributions, goal_lineage, goal_turns, goal_guidance, tasks, deliverable_reviews, squads, goal_summaries, goal_origins, archived_goals, events, approvals, usage, spec_profiles, spec_drafts, references, curator_enabled: crate::references::curator_enabled(self)?, command_requests: self.list("command_request")?, command_grants: self.list("command_grant")? })
     }
 
     pub fn stage_spec_import(&self, draft: &SpecDraft) -> Result<(), String> {

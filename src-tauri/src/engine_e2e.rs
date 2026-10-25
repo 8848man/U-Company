@@ -182,14 +182,16 @@ fn a_restart_while_waiting_for_approval_keeps_the_approval_pending() {
 }
 
 /// Waits until a second pending approval (the scope addition) appears for the goal.
-fn wait_scope_approval(h: &Harness, id: &str) -> Approval {
+fn wait_scope_approval(h: &Harness, id: &str) -> Approval { wait_operation(h, id, crate::engine::SCOPE_OPERATION) }
+
+fn wait_operation(h: &Harness, id: &str, operation: &str) -> Approval {
     let deadline = Instant::now() + Duration::from_secs(60);
     loop {
-        let found = h.store().list::<Approval>("approval").unwrap().into_iter().find(|item| item.goal_id.as_deref() == Some(id) && item.status == "pending" && item.operation == crate::engine::SCOPE_OPERATION);
+        let found = h.store().list::<Approval>("approval").unwrap().into_iter().find(|item| item.goal_id.as_deref() == Some(id) && item.status == "pending" && item.operation == operation);
         if let Some(approval) = found { h.wait(id, &["awaiting_approval"]); return approval; }
         let goal = h.goal(id);
         assert!(!["completed", "blocked"].contains(&goal.status.as_str()), "goal ended as {} before asking for scope: {}", goal.status, goal.report);
-        assert!(Instant::now() < deadline, "no scope approval");
+        assert!(Instant::now() < deadline, "no {operation} approval");
         std::thread::sleep(Duration::from_millis(100));
     }
 }
@@ -276,4 +278,74 @@ fn dump_screen_snapshots() {
     let scope_project = scope.goal(&scope_id).project_id.unwrap();
     write("blocked", serde_json::json!({ "snapshot": scope.store().snapshot().unwrap(), "goalId": scope_id, "stats": crate::goal_result::block_stats(&scope.store().list("goal_block").unwrap(), &scope_project) }));
     let _ = project_id;
+}
+
+fn granted(h: &Harness, goal_id: &str) -> Vec<String> {
+    crate::permissions_flow::grants(&h.store(), goal_id).unwrap().iter().map(crate::permissions::Rule::key).collect()
+}
+
+#[test]
+fn commands_named_in_the_plan_are_granted_with_it_and_risky_ones_are_held_back() {
+    let Some(h) = harness(&["plan-commands"]) else { return };
+    let id = h.submit(GOAL);
+    h.wait(&id, &["awaiting_approval"]);
+    let plan = h.pending_approval(&id);
+    let request: crate::permissions::CommandRequest = h.store().get("command_request", &plan.id).unwrap().expect("plan command request");
+    assert_eq!(request.rules.iter().map(|rule| (rule.key(), rule.class.clone())).collect::<Vec<_>>(), vec![("Bash(node --test)".to_string(), "safe".to_string()), ("Bash(npm install)".to_string(), "individual".to_string())]);
+    assert!(plan.reason.contains("실행할 명령(승인하면 이 대화에서 허용): node --test") && plan.reason.contains("따로 확인할 명령"), "{}", plan.reason);
+    assert!(granted(&h, &id).is_empty(), "nothing is granted before the plan is approved");
+    h.approve(&id);
+    h.wait(&id, &["completed"]);
+    assert_eq!(granted(&h, &id), vec!["Bash(node --test)"]);
+    assert!(!h.store().list::<Approval>("approval").unwrap().iter().any(|item| item.operation == crate::permissions::OPERATION), "a granted command never stops the work");
+}
+
+#[test]
+fn a_refused_test_command_stops_before_integration_and_resumes_after_approve_all() {
+    let Some(h) = harness(&["needs-permission-once"]) else { return };
+    let id = h.submit(GOAL);
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    let card = wait_operation(&h, &id, crate::permissions::OPERATION);
+    assert!(!h.root.join("todo.js").exists(), "the refused task is not integrated while the card waits");
+    let request: crate::permissions::CommandRequest = h.store().get("command_request", &card.id).unwrap().unwrap();
+    let keys: Vec<String> = request.rules.iter().filter(|rule| rule.class == "safe").map(crate::permissions::Rule::key).collect();
+    assert_eq!(keys, vec!["Bash(node --test)", "Bash(echo \"=== exit: $? ===\")"], "one rule per chained command");
+    crate::permissions_flow::decide(&h.store(), &card.id, &keys).unwrap();
+    let goal = h.wait(&id, &["completed"]);
+    assert!(h.event_kinds(&id).contains(&"task_resumed_with_commands".to_string()));
+    let tests_task = h.tasks(&id).into_iter().find(|task| task.files.iter().any(|file| file == "todo.test.js")).unwrap();
+    assert!(tests_task.result.contains("pass 3"), "the resumed session ran the approved command: {}", tests_task.result);
+    assert!(granted(&h, &id).contains(&"Bash(node --test)".to_string()));
+    assert!(goal.report.contains("QA result:\nPASS"));
+}
+
+#[test]
+fn declining_commands_lets_the_task_continue_as_reported() {
+    let Some(h) = harness(&["needs-permission-once"]) else { return };
+    let id = h.submit(GOAL);
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    let card = wait_operation(&h, &id, crate::permissions::OPERATION);
+    crate::permissions_flow::decide(&h.store(), &card.id, &[]).unwrap();
+    h.wait(&id, &["completed"]);
+    assert!(!h.event_kinds(&id).contains(&"task_resumed_with_commands".to_string()));
+    assert!(granted(&h, &id).is_empty());
+    assert!(crate::permissions_flow::decide(&h.store(), &card.id, &[]).is_err(), "a decided card cannot be decided again");
+}
+
+#[test]
+fn qa_asks_for_its_test_command_reviews_in_a_copy_and_continues() {
+    let Some(h) = harness(&["qa-needs-permission-once"]) else { return };
+    let id = h.submit(GOAL);
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    let card = wait_operation(&h, &id, crate::permissions::OPERATION);
+    assert!(card.reason.starts_with("QA"), "{}", card.reason);
+    assert!(std::fs::read_dir(h.data.parent().unwrap().join("worktrees").join(&id)).unwrap().filter_map(Result::ok).any(|entry| entry.file_name().to_string_lossy().starts_with("review-")), "QA works in a review copy");
+    crate::permissions_flow::decide(&h.store(), &card.id, &["Bash(node --test)".into()]).unwrap();
+    h.wait(&id, &["completed"]);
+    assert!(!std::fs::read_dir(h.data.parent().unwrap().join("worktrees").join(&id)).unwrap().filter_map(Result::ok).any(|entry| entry.file_name().to_string_lossy().starts_with("review-")), "the review copy is removed");
+    let generic = crate::permissions_flow::decide(&h.store(), &card.id, &["Bash(node --test)".into()]);
+    assert!(generic.is_err());
 }

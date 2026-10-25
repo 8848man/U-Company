@@ -66,6 +66,13 @@ fn check_target_parent(root: &Path, relative: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// ADR-0058: a plain copy of the project for a review that may run approved commands (no baseline).
+pub fn copy_for_review(root: &Path, destination: &Path) -> Result<(), String> {
+    if destination.exists() { return Err("검토용 복사본이 이미 있습니다".into()); }
+    let files = folder_files(root)?;
+    copy_folder_files(root, destination, &files)
+}
+
 pub fn prepare_folder_copy(root: &Path, workspace: &Path) -> Result<(), String> {
     if workspace.exists() { return Err("작업 복사본이 이미 존재합니다. 이전 작업을 확인해 주세요".into()); }
     let baseline = workspace.with_extension("baseline");

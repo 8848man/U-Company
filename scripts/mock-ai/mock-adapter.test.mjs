@@ -79,3 +79,22 @@ describe('mock AI adapter', () => {
     expect(plain.tasks[0].files).toEqual(['todo.js', 'todo.test.js']);
   });
 });
+
+describe('mock AI command permissions (ADR-0058)', () => {
+  const implement = 'Work only inside this isolated task folder and change ONLY these declared files: todo.js, todo.test.js. The engine rejects';
+  it('reports a refused test command until node --test is granted', async () => {
+    const { respondWithDenials, mayRunTests } = await import('./mock-adapter.mjs');
+    const folder = mkdtempSync(join(tmpdir(), 'mock-perm-'));
+    const refused = respondWithDenials(implement, folder, options(['needs-permission-once']), scenario, []);
+    expect(refused.denials).toEqual([{ tool: 'Bash', command: 'node --test; echo "=== exit: $? ==="' }]);
+    expect(respondWithDenials(implement, folder, options(['needs-permission-once']), scenario, ['Bash(node --test)', 'Bash(node --test *)']).denials).toEqual([]);
+    expect(respondWithDenials(implement, folder, options(), scenario, []).denials).toEqual([]);
+    expect(mayRunTests(['Bash(npm test)'])).toBe(false);
+    const resumed = respondWithDenials('You are A (dev). The CEO approved these commands for this goal conversation: node --test. Continue your task in this isolated folder: run', folder, options(), scenario, ['Bash(node --test *)']);
+    expect(resumed.text).toContain('pass 3');
+  });
+  it('lists plan commands in plan-commands mode', () => {
+    const plan = JSON.parse(respond('Decompose the CEO goal into remaining FILE-CHANGING implementation tasks', tmpdir(), options(['plan-commands']), scenario));
+    expect(plan.tasks[0].commands).toEqual(['node --test', 'npm install']);
+  });
+});

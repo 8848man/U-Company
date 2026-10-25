@@ -810,6 +810,11 @@ pub struct Snapshot {
     pub references: Vec<crate::references::Reference>,
     #[serde(default)]
     pub curator_enabled: bool,
+    /// ADR-0058: command permission requests (plan cards and refused calls) and conversation grants.
+    #[serde(default)]
+    pub command_requests: Vec<crate::permissions::CommandRequest>,
+    #[serde(default)]
+    pub command_grants: Vec<crate::permissions::CommandGrants>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
