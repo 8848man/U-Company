@@ -62,6 +62,8 @@ pub fn brief(goal: &Goal, reviews: &[DeliverableReview], tasks: &[Task]) -> Stri
         }
         if !failed.is_empty() { lines.push(format!("QA가 충족하지 않았다고 본 기준:\n{}", failed.into_iter().take(12).collect::<Vec<_>>().join("\n"))); }
     }
+    // ADR-0060: after `멈추기` on a criteria card the new plan must not repeat the criteria the team could not meet.
+    if goal.block_kind == "criteria_blocked" { lines.push("위 기준은 팀이 채울 수 없었어요. 새 계획에서는 같은 기준을 그대로 다시 쓰지 말고, 빼거나 프로젝트 파일과 로컬 명령으로 확인할 수 있는 기준으로 바꿔 주세요. 푸시·배포처럼 CEO만 할 수 있는 일은 업무에 넣지 말고 CEO가 할 일로 적어 주세요.".into()); }
     lines.push("승인된 파일 안에서만 고치고, 계획 형식(업무별 수용 기준 1~8개, 하나당 300자 이하)을 지켜 주세요.".into());
     lines.join("\n")
 }
@@ -100,6 +102,10 @@ mod tests {
         assert_eq!(route(&goal("other", "executing"), &[task("t1", "completed")], &approved(), &[]), FixRoute::Revision, "not stopped at review");
         assert_eq!(route(&goal("needs_scope", "validating"), &[task("t1", "completed")], &approved(), &[]), FixRoute::Revision, "a repair that needs a new file needs the CEO's approval");
         assert_eq!(route(&goal("plan_form", "planning"), &[task("t1", "completed")], &[], &[]), FixRoute::Revision, "a first plan that failed has nothing approved");
+        assert_eq!(route(&goal("criteria_blocked", "validating"), &[task("t1", "completed")], &approved(), &[]), FixRoute::Revision, "ADR-0060: criteria the team could not meet are re-planned, never reworked again");
+        let mut stopped = goal("criteria_blocked", "validating");
+        stopped.block_kind = "criteria_blocked".into();
+        assert!(brief(&stopped, &[], &[]).contains("같은 기준을 그대로 다시 쓰지 말고"));
     }
 
     #[test]
@@ -121,7 +127,7 @@ mod tests {
 
     #[test]
     fn the_brief_quotes_the_block_and_only_failed_criteria_of_the_latest_round() {
-        let review = |round: u32, met: bool, text: &str| DeliverableReview { id: format!("r{round}{text}"), goal_id: "g".into(), task_id: "t1".into(), round, verdict: "fail".into(), criteria: vec![CriterionResult { criterion: text.into(), met, evidence: String::new() }], unverified: vec![], reviewer_id: "qa".into(), created_at: "t".into() };
+        let review = |round: u32, met: bool, text: &str| DeliverableReview { id: format!("r{round}{text}"), goal_id: "g".into(), task_id: "t1".into(), round, verdict: "fail".into(), criteria: vec![CriterionResult { criterion: text.into(), met, evidence: String::new(), precondition: String::new() }], unverified: vec![], reviewer_id: "qa".into(), created_at: "t".into() };
         let text = brief(&goal("other", "validating"), &[review(0, false, "옛 기준"), review(1, false, "확인일 기록"), review(1, true, "링크 형식")], &[task("t1", "completed")]);
         assert!(text.starts_with("멈춘 이유: 산출물 'README'의 수용 기준은 8개 이하여야 합니다"));
         assert!(text.contains("README §4 링크 확인: 확인일 기록"));

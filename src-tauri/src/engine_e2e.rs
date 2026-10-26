@@ -492,3 +492,109 @@ fn project_changes_name_files_edited_after_the_app_integrated_them() {
     assert!(text.contains("edited.md (앱이 합친 뒤 내용이 바뀜)") && text.contains("gone.md (지금은 없거나") && !text.contains("- kept.md"), "{text}");
     assert!(text.contains("Git 작업 트리"), "{text}");
 }
+
+// ---------------------------------------------------------------- ADR-0060 criteria the team cannot meet
+
+const STUCK: &str = "README.md에 변경 전 커밋 ID와 두 파일의 SHA-256을 적는다";
+const REPLACEMENT: &str = "README.md는 변경 전 비교를 미확인으로 표시한다";
+
+fn criteria_card(h: &Harness, id: &str) -> (Approval, crate::criteria::CriteriaRequest) {
+    let card = wait_operation(h, id, crate::criteria::OPERATION);
+    let request = h.store().get("criteria_request", &card.id).unwrap().expect("criteria request");
+    (card, request)
+}
+
+fn decision(item: &crate::criteria::StuckCriterion, action: &str, text: &str) -> crate::criteria::CriteriaDecision {
+    crate::criteria::CriteriaDecision { task_id: item.task_id.clone(), index: item.index, action: action.into(), text: text.into(), old: String::new() }
+}
+
+fn wait_status(h: &Harness, id: &str, status: &str) -> Goal {
+    let deadline = Instant::now() + Duration::from_secs(60);
+    loop {
+        let goal = h.goal(id);
+        if goal.status == status { return goal; }
+        assert!(Instant::now() < deadline, "still {} ({}): {}", goal.status, goal.block_kind, goal.report);
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+#[test]
+fn a_missing_precondition_stops_before_any_rework_and_dropping_it_completes() {
+    let Some(h) = harness(&["qa-precondition"]) else { return };
+    let id = h.submit(GOAL);
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    let (card, request) = criteria_card(&h, &id);
+    assert_eq!(h.goal(&id).review_loops_used, 0, "no rework round was spent");
+    assert!(!h.tasks(&id).iter().any(|task| task.title.starts_with(crate::delegation::REPAIR_PREFIX)), "no repair task");
+    assert_eq!(request.items.len(), 1);
+    let item = &request.items[0];
+    assert_eq!((item.kind.as_str(), item.criterion.as_str()), ("precondition", STUCK));
+    assert!(item.reason.contains("Git 이력"), "{}", item.reason);
+    assert_eq!((item.proposal_action.as_str(), item.proposal_text.as_str()), ("replace", REPLACEMENT), "the planner's suggestion is on the card");
+    assert!(card.reason.contains("팀이 채울 수 없음"));
+    assert!(crate::criteria::decide(&h.store(), &card.id, &[decision(item, "replace", "두 줄\n기준")], false).is_err(), "a replacement is one line");
+    crate::criteria::decide(&h.store(), &card.id, &[decision(item, "drop", "")], false).unwrap();
+    let goal = wait_status(&h, &id, "completed");
+    assert_eq!(goal.review_loops_used, 0);
+    assert!(h.tasks(&id).iter().all(|task| !task.acceptance.iter().any(|text| text == STUCK)), "the dropped criterion is gone");
+    let saved: crate::criteria::CriteriaRequest = h.store().get("criteria_request", &card.id).unwrap().unwrap();
+    assert_eq!((saved.decisions[0].action.as_str(), saved.decisions[0].old.as_str()), ("drop", STUCK), "the change is recorded with the old text");
+    assert!(h.event_kinds(&id).contains(&"criteria_changed".to_string()));
+    assert!(crate::criteria::decide(&h.store(), &card.id, &[], false).is_err(), "a decided card cannot be decided again");
+}
+
+#[test]
+fn the_same_failure_after_a_rework_stops_at_the_card_and_stop_blocks_for_a_new_plan() {
+    let Some(h) = harness(&["qa-fail-always"]) else { return };
+    let id = h.submit(GOAL);
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    let (card, request) = criteria_card(&h, &id);
+    assert_eq!(h.goal(&id).review_loops_used, 1, "one rework ran; the second is not spent");
+    assert!(request.items.iter().all(|item| item.kind == "no_progress") && request.items.iter().any(|item| item.criterion == STUCK), "{:?}", request.items);
+    crate::criteria::decide(&h.store(), &card.id, &[], true).unwrap();
+    let goal = wait_status(&h, &id, "blocked");
+    assert_eq!(goal.block_kind, "criteria_blocked");
+    assert_eq!(goal.review_loops_used, 1);
+    assert!(goal.report.contains(STUCK), "{}", goal.report);
+    let snapshot = h.store().snapshot().unwrap();
+    assert_eq!(crate::team_fix::route(&goal, &snapshot.tasks, &snapshot.approvals, &snapshot.goal_guidance), crate::team_fix::FixRoute::Revision, "the fix request re-plans instead of reworking again");
+}
+
+#[test]
+fn a_repair_plan_that_proposes_a_criteria_change_asks_first_and_qa_judges_the_new_criterion() {
+    let Some(h) = harness(&["qa-fail-always", "repair-criteria"]) else { return };
+    let id = h.submit(GOAL);
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    let (card, request) = criteria_card(&h, &id);
+    assert_eq!(h.goal(&id).review_loops_used, 0, "the proposal is decided before any rework");
+    let item = &request.items[0];
+    assert_eq!((item.kind.as_str(), item.proposal_text.as_str()), ("proposal", REPLACEMENT));
+    crate::criteria::decide(&h.store(), &card.id, &[decision(item, "replace", REPLACEMENT)], false).unwrap();
+    let goal = wait_status(&h, &id, "completed");
+    assert_eq!(goal.review_loops_used, 0);
+    assert!(h.tasks(&id).iter().any(|task| task.acceptance.iter().any(|text| text == REPLACEMENT)));
+    let reviews = h.store().snapshot().unwrap().deliverable_reviews;
+    assert!(reviews.iter().filter(|review| review.goal_id == id).flat_map(|review| review.criteria.iter()).any(|criterion| criterion.criterion == REPLACEMENT && criterion.met), "QA judged the replaced criterion");
+}
+
+#[test]
+fn when_only_ceo_actions_remain_resume_plans_no_pass() {
+    let Some(h) = harness(&["objective-ceo"]) else { return };
+    put_goal(&h, A, "blocked", "2026-01-01T00:00:01Z", "할 일 앱을 만들고 GitHub에 푸시해 주세요");
+    put_goal(&h, B, "completed", "2026-01-01T00:00:02Z", "멈춘 이유를 찾아요");
+    put_link(&h, A, B);
+    crate::objective::resume(h.app.handle().clone(), A.into()).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(60);
+    let turn = loop {
+        if let Some(turn) = h.store().list::<crate::model::GoalTurn>("goal_turn").unwrap().into_iter().find(|turn| turn.route.as_deref() == Some("objective_ceo")) { break turn; }
+        assert!(Instant::now() < deadline, "no CEO-action turn");
+        std::thread::sleep(Duration::from_millis(100));
+    };
+    assert!(turn.answer.contains("GitHub 원격 저장소에 푸시해요"), "{}", turn.answer);
+    let found = objective(&h, A).unwrap();
+    assert_eq!((found.state.as_str(), found.remaining.len(), found.ceo_actions.len()), ("open", 0, 1));
+    assert!(!h.store().list::<crate::model::GoalGuidance>("goal_guidance").unwrap().iter().any(|item| item.goal_id == B), "no next pass for CEO-only work");
+}

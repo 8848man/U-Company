@@ -34,6 +34,7 @@
 | --- | --- | --- | --- |
 | 개요 | 브랜치 feature/qa-loop-breaker. ADR-0060. | 기록 | [00_overview.md](programs/qa-loop-breaker/00_overview.md) |
 | Q0 | 결정 기록 | 완료 | [Q0.md](programs/qa-loop-breaker/Q0.md) |
+| Q1 | 엔진: 전제 판정, 같은 실패 감지, 완료 기준 결정 카드, 해결 요청 경로, 계획 사실, CEO 할 일 | 완료 | [Q1.md](programs/qa-loop-breaker/Q1.md) |
 
 ## 진행 중 목표 재개와 달성된 목표 자동 닫기 (2026-10-26, Claude)
 

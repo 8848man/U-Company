@@ -9,6 +9,7 @@ mod goal_context;
 mod permissions;
 mod permissions_flow;
 mod objective;
+mod criteria;
 #[cfg(test)]
 mod engine_e2e;
 mod model;
@@ -36,7 +37,7 @@ use tauri::{Emitter, Manager};
 struct BackendInfo { protocol_version: u32, build_id: String }
 
 #[tauri::command]
-fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 41, build_id: meeting::meeting_build() } }
+fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 42, build_id: meeting::meeting_build() } }
 
 #[tauri::command]
 fn get_snapshot(store: tauri::State<'_, Store>) -> Result<Snapshot, String> { store.snapshot() }
@@ -722,6 +723,14 @@ fn reopen_conversation(conversation_id: String, store: tauri::State<'_, Store>, 
     Ok(())
 }
 
+/// ADR-0060: the CEO's choice on a criteria card (`결정대로 다시 확인` or `멈추기`).
+#[tauri::command]
+fn decide_criteria(approval_id: String, decisions: Vec<criteria::CriteriaDecision>, stop: bool, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
+    criteria::decide(&store, &approval_id, &decisions, stop)?;
+    let _ = app.emit("state-changed", ());
+    Ok(())
+}
+
 /// ADR-0058: the CEO's choice on a command-permission card (`모두 승인`, one rule, or none).
 #[tauri::command]
 fn decide_command_permission(approval_id: String, rules: Vec<String>, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
@@ -734,6 +743,7 @@ fn decide_command_permission(approval_id: String, rules: Vec<String>, store: tau
 fn decide_approval(id: String, approved: bool, squad_digest: Option<String>, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
     let approval: Approval = store.get("approval", &id)?.ok_or("Approval not found")?;
     if approval.operation == permissions::OPERATION { return Err("명령 권한은 명령 권한 카드에서 결정해 주세요".into()); }
+    if approval.operation == criteria::OPERATION { return Err("완료 기준은 완료 기준 결정 카드에서 결정해 주세요".into()); }
     if let Some(goal_id) = &approval.goal_id {
         let goal: Goal = store.get("goal", goal_id)?.ok_or("승인 목표를 찾을 수 없습니다")?;
         if goal.kind != "execution" { return Err("회의 전송은 별도 승인 명령을 사용하세요".into()); }
@@ -889,7 +899,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, add_mock_connection, get_goal_result, get_block_stats, open_project_folder, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, request_team_fix, stage_text_reference, stage_image_reference, discard_reference, set_reference_caption, set_reference_role, set_curator_enabled, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, decide_command_permission, resume_conversation, reopen_conversation, revise_plan, cancel_goal, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
+        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, add_mock_connection, get_goal_result, get_block_stats, open_project_folder, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, request_team_fix, stage_text_reference, stage_image_reference, discard_reference, set_reference_caption, set_reference_role, set_curator_enabled, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, decide_command_permission, decide_criteria, resume_conversation, reopen_conversation, revise_plan, cancel_goal, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
         .run(tauri::generate_context!())
         .expect("error while running AI Organization OS");
 }

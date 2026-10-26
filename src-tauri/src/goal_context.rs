@@ -161,7 +161,7 @@ mod result_context_tests {
         serde_json::from_value(serde_json::json!({ "id": id, "goalId": "g", "title": title, "instructions": "i", "assigneeId": "dev", "status": status, "files": [format!("{id}.md")], "dependsOn": deps, "result": result })).unwrap()
     }
     fn review(task_id: &str, round: u32, verdict: &str, met: &[bool]) -> DeliverableReview {
-        DeliverableReview { id: format!("{task_id}{round}"), goal_id: "g".into(), task_id: task_id.into(), round, verdict: verdict.into(), criteria: met.iter().enumerate().map(|(n, met)| CriterionResult { criterion: format!("기준{n}"), met: *met, evidence: format!("근거{n}") }).collect(), unverified: vec![], reviewer_id: "qa".into(), created_at: "t".into() }
+        DeliverableReview { id: format!("{task_id}{round}"), goal_id: "g".into(), task_id: task_id.into(), round, verdict: verdict.into(), criteria: met.iter().enumerate().map(|(n, met)| CriterionResult { criterion: format!("기준{n}"), met: *met, evidence: format!("근거{n}"), precondition: String::new() }).collect(), unverified: vec![], reviewer_id: "qa".into(), created_at: "t".into() }
     }
 
     #[test]
