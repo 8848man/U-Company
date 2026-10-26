@@ -25,6 +25,10 @@ CEO가 실제로 변경될 대상과 이유를 보고 앱 안에서 명시적으
 | `resume` | [UF-06 중단과 복구](UF-06-recovery.md) | 중단 목표의 Git 복구 승인 결과를 확인할 때 |
 | `branch` | [UF-04 목표 대화와 방향 변경](UF-04-conversation.md) | 범위가 달라 기존 계획을 고쳐야 할 때 |
 
+## 완료 기준 결정 (ADR-0060)
+
+QA가 팀이 채울 수 없는 기준(전제 없음)을 찾았거나, 재작업 뒤에도 같은 기준이 그대로 실패했거나, PM이 기준 수정을 제안하면 재작업 대신 `완료 기준 결정` 카드가 뜬다. 기준마다 `빼기`·`바꾸기`·`그대로`를 고르고 `결정대로 다시 확인`을 누르면 파일은 그대로 두고 QA만 다시 한다(재작업 횟수를 쓰지 않음). `멈추기`는 목표를 `criteria_blocked`로 멈춘다.
+
 ## 규칙과 검증 원본
 
 [보안](../security.md), [목표 대화](../goalConversation/00_index.md), [ADR-0030](../architecture/decisions/ADR-0030.md), [ADR-0045](../architecture/decisions/ADR-0045.md), [QA-17·QA-35·QA-44](../../qa/MANUAL-QA.md). 관계의 `resume`은 허가가 아니라 엔진의 저장 상태 검사를 거쳐 돌아갈 수 있음을 뜻한다.
