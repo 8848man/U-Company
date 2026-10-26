@@ -35,6 +35,7 @@
 | 개요 | 브랜치 feature/goal-resume. ADR-0059. | 기록 | [00_overview.md](programs/goal-resume/00_overview.md) |
 | G0 | 결정 기록 | 완료 | [G0.md](programs/goal-resume/G0.md) |
 | G1·G2 | 대화 목표 판단, 이어서 하기, 다시 열기 | 완료 | [G1.md](programs/goal-resume/G1.md) |
+| G3 | 원래 목표 줄, 이어서 하기·다시 열기 화면, 대화 단위 열린 작업 | 완료 | [G3.md](programs/goal-resume/G3.md) |
 
 ## 명령 권한 승인과 재작업 원인 수정 (2026-10-26, Claude)
 

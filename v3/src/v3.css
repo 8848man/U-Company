@@ -214,3 +214,9 @@ body.office-docked .v3 .main{margin-right:min(440px,90vw)}
 .v3 .gc .gc-commands{list-style:none;margin:2px 0;padding:0;display:grid;gap:6px}.v3 .gc .gc-commands li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.v3 .gc .gc-commands code{padding:3px 7px;border-radius:6px;background:#122019;border:1px solid #31493a;font-size:12.5px}.v3 .gc .gc-commands small{color:#b8c9b5}.v3 .gc .gc-commands li button{margin-left:auto;padding:5px 10px;font-size:12.5px}.v3 .gc .gc-commands.is-blocked code{text-decoration:line-through;opacity:.7}
 .v3 .gc .gc-commands-head{margin:6px 0 0;font-size:13px;color:#d9c48a}
 .v3 .gc .gc-plan .gc-plan-commands{font-size:13px;color:#b9dcff}
+/* ADR-0059: original objective line under the conversation header */
+.v3 .gc .gc-objective{margin:0 16px 8px;padding:10px 14px;border:1px solid #3d5a46;border-radius:10px;background:#16241c}
+.v3 .gc .gc-objective-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}.v3 .gc .gc-objective-row strong{flex:1;min-width:200px;font-size:14px;font-weight:500}
+.v3 .gc .gc-objective-kicker{font-size:11px;letter-spacing:.06em;color:#9fb59c}
+.v3 .gc .gc-objective.is-open,.v3 .gc .gc-objective.is-unchecked,.v3 .gc .gc-objective.is-reopened{border-color:#c9a94a}.v3 .gc .gc-objective.is-closed,.v3 .gc .gc-objective.is-achieved{border-color:#5f8f6b;opacity:.95}
+.v3 .gc .gc-objective details{margin-top:6px;font-size:13px}.v3 .gc .gc-objective ul{margin:4px 0;padding-left:18px}.v3 .gc .gc-objective-head{margin:6px 0 0;color:#d9c48a;font-size:12.5px}.v3 .gc .gc-objective>small{display:block;margin-top:4px}

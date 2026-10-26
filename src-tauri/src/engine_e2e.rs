@@ -288,6 +288,20 @@ fn dump_screen_snapshots() {
     perm.approve(&perm_id);
     let _ = wait_operation(&perm, &perm_id, crate::permissions::OPERATION);
     write("permission", serde_json::json!({ "snapshot": perm.store().snapshot().unwrap(), "goalId": perm_id }));
+    let Some(open) = harness(&[]) else { return };
+    put_goal(&open, A, "blocked", "2026-01-01T00:00:01Z", "할 일을 적고 완료 표시와 삭제를 할 수 있는 작은 웹앱을 만들어 주세요");
+    put_goal(&open, B, "completed", "2026-01-01T00:00:02Z", "멈춘 이유를 찾아 고칠 일을 정해요");
+    put_link(&open, A, B);
+    write("unchecked", serde_json::json!({ "snapshot": open.store().snapshot().unwrap(), "goalId": B }));
+    crate::objective::check(open.app.handle(), A, "completion").unwrap();
+    write("objopen", serde_json::json!({ "snapshot": open.store().snapshot().unwrap(), "goalId": B }));
+    let Some(closed) = harness(&["objective-achieved"]) else { return };
+    put_goal(&closed, A, "blocked", "2026-01-01T00:00:01Z", "할 일을 적고 완료 표시와 삭제를 할 수 있는 작은 웹앱을 만들어 주세요");
+    put_goal(&closed, B, "blocked", "2026-01-01T00:00:02Z", "통합 충돌을 풀어요");
+    put_link(&closed, A, B);
+    put_goal(&closed, X, "completed", "2026-01-01T00:00:03Z", "할 일 앱 전체를 새로 만들어요");
+    crate::objective::check(closed.app.handle(), A, "resume").unwrap();
+    write("objclosed", serde_json::json!({ "snapshot": closed.store().snapshot().unwrap(), "goalId": B }));
 }
 
 fn granted(h: &Harness, goal_id: &str) -> Vec<String> {

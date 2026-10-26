@@ -13,6 +13,14 @@ describe('open work launcher data', () => {
     expect(result[0].tasks.map(item => item.id)).toEqual(['a1']);
     expect(result[1].projectName).toBe('Other');
   });
+  it('keeps a conversation whose small newest pass completed while its objective is open, and drops closed ones (ADR-0059)', () => {
+    const goals = [goal('a', 'blocked'), goal('b', 'completed'), goal('x', 'blocked'), goal('y', 'blocked'), goal('solo', 'completed')];
+    const goalGuidance = [{ id: 'g1', goalId: 'a', text: '', status: 'revised' as const, createdAt: '', checkpoint: null, replacementGoalId: 'b' }, { id: 'g2', goalId: 'x', text: '', status: 'revised' as const, createdAt: '', checkpoint: null, replacementGoalId: 'y' }];
+    const objective = (conversationId: string, state: string) => ({ conversationId, projectId: 'p', state, achieved: false, achievedBy: [], evidence: [], remaining: [], summary: '', projectChanges: '', checkedGoalId: '', checkedAt: '' });
+    expect(openWork({ ...snapshot, goals, goalGuidance }).map(item => item.goal.id).sort()).toEqual(['b', 'y']); // an unchecked longer chain stays; a single completed goal does not
+    expect(openWork({ ...snapshot, goals, goalGuidance, conversationObjectives: [objective('a', 'achieved'), objective('x', 'closed_by_other')] }).map(item => item.goal.id)).toEqual([]);
+    expect(openWork({ ...snapshot, goals, goalGuidance, conversationObjectives: [objective('x', 'reopened')] }).map(item => item.goal.id).sort()).toEqual(['b', 'y']);
+  });
   it('keeps a new goal without tasks and prioritizes pending decisions', () => {
     const result = openWork({ ...snapshot, goals: [goal('z', 'new'), goal('a', 'awaiting_approval')], approvals: [{ id: 'approval', goalId: 'a', operation: 'project_write', reason: '', status: 'pending', createdAt: '' }] });
     expect(result.map(item => item.goal.id)).toEqual(['a', 'z']);

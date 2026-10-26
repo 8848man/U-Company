@@ -85,6 +85,10 @@ export function stageLines(goal: Goal, events: Event[]): StreamLine[] {
     else if (event.kind === 'permission_denied') text = '팀원이 승인되지 않은 명령에 막혔어요';
     else if (event.kind === 'task_resumed_with_commands') text = '승인된 명령으로 작업을 이어서 했어요';
     else if (event.kind === 'review_copy_skipped') text = 'QA가 복사본을 만들지 못해 명령 없이 읽기만 해서 검토해요';
+    else if (event.kind === 'objective_checked') text = /: achieved/.test(event.message) ? '원래 목표가 달성된 것을 확인했어요' : '원래 목표를 확인했어요: 아직 남은 일이 있어요';
+    else if (event.kind === 'conversation_closed') text = '다른 목표로 원래 목표가 달성되어 대화를 닫았어요(파일은 그대로예요)';
+    else if (event.kind === 'conversation_reopened') text = '대화를 다시 열었어요';
+    else if (event.kind === 'objective_check_failed' || event.kind === 'objective_resume_failed') text = `원래 목표를 확인하지 못했어요: ${event.message.slice(0, 120)}`;
     else if (event.kind === 'task_unchanged') text = '재작업 담당이 고칠 것이 없다고 판단해 QA가 다시 확인해요';
     if (text) lines.push({ id: `event:${event.id}`, at: event.at, text });
   }
