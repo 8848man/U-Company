@@ -28,6 +28,13 @@
 | v2 화면·알림·회의 | 실제 Windows QA-36/37/38 대기, 회의 제공자별 격리 검증 별도 필요 | [회의 구현 기록](milestones/WLG-012.md), [v3 검증 범위](programs/v3-first-package/open-verification.md) |
 | 런타임 이벤트·취소·세션 재개, 추가 승인, Ubuntu | 초기 체크리스트에서 미완료; 현행 명세·코드를 대조해 별도 마일스톤으로 진행 | [초기 체크리스트](milestones/WLG-054.md), [개선 계획](../sdd/workflow-improvement-plan.md) |
 
+## 진행 중 목표 재개와 달성된 목표 자동 닫기 (2026-10-26, Claude)
+
+| 라운드 | 작업 요약 | 상태 | 파일 |
+| --- | --- | --- | --- |
+| 개요 | 브랜치 feature/goal-resume. ADR-0059. | 기록 | [00_overview.md](programs/goal-resume/00_overview.md) |
+| G0 | 결정 기록 | 완료 | [G0.md](programs/goal-resume/G0.md) |
+
 ## 명령 권한 승인과 재작업 원인 수정 (2026-10-26, Claude)
 
 | 라운드 | 작업 요약 | 상태 | 파일 |

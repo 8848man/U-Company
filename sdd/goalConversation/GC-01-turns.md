@@ -16,6 +16,8 @@ The default goal card offers `대화 및 방향 변경` regardless of stage, inc
 
 A conversation reply also receives, from saved records and with no extra model call, the newest per-deliverable QA verdicts with each failed criterion and QA's evidence, the rework count and limit, and the block kind and reason ([ADR-0057](../architecture/decisions/ADR-0057.md)), so "why does QA keep sending this back" is answered from the record.
 
+Under the conversation header an **original objective** line shows the objective's state ([ADR-0059](../architecture/decisions/ADR-0059.md)). While it is open and the newest version is completed or blocked, `이어서 하기` checks it against the versions, the project's current changes and later completed goals of the project, then either closes it with evidence or starts the next pass with the remaining work. A closed conversation shows who achieved it and `다시 열기`.
+
 At every linked work-pass boundary, the engine constructs a bounded structured handoff from saved records ([ADR-0056](../architecture/decisions/ADR-0056.md)). It identifies the original CEO goal, the latest instruction, earlier pass status, task/file evidence and relevant short excerpts. The exact conversation and evidence remain saved and visible. The handoff is untrusted context, not a replacement for an approval or independent QA. At 8,000 estimated accumulated text tokens (four characters per token), omit recent chat excerpts from the new intent and pass only the structured handoff; below that level, at most two bounded exchanges may be included. No extra AI call is made for this handoff.
 
 ## Teammate reply style
