@@ -643,10 +643,8 @@ fn create_goal_revision(guidance_id: String, intent: String, store: tauri::State
 #[tauri::command]
 fn preview_git_bootstrap(goal_id: String, store: tauri::State<'_, Store>) -> Result<git_bootstrap::Preview, String> {
     let goal: Goal = store.get("goal", &goal_id)?.ok_or("목표를 찾을 수 없습니다")?;
-    if goal.kind != "execution" { return Err("회의 목표는 Git 초기화 복구 대상이 아닙니다".into()); }
-    if goal.status != "blocked" { return Err("중단된 Git 초기화 업무에서만 이 복구 작업을 사용할 수 있습니다".into()); }
-    let tasks: Vec<Task> = store.list::<Task>("task")?.into_iter().filter(|task| task.goal_id == goal_id).collect();
-    if !engine::bootstrap_recovery_allowed(&tasks) { return Err("Git 초기화에 실패한 단일 업무가 확인되지 않았습니다. 업무 범위를 검토해 주세요".into()); }
+    // ADR-0061: offered from `지금 할 일` for any execution goal of a folder project while nothing runs there.
+    git_bootstrap_allowed(&store, &goal)?;
     let project_id = goal.project_id.ok_or("프로젝트가 연결되지 않은 목표입니다")?;
     let project: Project = store.get("project_entry", &project_id)?.ok_or("등록된 프로젝트를 찾을 수 없습니다")?;
     let selected: Project = store.get("project", "selected")?.ok_or("프로젝트를 선택해 주세요")?;
@@ -654,13 +652,14 @@ fn preview_git_bootstrap(goal_id: String, store: tauri::State<'_, Store>) -> Res
     git_bootstrap::preview(&project)
 }
 
+fn git_bootstrap_allowed(store: &Store, goal: &Goal) -> Result<(), String> { git_bootstrap::allowed(&store.list::<Goal>("goal")?, goal) }
+
 #[tauri::command]
 fn bootstrap_project_git(goal_id: String, fingerprint: String, selected_files: Vec<String>, author_name: String, author_email: String, message: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<git_bootstrap::ResultInfo, String> {
     let goal: Goal = store.get("goal", &goal_id)?.ok_or("목표를 찾을 수 없습니다")?;
-    if goal.kind != "execution" { return Err("회의 목표는 Git 초기화 복구 대상이 아닙니다".into()); }
-    if goal.status != "blocked" { return Err("중단된 Git 초기화 업무에서만 이 복구 작업을 사용할 수 있습니다".into()); }
+    git_bootstrap_allowed(&store, &goal)?;
     let tasks: Vec<Task> = store.list::<Task>("task")?.into_iter().filter(|task| task.goal_id == goal_id).collect();
-    if !engine::bootstrap_recovery_allowed(&tasks) { return Err("Git 초기화에 실패한 단일 업무가 확인되지 않았습니다. 업무 범위를 검토해 주세요".into()); }
+    let recovery = goal.status == "blocked" && engine::bootstrap_recovery_allowed(&tasks);
     let project_id = goal.project_id.as_deref().ok_or("프로젝트가 연결되지 않은 목표입니다")?;
     let project: Project = store.get("project_entry", project_id)?.ok_or("등록된 프로젝트를 찾을 수 없습니다")?;
     let selected_project: Project = store.get("project", "selected")?.ok_or("프로젝트를 선택해 주세요")?;
@@ -675,7 +674,7 @@ fn bootstrap_project_git(goal_id: String, fingerprint: String, selected_files: V
             let refreshed = platform::refresh_registered_project(project, actual);
             store.select_project(&refreshed)?;
             store.append_event(NewEvent::goal("git_bootstrap_completed", &goal, &format!("main 첫 커밋 {} · {}개 파일", result.commit_id, result.committed_files.len())))?;
-            result.qa_started = match engine::verify_bootstrap_goal(app.clone(), &goal.id, &result.commit_id, &result.committed_files) {
+            result.qa_started = if !recovery { false } else { match engine::verify_bootstrap_goal(app.clone(), &goal.id, &result.commit_id, &result.committed_files) {
                 Ok(true) => true,
                 Ok(false) => {
                     let _ = store.append_event(NewEvent::goal("git_bootstrap_qa_unavailable", &goal, "커밋 파일이 실패 업무의 선언 파일과 다르거나 다른 미완료 업무가 있어 자동 QA를 시작하지 않았습니다. 목표 대화에서 남은 업무 범위를 조정해 주세요"));
@@ -685,7 +684,7 @@ fn bootstrap_project_git(goal_id: String, fingerprint: String, selected_files: V
                     let _ = store.append_event(NewEvent::goal("git_bootstrap_qa_unavailable", &goal, &error));
                     false
                 }
-            };
+            } };
             let _ = app.emit("state-changed", ());
             Ok(result)
         }

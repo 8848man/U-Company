@@ -28,6 +28,13 @@
 | v2 화면·알림·회의 | 실제 Windows QA-36/37/38 대기, 회의 제공자별 격리 검증 별도 필요 | [회의 구현 기록](milestones/WLG-012.md), [v3 검증 범위](programs/v3-first-package/open-verification.md) |
 | 런타임 이벤트·취소·세션 재개, 추가 승인, Ubuntu | 초기 체크리스트에서 미완료; 현행 명세·코드를 대조해 별도 마일스톤으로 진행 | [초기 체크리스트](milestones/WLG-054.md), [개선 계획](../sdd/workflow-improvement-plan.md) |
 
+## `지금 할 일` 통합 (2026-10-27, Claude)
+
+| 라운드 | 작업 요약 | 상태 | 파일 |
+| --- | --- | --- | --- |
+| 개요 | 브랜치 feature/now-todo. ADR-0061. | 기록 | [00_overview.md](programs/now-todo/00_overview.md) |
+| T0 | 원래 목표·CEO 할 일·Git 시작을 `지금 할 일`로 모으고 Git 시작을 실제로 실행되게 함 | 완료 | [T0.md](programs/now-todo/T0.md) |
+
 ## QA 공회전 끊기 (2026-10-26, Claude)
 
 | 라운드 | 작업 요약 | 상태 | 파일 |
