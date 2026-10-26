@@ -31,6 +31,7 @@ export function parseArgs(argv) {
 
 /** Which engine stage sent this request, from the fixed wording of the engine's prompts. */
 export function stageOf(prompt) {
+  if (prompt.includes('Judge whether the ORIGINAL CEO objective of this goal conversation is achieved')) return 'objective';
   if (prompt.includes('Return ONLY JSON: {"kind":"discuss')) return 'conversation_decision';
   if (prompt.includes('READ-ONLY goal conversation') || prompt.includes('READ-ONLY escalation')) return 'conversation';
   if (prompt.includes('reviewing a CEO-approved Git bootstrap')) return 'bootstrap_review';
@@ -173,6 +174,15 @@ export function respond(prompt, cwd, options, scenario, allowed = []) {
       });
       const verdict = deliverables.every(item => item.verdict === 'PASS') ? 'PASS' : 'FAIL';
       return JSON.stringify({ verdict, deliverables, risks: ['모의 AI 판정이라 실제 품질은 확인되지 않았어요'] });
+    }
+    case 'objective': {
+      // ADR-0059: objective-achieved → a later goal of the project achieved it; objective-bad → malformed;
+      // default → not achieved yet, with remaining work.
+      if (options.modes.has('objective-bad')) return '판단할 수 없어요';
+      const later = prompt.slice(prompt.indexOf('Later completed goals of this project:'));
+      const id = later.match(/- goal ([0-9a-f-]{36}) \[completed\]/)?.[1];
+      if (options.modes.has('objective-achieved') && id) return JSON.stringify({ achieved: true, achievedBy: [id], evidence: ['todo.js · todo.test.js (모의 AI 확인)'], remaining: [], summary: '나중에 만든 목표가 원래 목표를 이미 끝냈어요' });
+      return JSON.stringify({ achieved: false, achievedBy: [], evidence: [], remaining: ['화면 파일(index.html, main.js)을 마무리해요', 'node --test로 확인해요'], summary: '원래 목표 중 화면 작업이 남았어요' });
     }
     case 'resume':
       return mayRunTests(allowed) ? '모의 AI가 승인된 `node --test`를 실행했어요: tests 3, pass 3, fail 0.' : '모의 AI: 아직 테스트 명령이 승인되지 않았어요.';

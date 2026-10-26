@@ -547,7 +547,7 @@ pub fn resume_auto_guidance<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     }
 }
 
-fn follow_auto_guidance<R: tauri::Runtime>(app: tauri::AppHandle<R>, guidance_id: String) {
+pub(crate) fn follow_auto_guidance<R: tauri::Runtime>(app: tauri::AppHandle<R>, guidance_id: String) {
     thread::spawn(move || {
         let store = app.state::<Store>();
         loop {
@@ -929,6 +929,8 @@ fn execute_planned<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, 
     goal.status = "completed".into();
     goal.report = format!("CEO goal: {}\n\nCTO analysis:\n{}\n\nReused prior tasks:\n{}\n\nNewly completed tasks:\n{}\n\nQA result:\n{}", goal.intent, analysis, if reuse_note.is_empty() { "None" } else { &reuse_note }, tasks.iter().map(|t| format!("- {}: {}", t.title, t.result)).collect::<Vec<_>>().join("\n"), review_report);
     store.complete_goal_if_clear(&goal)?;
+    // ADR-0059: check the conversation's original objective in the background.
+    crate::objective::after_completion(app.clone(), goal_id.to_string());
     // ADR-0041: keep the squad record; contracted external staff leave the roster.
     squad::release(&store, goal_id)?;
     let _ = app.emit("state-changed", ());
@@ -940,12 +942,18 @@ fn execute_planned<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, 
 /// records (`team_fix`); a repair stays inside the approved files, a new version is planned and
 /// waits for the CEO's approval. The request is kept in the goal conversation as a CEO turn.
 pub fn request_team_fix<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_id: String) -> Result<GoalTurn, String> {
+    request_team_fix_with(app, goal_id, None)
+}
+
+/// ADR-0059: the same fix request with extra context (the remaining work of the original objective
+/// and the project's current changes) appended to the planner's brief.
+pub fn request_team_fix_with<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_id: String, extra: Option<String>) -> Result<GoalTurn, String> {
     let store = app.state::<Store>();
     if store.get::<crate::archive::GoalArchive>("goal_archive", &goal_id)?.is_some() { return Err("보관한 목표입니다. 설정 › 백업 삭제에서 되돌린 뒤 진행해 주세요".into()); }
     let snapshot = store.snapshot()?;
     let goal: Goal = snapshot.goals.iter().find(|item| item.id == goal_id).cloned().ok_or("목표를 찾을 수 없습니다")?;
     let route = crate::team_fix::route(&goal, &snapshot.tasks, &snapshot.approvals, &snapshot.goal_guidance);
-    let brief = crate::team_fix::brief(&goal, &snapshot.deliverable_reviews, &snapshot.tasks);
+    let brief = format!("{}{}", crate::team_fix::brief(&goal, &snapshot.deliverable_reviews, &snapshot.tasks), extra.unwrap_or_default());
     let project = project_for_goal(&snapshot, &goal)?;
     let planner = repair_planner(&store, &snapshot, &goal_id)?;
     connection(&snapshot.connections, &planner)?;
@@ -1365,7 +1373,7 @@ fn validate_plan(plan: &ProposedPlan) -> Result<(), String> {
     Ok(())
 }
 
-fn digest_project_file(root: &Path, relative: &str) -> Result<FileDigest, String> {
+pub(crate) fn digest_project_file(root: &Path, relative: &str) -> Result<FileDigest, String> {
     if relative.is_empty() || relative.contains('\\') || relative.contains(':') || relative.split('/').any(|part| part.is_empty() || part == "." || part == ".." || part == ".git") {
         return Err(format!("재사용 증거에 안전하지 않은 파일 경로: {relative}"));
     }

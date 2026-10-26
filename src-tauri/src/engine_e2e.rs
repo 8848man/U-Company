@@ -360,3 +360,121 @@ fn qa_asks_for_its_test_command_reviews_in_a_copy_and_continues() {
     let generic = crate::permissions_flow::decide(&h.store(), &card.id, &["Bash(node --test)".into()]);
     assert!(generic.is_err());
 }
+
+// ---------------------------------------------------------------- ADR-0059 conversation objective
+
+fn put_goal(h: &Harness, id: &str, status: &str, created: &str, intent: &str) -> Goal {
+    let project: crate::model::Project = h.store().get("project", "selected").unwrap().unwrap();
+    let goal: Goal = serde_json::from_value(serde_json::json!({ "id": id, "kind": "execution", "projectId": project.id, "intent": intent, "status": status, "report": if status == "blocked" { "Blocked: 통합 실패" } else { "done" }, "createdAt": created, "reviewLoopsUsed": 0, "reviewLoopLimit": 2, "blockKind": if status == "blocked" { "integration_conflict" } else { "" } })).unwrap();
+    h.store().put("goal", id, &goal, None).unwrap();
+    goal
+}
+
+fn put_link(h: &Harness, from: &str, to: &str) {
+    let link: crate::model::GoalGuidance = serde_json::from_value(serde_json::json!({ "id": format!("{from}-{to}"), "goalId": from, "text": "멈춘 원인을 해결해 주세요", "status": "revised", "createdAt": "t", "replacementGoalId": to })).unwrap();
+    h.store().put("goal_guidance", &link.id, &link, None).unwrap();
+}
+
+fn objective(h: &Harness, conversation: &str) -> Option<crate::objective::ConversationObjective> { h.store().get("conversation_objective", conversation).unwrap() }
+
+fn wait_objective(h: &Harness, conversation: &str, states: &[&str]) -> crate::objective::ConversationObjective {
+    let deadline = Instant::now() + Duration::from_secs(60);
+    loop {
+        if let Some(found) = objective(h, conversation) { if states.contains(&found.state.as_str()) { return found; } }
+        assert!(Instant::now() < deadline, "objective never reached {states:?}: {:?}", objective(h, conversation));
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
+const A: &str = "aaaaaaaa-0000-4000-8000-000000000001";
+const B: &str = "bbbbbbbb-0000-4000-8000-000000000002";
+const X: &str = "cccccccc-0000-4000-8000-000000000003";
+
+#[test]
+fn a_single_version_that_passes_qa_achieves_its_objective_without_a_model_call() {
+    let Some(h) = harness(&[]) else { return };
+    let id = h.submit(GOAL);
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    h.wait(&id, &["completed"]);
+    let found = wait_objective(&h, &id, &["achieved"]);
+    assert_eq!(found.achieved_by, vec![id.clone()]);
+    let calls = h.store().list::<crate::model::TokenUsageRecord>("usage").unwrap().into_iter().filter(|item| item.goal_id == id && item.agent_id == "cto").count();
+    assert_eq!(calls, 1, "only the CTO analysis; the objective needed no extra call");
+}
+
+#[test]
+fn a_finished_small_pass_leaves_the_conversation_open_and_resume_plans_the_remaining_work() {
+    let Some(h) = harness(&[]) else { return };
+    put_goal(&h, A, "blocked", "2026-01-01T00:00:01Z", "할 일 앱을 만들어 주세요");
+    put_goal(&h, B, "completed", "2026-01-01T00:00:02Z", "멈춘 이유를 찾아요");
+    put_link(&h, A, B);
+    crate::objective::check(h.app.handle(), A, "completion").unwrap();
+    let open = objective(&h, A).unwrap();
+    assert_eq!(open.state, "open", "the newest pass completed but the original objective did not");
+    assert_eq!(open.remaining.len(), 2);
+    crate::objective::resume(h.app.handle().clone(), A.into()).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(60);
+    let next = loop {
+        let guidance = h.store().list::<crate::model::GoalGuidance>("goal_guidance").unwrap();
+        if let Some(next) = guidance.iter().find(|item| item.goal_id == B).and_then(|item| item.replacement_goal_id.clone()) { break next; }
+        assert!(Instant::now() < deadline, "no follow-up pass was created");
+        std::thread::sleep(Duration::from_millis(100));
+    };
+    let goal = h.wait(&next, &["awaiting_approval"]);
+    assert!(goal.intent.contains("원래 목표를 이어서 완료해 주세요") && goal.intent.contains("화면 파일"), "{}", goal.intent);
+    assert!(h.store().list::<crate::model::GoalTurn>("goal_turn").unwrap().iter().any(|turn| turn.goal_id == B && turn.route.as_deref() == Some("followup")));
+}
+
+#[test]
+fn resume_closes_a_conversation_a_later_goal_achieved_without_touching_files_and_it_can_be_reopened() {
+    let Some(h) = harness(&["objective-achieved"]) else { return };
+    put_goal(&h, A, "blocked", "2026-01-01T00:00:01Z", "할 일 앱을 만들어 주세요");
+    put_goal(&h, B, "blocked", "2026-01-01T00:00:02Z", "통합 충돌을 풀어요");
+    put_link(&h, A, B);
+    put_goal(&h, X, "completed", "2026-01-01T00:00:03Z", "할 일 앱 전체를 새로 만들어요");
+    let readme = std::fs::read_to_string(h.root.join("README.md")).unwrap();
+    crate::objective::resume(h.app.handle().clone(), A.into()).unwrap();
+    let closed = wait_objective(&h, A, &["closed_by_other"]);
+    assert_eq!(closed.achieved_by, vec![X.to_string()]);
+    assert!(!closed.evidence.is_empty());
+    assert_eq!(h.goal(B).status, "blocked", "closing changes no goal record");
+    assert_eq!(std::fs::read_to_string(h.root.join("README.md")).unwrap(), readme);
+    assert!(h.store().list::<crate::model::GoalTurn>("goal_turn").unwrap().iter().any(|turn| turn.route.as_deref() == Some("objective_closed")));
+    assert!(crate::objective::resume(h.app.handle().clone(), A.into()).is_err(), "a closed conversation is reopened first");
+    assert_eq!(crate::objective::reopen(&h.store(), A).unwrap().state, "reopened");
+    assert!(crate::objective::reopen(&h.store(), A).is_err());
+}
+
+#[test]
+fn a_malformed_judgement_never_closes_and_resume_starts_nothing() {
+    let Some(h) = harness(&["objective-bad"]) else { return };
+    put_goal(&h, A, "blocked", "2026-01-01T00:00:01Z", "할 일 앱을 만들어 주세요");
+    put_goal(&h, B, "completed", "2026-01-01T00:00:02Z", "멈춘 이유를 찾아요");
+    put_link(&h, A, B);
+    crate::objective::resume(h.app.handle().clone(), A.into()).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(60);
+    while !h.event_kinds(B).contains(&"objective_resume_failed".to_string()) { assert!(Instant::now() < deadline, "no failure recorded"); std::thread::sleep(Duration::from_millis(100)); }
+    let found = objective(&h, A).unwrap();
+    assert_eq!(found.state, "open");
+    assert!(found.summary.contains("형식"), "{}", found.summary);
+    assert!(!h.store().list::<crate::model::GoalGuidance>("goal_guidance").unwrap().iter().any(|item| item.goal_id == B), "no next pass");
+}
+
+#[test]
+fn project_changes_name_files_edited_after_the_app_integrated_them() {
+    let Some(h) = harness(&[]) else { return };
+    put_goal(&h, A, "completed", "2026-01-01T00:00:01Z", "x");
+    std::fs::write(h.root.join("kept.md"), "same").unwrap();
+    std::fs::write(h.root.join("edited.md"), "before").unwrap();
+    let task: Task = serde_json::from_value(serde_json::json!({ "id": "t1", "goalId": A, "title": "t", "instructions": "i", "assigneeId": "developer-a", "status": "completed", "files": ["kept.md", "edited.md", "gone.md"], "dependsOn": [], "result": "" })).unwrap();
+    std::fs::write(h.root.join("gone.md"), "x").unwrap();
+    let proof = crate::model::TaskIntegrationProof { task_id: "t1".into(), goal_id: A.into(), files: ["kept.md", "edited.md", "gone.md"].iter().map(|file| crate::engine::digest_project_file(&h.root, file).unwrap()).collect(), integrated_at: "t".into() };
+    h.store().put("task_proof", "t1", &proof, None).unwrap();
+    std::fs::write(h.root.join("edited.md"), "after").unwrap();
+    std::fs::remove_file(h.root.join("gone.md")).unwrap();
+    let project: crate::model::Project = h.store().get("project", "selected").unwrap().unwrap();
+    let text = crate::objective::project_changes(&h.store(), &project, &[A.to_string()], &[task]).unwrap();
+    assert!(text.contains("edited.md (앱이 합친 뒤 내용이 바뀜)") && text.contains("gone.md (지금은 없거나") && !text.contains("- kept.md"), "{text}");
+    assert!(text.contains("Git 작업 트리"), "{text}");
+}

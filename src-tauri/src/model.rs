@@ -815,6 +815,9 @@ pub struct Snapshot {
     pub command_requests: Vec<crate::permissions::CommandRequest>,
     #[serde(default)]
     pub command_grants: Vec<crate::permissions::CommandGrants>,
+    /// ADR-0059: each conversation's original-objective state.
+    #[serde(default)]
+    pub conversation_objectives: Vec<crate::objective::ConversationObjective>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
