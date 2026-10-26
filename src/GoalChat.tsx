@@ -15,10 +15,12 @@ import { PlanningOriginPanel } from './PlanningOriginPanel';
 import { planCardLabel, planCards, progressLine, stageLines, type PlanCard } from './goalStream';
 import { planEstimate } from './planEstimate';
 import { CommandPermissionCard } from './CommandPermissionCard';
+import { CriteriaDecisionCard } from './CriteriaDecisionCard';
+import { decidedLine } from './criteriaDecision';
 import { planCommandLine } from './commandPermission';
 import { canResume, conversationState, objectiveLine } from './conversationObjective';
 import type { GoalOrigin } from './sddOrigin';
-import type { Agent, AiConnection, Approval, CommandRequest, ConversationObjective, DeliverableReview, Event, Goal, GoalGuidance, GoalResult, GoalTurn, Project, Reference, Squad, Task, TokenUsageRecord } from './types';
+import type { Agent, AiConnection, Approval, CommandRequest, ConversationObjective, CriteriaDecision, CriteriaRequest, DeliverableReview, Event, Goal, GoalGuidance, GoalResult, GoalTurn, Project, Reference, Squad, Task, TokenUsageRecord } from './types';
 import { ReferenceButton } from './ReferenceList';
 import { requirementCoverage } from './referenceAttach';
 import { versionReason } from './goalChain';
@@ -49,6 +51,7 @@ type Props = {
   result?: GoalResult | null; onOpenFolder?: () => void;
   /** ADR-0058: command requests (plan cards and refused calls) and the CEO's choice on a refused-command card. */
   commandRequests?: CommandRequest[]; onDecideCommands?: (approvalId: string, rules: string[]) => Promise<boolean>;
+  criteriaRequests?: CriteriaRequest[]; onDecideCriteria?: (approvalId: string, decisions: CriteriaDecision[], stop: boolean) => Promise<boolean>;
   /** ADR-0059: the conversation's original-objective record and `이어서 하기`/`다시 열기`. */
   objective?: ConversationObjective | null; onResumeConversation?: () => Promise<boolean>; onReopenConversation?: () => Promise<boolean>;
   /** ADR-0046 M3: `개선` (same goal, new plan) and `거부` (cancel the goal); `다시 시작` sends the same goal again. */
@@ -75,7 +78,7 @@ type StreamItem =
 
 /** v3 goal conversation (ADR-0046): the goal, stage lines, plan cards and recovery in one stream, with a progress line. */
 export function GoalChat(props: Props) {
-  const { result = null, onOpenFolder, commandRequests = [], onDecideCommands, objective = null, onResumeConversation, onReopenConversation } = props;
+  const { result = null, onOpenFolder, commandRequests = [], onDecideCommands, criteriaRequests = [], onDecideCriteria, objective = null, onResumeConversation, onReopenConversation } = props;
   const { goal, projectKind, focusTaskId = null, turns: chainTurns, guidance, earlier = [], agents, connections, tasks, approvals, events, usage, reviews, runBlock, squad, squads, summary, goalOrigins, projects, layout = 'dialog', onClose, onSend, onArchive, onRevision, onOpenGoal, onRetry, onResume, onRequestFix, onDecide, onRevise, onCancel, onRestart, onSwapSquad, onAddSquad, onOpenConnections, onOpenOffice, onOpenTeam, onOpenProject, onError, onPreviewGit, onBootstrapGit } = props;
   const turns = chainTurns.filter(turn => turn.goalId === goal.id);
   // ADR-0051: earlier versions of this goal read as the top of the same conversation.
@@ -171,7 +174,9 @@ export function GoalChat(props: Props) {
     if (!line) return null;
     const closed = state === 'closed' || state === 'achieved';
     if (state === 'achieved' && versions.length === 1 && !objective) return null;
-    const details = objective && (objective.evidence.length > 0 || objective.remaining.length > 0 || objective.projectChanges);
+    const ceoActions = objective?.ceoActions ?? [];
+    const ceoOnly = ceoActions.length > 0 && !objective?.remaining.length;
+    const details = objective && (objective.evidence.length > 0 || objective.remaining.length > 0 || ceoActions.length > 0 || objective.projectChanges);
     return <section className={`gc-objective is-${state}`} aria-label="원래 목표">
       <div className="gc-objective-row"><span className="gc-objective-kicker">원래 목표</span><strong>{line}</strong>
         {canResume(state, goal) && onResumeConversation && <button type="button" className="primary" disabled={working} onClick={() => void guarded(onResumeConversation)}>이어서 하기</button>}
@@ -179,17 +184,22 @@ export function GoalChat(props: Props) {
       </div>
       {details && <details><summary>{closed ? '근거 보기' : '남은 일과 프로젝트 상태 보기'}</summary>
         {objective!.remaining.length > 0 && <><p className="gc-objective-head">남은 일</p><ul>{objective!.remaining.map(item => <li key={item}>{item}</li>)}</ul></>}
+        {ceoActions.length > 0 && <><p className="gc-objective-head">CEO가 할 일(팀은 하지 않아요)</p><ul>{ceoActions.map(item => <li key={item}>{item}</li>)}</ul></>}
         {objective!.evidence.length > 0 && <><p className="gc-objective-head">근거</p><ul>{objective!.evidence.map(item => <li key={item}>{item}</li>)}</ul></>}
         {objective!.projectChanges && <><p className="gc-objective-head">프로젝트 상태(앱이 계산)</p><pre className="report">{objective!.projectChanges}</pre></>}
         <small className="muted">CTO의 판단이에요{objective!.checkedAt ? ` · ${new Date(objective!.checkedAt).toLocaleString()}` : ''} · 닫아도 파일과 기록은 그대로예요</small>
       </details>}
-      {canResume(state, goal) && <small className="muted">이어서 하면 CTO가 버전 기록·지금 프로젝트 변경·이 프로젝트의 이후 목표를 보고, 이미 달성됐으면 닫고 아니면 남은 일로 다음 계획을 세워요(새 파일 작업은 승인 필요).</small>}
+      {canResume(state, goal) && ceoOnly && <small className="muted">CEO가 할 일을 마친 뒤 이어서 하면 원래 목표를 다시 확인해요. 팀은 푸시·배포 같은 일을 하지 않아요.</small>}
+      {canResume(state, goal) && !ceoOnly && <small className="muted">이어서 하면 CTO가 버전 기록·지금 프로젝트 변경·이 프로젝트의 이후 목표를 보고, 이미 달성됐으면 닫고 아니면 남은 일로 다음 계획을 세워요(새 파일 작업은 승인 필요).</small>}
     </section>;
   }
 
   function planCardView(card: PlanCard) {
     // ADR-0058: a refused command waits for the CEO here; 모두 승인 grants it for this conversation only.
     if (card.permission && card.current) return <CommandPermissionCard key={card.approval.id} approval={card.approval} request={commandRequests.find(item => item.id === card.approval.id)} working={working || !onDecideCommands} onDecide={keys => { if (onDecideCommands) void guarded(() => onDecideCommands(card.approval.id, keys)).then(scrollDown); }} />;
+    // ADR-0060: criteria the team cannot meet wait for the CEO here instead of another rework.
+    if (card.criteria && card.current) return <CriteriaDecisionCard key={card.approval.id} approval={card.approval} request={criteriaRequests.find(item => item.id === card.approval.id)} working={working || !onDecideCriteria} onDecide={(decisions, stop) => { if (onDecideCriteria) void guarded(() => onDecideCriteria(card.approval.id, decisions, stop)).then(scrollDown); }} />;
+    if (card.criteria) return <div className="gc-plan is-closed" key={card.approval.id}><strong>{planCardLabel(card)}</strong>{decidedLine(criteriaRequests.find(item => item.id === card.approval.id)) && <span> · {decidedLine(criteriaRequests.find(item => item.id === card.approval.id))}</span>}<details><summary>멈춘 기준 보기</summary><ContentPreview><pre className="report">{card.approval.reason}</pre></ContentPreview></details></div>;
     // ADR-0053: a repair that needs new files asks once on the same goal; 거절 stops the goal (no cancel).
     if (card.scope && card.current) return <section className="gc-plan is-scope" key={card.approval.id} aria-label="파일 추가 확인">
       <h3>{planCardLabel(card)}</h3>

@@ -32,6 +32,7 @@ export const blockKindLabels: Record<BlockKind, string> = {
   qa_form: 'QA 판정 형식 오류 · 완료 처리 안 함',
   plan_form: 'PM 계획 형식 오류 · 한 번 고쳐 받았지만 다시 틀림',
   provider: '실행 중 AI 호출 실패',
+  criteria_blocked: '팀이 채울 수 없는 완료 기준 · CEO가 멈춤',
   other: '실행 중단',
 };
 

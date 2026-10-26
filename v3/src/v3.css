@@ -220,3 +220,12 @@ body.office-docked .v3 .main{margin-right:min(440px,90vw)}
 .v3 .gc .gc-objective-kicker{font-size:11px;letter-spacing:.06em;color:#9fb59c}
 .v3 .gc .gc-objective.is-open,.v3 .gc .gc-objective.is-unchecked,.v3 .gc .gc-objective.is-reopened{border-color:#c9a94a}.v3 .gc .gc-objective.is-closed,.v3 .gc .gc-objective.is-achieved{border-color:#5f8f6b;opacity:.95}
 .v3 .gc .gc-objective details{margin-top:6px;font-size:13px}.v3 .gc .gc-objective ul{margin:4px 0;padding-left:18px}.v3 .gc .gc-objective-head{margin:6px 0 0;color:#d9c48a;font-size:12.5px}.v3 .gc .gc-objective>small{display:block;margin-top:4px}
+/* ADR-0060: criteria card — criteria the team cannot meet */
+.v3 .gc .gc-plan.is-criteria{border-color:#d9a75a}.v3 .gc .gc-plan.is-criteria h3{color:#f0cf96}
+.v3 .gc .gc-criteria{margin:4px 0;padding:0 0 0 18px;display:grid;gap:12px}.v3 .gc .gc-criteria li{padding-left:2px}
+.v3 .gc .gc-criteria-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.v3 .gc .gc-criteria-kind{font-size:11.5px;padding:2px 8px;border-radius:999px;background:#3a2e17;color:#f0cf96}.v3 .gc .gc-criteria-kind.is-no_progress{background:#2f2a36;color:#d6c6f2}.v3 .gc .gc-criteria-kind.is-proposal{background:#1c2c3a;color:#b9dcff}
+.v3 .gc .gc-criteria-text{margin:6px 0 2px;font-size:14px;line-height:1.5}.v3 .gc .gc-criteria-reason{margin:0 0 4px;font-size:13px;color:#d9c48a}
+.v3 .gc .gc-criteria-actions{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.v3 .gc .gc-criteria-actions button{padding:5px 12px;font-size:13px}
+.v3 .gc .gc-criteria-edit{display:grid;gap:4px;font-size:12.5px;color:#9fb59c}.v3 .gc .gc-criteria-edit input{width:100%;box-sizing:border-box;padding:7px 10px;border-radius:8px;border:1px solid #4a6a52;background:#0f1a14;color:inherit;font:inherit;font-size:13.5px}
+.v3 .gc .gc-criteria-problem{color:#f0a58f}

@@ -47,7 +47,8 @@ export function objectiveLine(state: ConversationState, objective: ConversationO
     case 'achieved': return objective?.summary ? `원래 목표 달성 · ${objective.summary}` : '원래 목표 달성';
     case 'unchecked': return '원래 목표가 끝났는지 아직 확인하지 않았어요';
     case 'reopened': return '다시 연 대화예요 · 이어서 하면 원래 목표를 다시 확인해요';
-    case 'open': return objective?.remaining.length ? `원래 목표에서 남은 일 ${objective.remaining.length}개${objective.summary ? ` · ${objective.summary}` : ''}` : objective?.summary || '원래 목표가 아직 끝나지 않았어요';
+    case 'open': if (!objective?.remaining.length && objective?.ceoActions?.length) return `팀이 할 일은 끝났어요 · CEO가 할 일 ${objective.ceoActions.length}개${objective.summary ? ` · ${objective.summary}` : ''}`;
+      return objective?.remaining.length ? `원래 목표에서 남은 일 ${objective.remaining.length}개${objective.summary ? ` · ${objective.summary}` : ''}` : objective?.summary || '원래 목표가 아직 끝나지 않았어요';
     default: return '';
   }
 }
@@ -58,6 +59,8 @@ export function listLabel(state: ConversationState, objective: ConversationObjec
   if (state === 'achieved') return '원래 목표 달성';
   if (state === 'checking') return '원래 목표 확인 중';
   if (state === 'unchecked') return '진행 중 · 확인 전';
+  // ADR-0060: only CEO actions left (push, deploy…): the team has nothing to do.
+  if ((state === 'open' || state === 'reopened') && !objective?.remaining.length && objective?.ceoActions?.length) return `CEO 할 일 ${objective.ceoActions.length}`;
   if ((state === 'open' || state === 'reopened') && objective?.remaining.length && fallback === '완료') return `진행 중 · 남은 일 ${objective.remaining.length}`;
   if ((state === 'open' || state === 'reopened') && fallback === '완료') return '진행 중 · 원래 목표 남음';
   return fallback;

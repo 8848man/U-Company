@@ -23,6 +23,11 @@ describe('conversation objective (ADR-0059)', () => {
     expect(canResume('closed', goal('b', 'blocked'))).toBe(false);
     expect(objectiveLine('closed', objective('closed_by_other'))).toBe('다른 목표로 원래 목표가 달성되어 닫았어요 · 요약');
   });
+  it('shows only CEO actions when the team has nothing left (ADR-0060)', () => {
+    const ceo = { ...objective('open'), ceoActions: ['GitHub에 푸시'] };
+    expect(objectiveLine('open', ceo)).toBe('팀이 할 일은 끝났어요 · CEO가 할 일 1개 · 요약');
+    expect(listLabel('open', ceo, '완료')).toBe('CEO 할 일 1');
+  });
   it('does not offer resume while a version runs', () => {
     const versions = [goal('a', 'completed'), goal('b', 'executing')];
     expect(conversationState(versions, objective('open'))).toBe('running');

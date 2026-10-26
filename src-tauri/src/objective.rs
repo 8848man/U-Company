@@ -219,6 +219,7 @@ pub fn check<R: tauri::Runtime>(app: &tauri::AppHandle<R>, conversation_id: &str
             let (kind, message) = match state {
                 "closed_by_other" => ("conversation_closed", format!("{trigger}: closed; achieved by {}", objective.achieved_by.join(", "))),
                 "achieved" => ("objective_checked", format!("{trigger}: achieved — {}", objective.summary)),
+                _ if objective.remaining.is_empty() && !objective.ceo_actions.is_empty() => ("objective_checked", format!("{trigger}: open — CEO actions only ({})", objective.ceo_actions.len())),
                 _ => ("objective_checked", format!("{trigger}: open — {} remaining", objective.remaining.len())),
             };
             save(app, &objective, Some(NewEvent { kind: kind.into(), goal_id: Some(newest.id.clone()), task_id: None, agent_id: None, message }))?;

@@ -302,6 +302,19 @@ fn dump_screen_snapshots() {
     put_goal(&closed, X, "completed", "2026-01-01T00:00:03Z", "할 일 앱 전체를 새로 만들어요");
     crate::objective::check(closed.app.handle(), A, "resume").unwrap();
     write("objclosed", serde_json::json!({ "snapshot": closed.store().snapshot().unwrap(), "goalId": B }));
+    // ADR-0060: a criteria card, and a conversation with only CEO actions left.
+    let Some(stuck) = harness(&["qa-fail-always"]) else { return };
+    let stuck_id = stuck.submit(GOAL);
+    stuck.wait(&stuck_id, &["awaiting_approval"]);
+    stuck.approve(&stuck_id);
+    let _ = criteria_card(&stuck, &stuck_id);
+    write("criteria", serde_json::json!({ "snapshot": stuck.store().snapshot().unwrap(), "goalId": stuck_id }));
+    let Some(ceo) = harness(&["objective-ceo"]) else { return };
+    put_goal(&ceo, A, "blocked", "2026-01-01T00:00:01Z", "할 일 앱을 만들고 GitHub에 푸시해 주세요");
+    put_goal(&ceo, B, "completed", "2026-01-01T00:00:02Z", "멈춘 이유를 찾아요");
+    put_link(&ceo, A, B);
+    crate::objective::check(ceo.app.handle(), A, "resume").unwrap();
+    write("ceo", serde_json::json!({ "snapshot": ceo.store().snapshot().unwrap(), "goalId": B }));
 }
 
 fn granted(h: &Harness, goal_id: &str) -> Vec<String> {
