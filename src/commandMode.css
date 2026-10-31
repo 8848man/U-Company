@@ -1,0 +1,26 @@
+/* ADR-0063: a red band on the outer edge of a goal conversation while `명령 전부 허용` is on. */
+:root { --allow-all-band: #e5534b; --allow-all-glow: rgba(229, 83, 75, 0.16); --allow-all-text: #ffb4ad; }
+
+/* An outline is painted above the panel's own header, feed and composer, so the band stays whole. */
+.gc.is-allow-all,
+.v3 .v3-chat-main > .gc-panel.is-allow-all {
+  outline: 4px solid var(--allow-all-band);
+  outline-offset: -4px;
+  box-shadow: inset 0 0 0 10px var(--allow-all-glow);
+}
+
+.gc-allow-all-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  margin: 0 12px; padding: 8px 12px; border-radius: 8px;
+  background: var(--allow-all-glow); border: 1px solid var(--allow-all-band); color: var(--allow-all-text);
+}
+.gc-allow-all-banner strong { color: #fff; }
+.gc-allow-all-banner span:not(.gc-allow-all-dot) { font-size: 0.86em; }
+.gc-allow-all-banner button { margin-left: auto; }
+.gc-allow-all-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--allow-all-band); box-shadow: 0 0 0 3px var(--allow-all-glow); }
+
+.gc-allow-all-plan { font-size: 0.88em; margin: 6px 0; }
+.gc-allow-all-plan.is-on strong { color: var(--allow-all-text); }
+
+.gc-allow-all-dialog ul { margin: 8px 0 14px; padding-left: 18px; line-height: 1.55; }
+.gc-allow-all-dialog .danger { background: var(--allow-all-band); border-color: var(--allow-all-band); color: #fff; }

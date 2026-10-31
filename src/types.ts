@@ -69,3 +69,6 @@ export type CommandRequest = { id: string; goalId: string; conversationId: strin
 export type CommandGrants = { conversationId: string; rules: CommandRule[] };
 /** ADR-0059: a conversation's original-objective state, keyed by its first goal. */
 export type ConversationObjective = { conversationId: string; projectId: string; state: 'open' | 'checking' | 'achieved' | 'closed_by_other' | 'reopened' | string; achieved: boolean; achievedBy: string[]; evidence: string[]; remaining: string[]; ceoActions?: string[]; summary: string; projectChanges: string; checkedGoalId: string; checkedAt: string; previousState?: string };
+
+/** ADR-0063: the opt-in `명령 전부 허용` mode of one goal conversation. */
+export type CommandMode = { conversationId: string; allowAll: boolean; changedAt: string; approvalId?: string | null };

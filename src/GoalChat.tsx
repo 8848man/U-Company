@@ -18,6 +18,8 @@ import { CommandPermissionCard } from './CommandPermissionCard';
 import { CriteriaDecisionCard } from './CriteriaDecisionCard';
 import { decidedLine } from './criteriaDecision';
 import { planCommandLine } from './commandPermission';
+import { canTurnOn, useCommandMode } from './commandMode';
+import { CommandModeBanner, CommandModeToggle } from './CommandModeControl';
 import { canResume, conversationState, objectiveLine } from './conversationObjective';
 import { ceoOnly, gitRelevant, nowTodo } from './nowTodo';
 import type { GoalOrigin } from './sddOrigin';
@@ -82,6 +84,8 @@ export function GoalChat(props: Props) {
   const { result = null, onOpenFolder, commandRequests = [], onDecideCommands, criteriaRequests = [], onDecideCriteria, objective = null, onResumeConversation, onReopenConversation } = props;
   const { goal, projectKind, focusTaskId = null, turns: chainTurns, guidance, earlier = [], agents, connections, tasks, approvals, events, usage, reviews, runBlock, squad, squads, summary, goalOrigins, projects, layout = 'dialog', onClose, onSend, onArchive, onRevision, onOpenGoal, onRetry, onResume, onRequestFix, onDecide, onRevise, onCancel, onRestart, onSwapSquad, onAddSquad, onOpenConnections, onOpenOffice, onOpenTeam, onOpenProject, onError, onPreviewGit, onBootstrapGit } = props;
   const turns = chainTurns.filter(turn => turn.goalId === goal.id);
+  // ADR-0063: the conversation's opt-in allow-all mode (red band, banner, plan-card switch).
+  const commandMode = useCommandMode(goal.id, onError);
   // ADR-0051: earlier versions of this goal read as the top of the same conversation.
   const versions = [...earlier, goal];
   const versionIds = new Set(versions.map(item => item.id));
@@ -223,6 +227,7 @@ export function GoalChat(props: Props) {
         {squad && <SquadPanel squad={squad} agents={agents} connections={connections} tasks={tasks} editable onSwap={onSwapSquad} onAdd={onAddSquad} />}
         <p className="muted">승인 범위 전문</p><ContentPreview><pre className="report">{card.approval.reason}</pre></ContentPreview>
       </details>
+      {canTurnOn(goal, approvals) && <CommandModeToggle allowAll={commandMode.allowAll} working={working || commandMode.working} onChange={commandMode.change} />}
       <small className="muted">승인 전에는 프로젝트 파일을 바꾸지 않아요 · 승인은 이 버튼으로만 해요</small>
       <div className="gc-plan-actions">
         <button type="button" className={improving ? 'secondary' : 'primary'} disabled={working} onClick={() => void decide(card, true)}>승인</button>
@@ -257,8 +262,9 @@ export function GoalChat(props: Props) {
     </div>;
   }
 
-  const body = <section className={layout === 'dialog' ? 'goal-conversation chat-workspace gc' : 'chat-workspace gc gc-panel'} role={layout === 'dialog' ? 'dialog' : 'region'} aria-modal={layout === 'dialog' ? true : undefined} aria-labelledby="goal-chat-title" onClick={event => event.stopPropagation()}>
+  const body = <section className={`${layout === 'dialog' ? 'goal-conversation chat-workspace gc' : 'chat-workspace gc gc-panel'}${commandMode.allowAll ? ' is-allow-all' : ''}`} role={layout === 'dialog' ? 'dialog' : 'region'} aria-modal={layout === 'dialog' ? true : undefined} aria-labelledby="goal-chat-title" onClick={event => event.stopPropagation()}>
     <header className="chat-workspace-header"><div><span className="card-kicker">{goalStageLabel(goal.status)}{earlier.length > 0 && ` · 계획 v${versions.length}`}</span><h2 id="goal-chat-title" title={versions[0].intent}>{goalTitle(versions[0], 105)}</h2></div><div className="button-row"><ReferenceButton references={props.references ?? []} tasks={tasks.filter(task => task.goalId === goal.id)} /><button type="button" className="secondary" onClick={onOpenOffice}>Office ↗</button>{onArchive && <ArchiveGoalButton goal={goal} tasks={tasks} onArchive={onArchive} />}{layout === 'dialog' && <button type="button" className="secondary" onClick={onClose} aria-label="목표 대화 닫기">닫기</button>}</div></header>
+    <CommandModeBanner allowAll={commandMode.allowAll} working={commandMode.working} onChange={commandMode.change} />
     <div className="chat-workspace-feed" ref={feedRef}>
       <ListDisclosure label="이전 기록" total={history.total} hidden={history.hidden} expanded={history.expanded} onToggle={history.toggle} />
       {(history.hidden === 0 || history.expanded) && <div className="chat-bubble ceo gc-goal"><div className="chat-bubble-meta"><strong>CEO · 목표</strong><time>{new Date(versions[0].createdAt).toLocaleString()}</time></div><ContentPreview><p>{versions[0].intent}</p></ContentPreview></div>}

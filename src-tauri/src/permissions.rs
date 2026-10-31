@@ -60,6 +60,15 @@ const INDIVIDUAL_SUB: [(&str, &[&str]); 7] = [
     ("gh", &["pr", "release", "repo", "api", "auth"]),
 ];
 
+/// ADR-0063: built-in read-only commands. Claude Code decides whether they run; the app never makes
+/// a rule or grant for them, and they do not stop a later line from counting as covered.
+const READ_ONLY: [&str; 18] = ["cd", "ls", "dir", "pwd", "echo", "cat", "type", "head", "tail", "grep", "findstr", "wc", "which", "where", "diff", "stat", "du", "true"];
+
+/// Whether one command (already split from its line) is a built-in read-only command.
+pub fn is_read_only(command: &str) -> bool {
+    words(command).first().is_some_and(|first| !first.contains('=') && READ_ONLY.contains(&base_name(first).as_str()))
+}
+
 fn base_name(token: &str) -> String {
     let name = token.rsplit(['/', '\\']).next().unwrap_or(token).to_ascii_lowercase();
     name.strip_suffix(".exe").or_else(|| name.strip_suffix(".cmd")).map(str::to_string).unwrap_or(name)
@@ -183,7 +192,7 @@ pub fn rules_for_denials(denials: &[Denial]) -> Vec<Rule> {
     let mut rules = Vec::new();
     for denial in denials {
         if SHELLS.contains(&denial.tool.as_str()) {
-            for command in split_commands(&denial.command) { let prefix = prefix_of(&command); push_unique(&mut rules, rule(&denial.tool, &prefix)); }
+            for command in split_commands(&denial.command).into_iter().filter(|command| !is_read_only(command)) { let prefix = prefix_of(&command); push_unique(&mut rules, rule(&denial.tool, &prefix)); }
         } else {
             push_unique(&mut rules, rule(&denial.tool, ""));
         }
@@ -194,13 +203,16 @@ pub fn rules_for_denials(denials: &[Denial]) -> Vec<Rule> {
 /// Rules for the commands a plan's tasks say they will run.
 pub fn rules_for_commands(commands: &[String]) -> Vec<Rule> {
     let mut rules = Vec::new();
-    for line in commands { for command in split_commands(line) { push_unique(&mut rules, rule("Bash", &prefix_of(&command))); } }
+    for line in commands { for command in split_commands(line).into_iter().filter(|command| !is_read_only(command)) { push_unique(&mut rules, rule("Bash", &prefix_of(&command))); } }
     rules
 }
 
-/// Whether a granted rule already covers a denied command (so it is not asked again).
+/// Whether a granted rule already covers a denied command (so it is not asked again). Read-only
+/// parts are ignored (ADR-0063); a line made only of read-only parts is never covered, because no
+/// grant can explain why it was refused.
 pub fn covered(grants: &[Rule], tool: &str, command: &str) -> bool {
-    let commands = if SHELLS.contains(&tool) { split_commands(command) } else { vec![String::new()] };
+    let commands: Vec<String> = if SHELLS.contains(&tool) { split_commands(command).into_iter().filter(|part| !is_read_only(part)).collect() } else { vec![String::new()] };
+    if commands.is_empty() { return false; }
     commands.iter().all(|part| {
         let prefix = if SHELLS.contains(&tool) { prefix_of(part) } else { String::new() };
         grants.iter().any(|grant| grant.tool == tool && (grant.prefix.is_empty() && prefix.is_empty() || !grant.prefix.is_empty() && (prefix == grant.prefix || prefix.starts_with(&format!("{} ", grant.prefix)))))
@@ -241,7 +253,7 @@ mod tests {
     fn chained_commands_become_one_rule_per_command() {
         assert_eq!(split_commands(r#"node --test; echo "=== exit: $? ===" && npm test || true | tee "a;b.txt""#), vec!["node --test", r#"echo "=== exit: $? ===""#, "npm test", "true", r#"tee "a;b.txt""#]);
         let rules = rules_for_denials(&[Denial { tool: "Bash".into(), command: "node --test tests/source.test.mjs; echo done".into() }, Denial { tool: "Bash".into(), command: "node --test".into() }]);
-        assert_eq!(rules.iter().map(Rule::key).collect::<Vec<_>>(), vec!["Bash(node --test)", "Bash(echo done)"]);
+        assert_eq!(rules.iter().map(Rule::key).collect::<Vec<_>>(), vec!["Bash(node --test)"], "read-only echo makes no rule (ADR-0063)");
         assert!(rules.iter().all(|rule| rule.class == "safe"));
         assert_eq!(rules[0].cli_rules(), vec!["Bash(node --test)", "Bash(node --test *)"]);
         assert_eq!(prefix_of("npm test > out.txt 2>&1"), "npm test");
@@ -269,6 +281,19 @@ mod tests {
         assert_eq!(chosen_rules(&request, &["Bash(npm test)".into(), "Bash(rm -rf)".into()]).unwrap().len(), 2, "an individual rule can be chosen explicitly");
         assert!(chosen_rules(&request, &["Write".into()]).is_err());
         assert!(chosen_rules(&request, &["Bash(curl x)".into()]).is_err());
+    }
+
+    #[test]
+    fn read_only_commands_make_no_rule_and_do_not_block_coverage() {
+        assert!(is_read_only("cd src") && is_read_only(r"cd C:\work\x") && is_read_only("cd ..") && is_read_only("ls -la") && is_read_only("echo done"));
+        assert!(!is_read_only("npm test") && !is_read_only("FOO=1 cd x") && !is_read_only("find . -delete") && !is_read_only("rm -rf x"));
+        let rules = rules_for_denials(&[Denial { tool: "Bash".into(), command: r"cd C:\Users\me\task && npm test; echo done".into() }]);
+        assert_eq!(rules.iter().map(Rule::key).collect::<Vec<_>>(), vec!["Bash(npm test)"], "cd and echo never reach the card");
+        assert_eq!(rules_for_commands(&["cd app && cargo test".into()]).iter().map(Rule::key).collect::<Vec<_>>(), vec!["Bash(cargo test)"]);
+        let grants = rules_for_commands(&["npm test".into()]);
+        assert!(covered(&grants, "Bash", r"cd C:\other && npm test"), "a different cd does not bring the card back");
+        assert!(!covered(&grants, "Bash", "cd .. && ls"), "a line of only read-only commands is never covered");
+        assert!(rules_for_denials(&[Denial { tool: "Bash".into(), command: "cd ../outside".into() }]).is_empty());
     }
 
     #[test]

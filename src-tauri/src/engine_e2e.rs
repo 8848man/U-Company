@@ -346,7 +346,7 @@ fn a_refused_test_command_stops_before_integration_and_resumes_after_approve_all
     let card = wait_operation(&h, &id, crate::permissions::OPERATION);
     assert!(!h.root.join("todo.js").exists(), "the refused task is not integrated while the card waits");
     let request: crate::permissions::CommandRequest = h.store().get("command_request", &card.id).unwrap().unwrap();
-    assert_eq!(request.rules.iter().map(|rule| (rule.key(), rule.class.as_str())).collect::<Vec<_>>(), vec![("Bash(npm install)".to_string(), "individual"), ("Bash(node --test)".to_string(), "safe"), ("Bash(echo \"=== exit: $? ===\")".to_string(), "safe")], "one rule per chained command");
+    assert_eq!(request.rules.iter().map(|rule| (rule.key(), rule.class.as_str())).collect::<Vec<_>>(), vec![("Bash(npm install)".to_string(), "individual"), ("Bash(node --test)".to_string(), "safe")], "one rule per chained command; read-only echo makes none (ADR-0063)");
     let keys: Vec<String> = request.rules.iter().filter(|rule| rule.class == "safe").map(crate::permissions::Rule::key).collect();
     crate::permissions_flow::decide(&h.store(), &card.id, &keys).unwrap();
     let goal = h.wait(&id, &["completed"]);

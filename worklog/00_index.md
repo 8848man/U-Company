@@ -65,6 +65,7 @@
 | P2 | 결과 전달과 목표 대화 QA 맥락 | 완료 | [P2.md](programs/permission-approval/P2.md) |
 | P3 | 명령 권한 승인 | 완료 | [P3.md](programs/permission-approval/P3.md) |
 | P4 | 검증과 인계 | 완료 | [P4.md](programs/permission-approval/P4.md) |
+| P5 | 명령 카드 줄이기(읽기 전용 명령 제외, 프로젝트 단위 안전 허용)와 `명령 전부 허용` 모드(붉은 띠, push·PR 차단), ADR-0063 | 오프라인 검증 완료, Windows 실사용 QA 대기 | [P5.md](programs/permission-approval/P5.md) |
 
 ## 완주율·사용성 개선 라운드 (2026-10-20, Claude)
 

@@ -11,6 +11,8 @@ pub struct AiResponse {
     pub usage: Option<(u64, u64)>,
     /// ADR-0058: calls the provider refused because nobody could approve them (Claude, adapters).
     pub permission_denials: Vec<crate::permissions::Denial>,
+    /// ADR-0063: shell commands a Claude call actually ran (from `tool_use` stream events).
+    pub commands_run: Vec<String>,
 }
 
 /// ADR-0058: per-call permission settings. Default: the provider's ordinary profile.
@@ -22,6 +24,31 @@ pub struct CallOptions {
     pub resume: Option<String>,
     /// A read-only role that may run the granted commands (QA in an isolated copy).
     pub read_only_commands: bool,
+    /// ADR-0063: the goal conversation's opt-in allow-all mode (writing calls only).
+    pub allow_all: bool,
+    /// ADR-0063: an empty GitHub CLI config folder used in allow-all mode, so `gh` is signed out.
+    pub gh_config_dir: Option<std::path::PathBuf>,
+}
+
+/// ADR-0063: what allow-all mode still never runs; deny rules apply in every Claude permission mode.
+const ALLOW_ALL_DENIED: [&str; 16] = [
+    "Bash(git push)", "Bash(git push *)", "Bash(gh pr)", "Bash(gh pr *)", "Bash(gh api *)", "Bash(gh repo *)", "Bash(gh release *)", "Bash(gh workflow *)",
+    "Bash(npm publish)", "Bash(npm publish *)", "Bash(cargo publish)", "Bash(cargo publish *)", "PowerShell(git push)", "PowerShell(git push *)", "PowerShell(gh pr *)", "PowerShell(gh api *)",
+];
+
+/// ADR-0063: process environment of an allow-all call. Every push URL is rewritten to an unusable
+/// transport (fetch is unaffected), Git credential helpers are cleared, prompts are off, and the
+/// GitHub CLI loses its tokens and configuration so it is signed out.
+fn allow_all_environment(gh_config_dir: Option<&Path>) -> (Vec<(String, String)>, Vec<String>) {
+    let mut set: Vec<(String, String)> = [
+        ("GIT_CONFIG_COUNT", "2"),
+        ("GIT_CONFIG_KEY_0", "url.ucompany-push-blocked://.pushInsteadOf"), ("GIT_CONFIG_VALUE_0", ""),
+        ("GIT_CONFIG_KEY_1", "credential.helper"), ("GIT_CONFIG_VALUE_1", ""),
+        ("GIT_TERMINAL_PROMPT", "0"), ("GCM_INTERACTIVE", "never"),
+    ].iter().map(|(key, value)| (key.to_string(), value.to_string())).collect();
+    if let Some(dir) = gh_config_dir { set.push(("GH_CONFIG_DIR".into(), dir.to_string_lossy().into_owned())); }
+    let removed = ["GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"].map(String::from).to_vec();
+    (set, removed)
 }
 
 struct AiRequest<'a> {
@@ -67,7 +94,7 @@ impl AiProvider for HttpProvider<'_> {
         let result = runtime::send_json(self.0, &url, &body)?;
         let text = result.pointer("/choices/0/message/content").and_then(Value::as_str).ok_or("response: HTTP model returned no message content")?.to_string();
         let usage = runtime::token_usage(&result);
-        Ok(AiResponse { text, session_id: result.get("id").and_then(Value::as_str).map(str::to_string), usage, permission_denials: Vec::new() })
+        Ok(AiResponse { text, session_id: result.get("id").and_then(Value::as_str).map(str::to_string), usage, permission_denials: Vec::new(), commands_run: Vec::new() })
     }
 }
 
@@ -110,6 +137,11 @@ fn run_cli(connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool, 
         if delivery == PromptDelivery::Argument { cmd.arg(prompt); }
         cmd.args(["--output-format", "stream-json", "--verbose"]);
         cmd.args(claude_permission_args(writable, options));
+        if writable && options.allow_all {
+            let (set, removed) = allow_all_environment(options.gh_config_dir.as_deref());
+            for key in removed { cmd.env_remove(key); }
+            for (key, value) in set { cmd.env(key, value); }
+        }
         if !connection.model_id.is_empty() { cmd.arg("--model").arg(&connection.model_id); }
     } else if stem == "gemini" {
         cmd.args(["-p", prompt, "--output-format", "stream-json"]);
@@ -137,7 +169,8 @@ fn run_cli(connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool, 
     let session_id = stdout.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()).find_map(|v| v.get("thread_id").or_else(|| v.get("session_id")).and_then(Value::as_str).map(str::to_string));
     let usage = stdout.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()).filter_map(|value| runtime::token_usage(&value)).last();
     let permission_denials = claude_denials(&stdout);
-    Ok(AiResponse { text, session_id, usage, permission_denials })
+    let commands_run = if stem == "claude" { claude_commands(&stdout) } else { Vec::new() };
+    Ok(AiResponse { text, session_id, usage, permission_denials, commands_run })
 }
 
 /// ADR-0058: Claude's permission profile. Writing tasks edit files and run granted commands; a
@@ -146,9 +179,11 @@ fn run_cli(connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool, 
 fn claude_permission_args(writable: bool, options: &CallOptions) -> Vec<String> {
     let mut args: Vec<String> = Vec::new();
     if let Some(session) = &options.resume { args.push("--resume".into()); args.push(session.clone()); }
-    let mode = if writable { "acceptEdits" } else if options.read_only_commands { "dontAsk" } else { "plan" };
+    let allow_all = writable && options.allow_all;
+    let mode = if allow_all { "bypassPermissions" } else if writable { "acceptEdits" } else if options.read_only_commands { "dontAsk" } else { "plan" };
     args.push("--permission-mode".into());
     args.push(mode.into());
+    if allow_all { args.push("--disallowedTools".into()); args.extend(ALLOW_ALL_DENIED.map(String::from)); }
     if !writable && options.read_only_commands { args.push("--disallowedTools".into()); args.extend(["Write", "Edit", "MultiEdit", "NotebookEdit"].map(String::from)); }
     if (writable || options.read_only_commands) && !options.allowed.is_empty() { args.push("--allowedTools".into()); args.extend(options.allowed.iter().cloned()); }
     args
@@ -166,6 +201,20 @@ fn claude_denials(stdout: &str) -> Vec<crate::permissions::Denial> {
         if !denial.tool.is_empty() && !denials.contains(&denial) { denials.push(denial); }
     }
     denials
+}
+
+/// ADR-0063: the `Bash`/`PowerShell` commands of Claude's `tool_use` stream events, in order.
+fn claude_commands(stdout: &str) -> Vec<String> {
+    let mut commands = Vec::new();
+    for value in stdout.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()) {
+        if value.get("type").and_then(Value::as_str) != Some("assistant") { continue; }
+        for part in value.pointer("/message/content").and_then(Value::as_array).into_iter().flatten() {
+            if part.get("type").and_then(Value::as_str) != Some("tool_use") { continue; }
+            if !matches!(part.get("name").and_then(Value::as_str), Some("Bash" | "PowerShell")) { continue; }
+            if let Some(command) = part.pointer("/input/command").and_then(Value::as_str) { commands.push(command.to_string()); }
+        }
+    }
+    commands
 }
 
 /// Harness-only path. The caller must supply synthetic text from a disposable
@@ -198,11 +247,60 @@ mod tests {
         let none = CallOptions::default();
         assert_eq!(claude_permission_args(true, &none), vec!["--permission-mode", "acceptEdits"]);
         assert_eq!(claude_permission_args(false, &none), vec!["--permission-mode", "plan"], "meetings and analysis stay in plan mode");
-        let granted = CallOptions { allowed: vec!["Bash(npm test)".into(), "Bash(npm test *)".into()], resume: Some("s1".into()), read_only_commands: false };
+        let granted = CallOptions { allowed: vec!["Bash(npm test)".into(), "Bash(npm test *)".into()], resume: Some("s1".into()), read_only_commands: false, ..CallOptions::default() };
         assert_eq!(claude_permission_args(true, &granted), vec!["--resume", "s1", "--permission-mode", "acceptEdits", "--allowedTools", "Bash(npm test)", "Bash(npm test *)"]);
         let qa = CallOptions { read_only_commands: true, ..granted.clone() };
         assert_eq!(claude_permission_args(false, &qa), vec!["--resume", "s1", "--permission-mode", "dontAsk", "--disallowedTools", "Write", "Edit", "MultiEdit", "NotebookEdit", "--allowedTools", "Bash(npm test)", "Bash(npm test *)"]);
         assert!(!claude_permission_args(false, &CallOptions { read_only_commands: false, ..granted }).contains(&"--allowedTools".to_string()), "plan mode never takes grants");
+    }
+
+    #[test]
+    fn allow_all_bypasses_prompts_but_never_pushes_and_stays_off_for_read_only_roles() {
+        let all = CallOptions { allow_all: true, allowed: vec!["Bash(npm test)".into()], ..CallOptions::default() };
+        let args = claude_permission_args(true, &all);
+        assert_eq!(&args[..2], ["--permission-mode", "bypassPermissions"]);
+        let denied_at = args.iter().position(|arg| arg == "--disallowedTools").unwrap();
+        for rule in ["Bash(git push)", "Bash(git push *)", "Bash(gh pr *)", "Bash(gh api *)", "Bash(npm publish *)"] { assert!(args[denied_at..].contains(&rule.to_string()), "{rule}"); }
+        assert_eq!(claude_permission_args(false, &CallOptions { read_only_commands: true, ..all.clone() })[..2], ["--permission-mode", "dontAsk"], "QA never bypasses");
+        assert_eq!(claude_permission_args(false, &all)[..2], ["--permission-mode", "plan"], "analysis and meetings never bypass");
+        let (set, removed) = allow_all_environment(Some(Path::new("/tmp/empty-gh")));
+        let get = |key: &str| set.iter().find(|(name, _)| name == key).map(|(_, value)| value.as_str());
+        assert_eq!(get("GIT_CONFIG_KEY_0"), Some("url.ucompany-push-blocked://.pushInsteadOf"));
+        assert_eq!(get("GIT_CONFIG_VALUE_0"), Some(""));
+        assert_eq!(get("GIT_CONFIG_KEY_1"), Some("credential.helper"));
+        assert_eq!(get("GIT_TERMINAL_PROMPT"), Some("0"));
+        assert_eq!(get("GH_CONFIG_DIR"), Some("/tmp/empty-gh"));
+        assert!(removed.contains(&"GH_TOKEN".to_string()) && removed.contains(&"GITHUB_TOKEN".to_string()));
+    }
+
+    #[test]
+    fn the_push_url_rewrite_refuses_every_push_but_not_fetch() {
+        let Ok(output) = std::process::Command::new("git").arg("--version").output() else { return };
+        if !output.status.success() { return; }
+        let root = std::env::temp_dir().join(format!("ucompany-push-block-{}", crate::model::id()));
+        let git = |dir: &Path, args: &[&str], env: bool| { let mut command = std::process::Command::new("git"); command.current_dir(dir).args(args).env("GIT_AUTHOR_NAME", "t").env("GIT_AUTHOR_EMAIL", "t@t").env("GIT_COMMITTER_NAME", "t").env("GIT_COMMITTER_EMAIL", "t@t"); if env { let (set, removed) = allow_all_environment(None); for key in removed { command.env_remove(key); } for (key, value) in set { command.env(key, value); } } command.output().unwrap() };
+        std::fs::create_dir_all(root.join("work")).unwrap();
+        assert!(git(&root, &["init", "-q", "--bare", "remote.git"], false).status.success());
+        let work = root.join("work");
+        git(&work, &["init", "-q"], false);
+        git(&work, &["commit", "-q", "--allow-empty", "-m", "a"], false);
+        git(&work, &["remote", "add", "origin", "../remote.git"], false);
+        assert!(!git(&work, &["push", "origin", "HEAD:main"], true).status.success(), "push to a named remote is refused");
+        assert!(!git(&work, &["push", "../remote.git", "HEAD:main"], true).status.success(), "push to an explicit URL is refused");
+        assert!(git(&work, &["fetch", "origin"], true).status.success(), "fetch still works");
+        assert!(git(&work, &["push", "origin", "HEAD:main"], false).status.success(), "the fixture itself can push without the block");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn executed_commands_are_read_from_tool_use_events() {
+        let stdout = [
+            r#"{"type":"assistant","message":{"content":[{"type":"text","text":"x"},{"type":"tool_use","name":"Bash","input":{"command":"npm test"}}]}}"#,
+            r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"a"}}]}}"#,
+            r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"PowerShell","input":{"command":"Get-ChildItem"}}]}}"#,
+            r#"{"type":"result","result":"done"}"#,
+        ].join("\n");
+        assert_eq!(claude_commands(&stdout), vec!["npm test", "Get-ChildItem"]);
     }
 
     #[test]
