@@ -104,7 +104,7 @@ fn empty_gh_config() -> Result<std::path::PathBuf, String> {
 /// A line for the teammate's prompt naming what it may run (also useful to providers without grants).
 pub fn approved_note(store: &Store, goal_id: &str) -> Result<String, String> {
     let rules = grants(store, goal_id)?;
-    let mut note = String::from("\nRun commands from the root of this folder; do not change directory outside it.");
+    let mut note = String::from("\nRun commands from the root of this folder; do not change directory outside it. Run project tools through package scripts (`npm test`, `npm run <script>`) rather than `npx`, which may download packages.");
     if allow_all(store, goal_id)? { note.push_str(" In this goal conversation the CEO allowed you to run commands without asking. Still never push, open pull requests, publish, deploy, or touch files outside this folder."); }
     if !rules.is_empty() { note.push_str(&format!("\nCommands the CEO approved (run these when the task needs them; other commands may be refused): {}", rules.iter().map(|rule| format!("`{}`", rule.prefix)).collect::<Vec<_>>().join(", "))); }
     Ok(note)
@@ -345,6 +345,7 @@ mod tests {
         assert!(options_for(&store, "g", None, false).unwrap().allow_all, "writing calls run in allow-all");
         assert!(!options_for(&store, "g", None, true).unwrap().allow_all, "QA keeps its read-only profile");
         assert!(approved_note(&store, "g").unwrap().contains("never push"));
+        assert!(approved_note(&store, "g").unwrap().contains("rather than `npx`"));
         plan_card(&store, "plan", "g", "approved");
         assert!(!set_mode(&store, "g", false, false).unwrap().allow_all, "turning it off needs nothing");
         assert!(!options_for(&store, "g", None, false).unwrap().allow_all);
