@@ -5,6 +5,11 @@ mod git_bootstrap;
 mod meeting;
 mod mock_ai;
 mod goal_result;
+mod goal_context;
+mod permissions;
+mod permissions_flow;
+mod objective;
+mod criteria;
 #[cfg(test)]
 mod engine_e2e;
 mod model;
@@ -32,7 +37,7 @@ use tauri::{Emitter, Manager};
 struct BackendInfo { protocol_version: u32, build_id: String }
 
 #[tauri::command]
-fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 39, build_id: meeting::meeting_build() } }
+fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 42, build_id: meeting::meeting_build() } }
 
 #[tauri::command]
 fn get_snapshot(store: tauri::State<'_, Store>) -> Result<Snapshot, String> { store.snapshot() }
@@ -638,10 +643,8 @@ fn create_goal_revision(guidance_id: String, intent: String, store: tauri::State
 #[tauri::command]
 fn preview_git_bootstrap(goal_id: String, store: tauri::State<'_, Store>) -> Result<git_bootstrap::Preview, String> {
     let goal: Goal = store.get("goal", &goal_id)?.ok_or("목표를 찾을 수 없습니다")?;
-    if goal.kind != "execution" { return Err("회의 목표는 Git 초기화 복구 대상이 아닙니다".into()); }
-    if goal.status != "blocked" { return Err("중단된 Git 초기화 업무에서만 이 복구 작업을 사용할 수 있습니다".into()); }
-    let tasks: Vec<Task> = store.list::<Task>("task")?.into_iter().filter(|task| task.goal_id == goal_id).collect();
-    if !engine::bootstrap_recovery_allowed(&tasks) { return Err("Git 초기화에 실패한 단일 업무가 확인되지 않았습니다. 업무 범위를 검토해 주세요".into()); }
+    // ADR-0061: offered from `지금 할 일` for any execution goal of a folder project while nothing runs there.
+    git_bootstrap_allowed(&store, &goal)?;
     let project_id = goal.project_id.ok_or("프로젝트가 연결되지 않은 목표입니다")?;
     let project: Project = store.get("project_entry", &project_id)?.ok_or("등록된 프로젝트를 찾을 수 없습니다")?;
     let selected: Project = store.get("project", "selected")?.ok_or("프로젝트를 선택해 주세요")?;
@@ -649,13 +652,14 @@ fn preview_git_bootstrap(goal_id: String, store: tauri::State<'_, Store>) -> Res
     git_bootstrap::preview(&project)
 }
 
+fn git_bootstrap_allowed(store: &Store, goal: &Goal) -> Result<(), String> { git_bootstrap::allowed(&store.list::<Goal>("goal")?, goal) }
+
 #[tauri::command]
 fn bootstrap_project_git(goal_id: String, fingerprint: String, selected_files: Vec<String>, author_name: String, author_email: String, message: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<git_bootstrap::ResultInfo, String> {
     let goal: Goal = store.get("goal", &goal_id)?.ok_or("목표를 찾을 수 없습니다")?;
-    if goal.kind != "execution" { return Err("회의 목표는 Git 초기화 복구 대상이 아닙니다".into()); }
-    if goal.status != "blocked" { return Err("중단된 Git 초기화 업무에서만 이 복구 작업을 사용할 수 있습니다".into()); }
+    git_bootstrap_allowed(&store, &goal)?;
     let tasks: Vec<Task> = store.list::<Task>("task")?.into_iter().filter(|task| task.goal_id == goal_id).collect();
-    if !engine::bootstrap_recovery_allowed(&tasks) { return Err("Git 초기화에 실패한 단일 업무가 확인되지 않았습니다. 업무 범위를 검토해 주세요".into()); }
+    let recovery = goal.status == "blocked" && engine::bootstrap_recovery_allowed(&tasks);
     let project_id = goal.project_id.as_deref().ok_or("프로젝트가 연결되지 않은 목표입니다")?;
     let project: Project = store.get("project_entry", project_id)?.ok_or("등록된 프로젝트를 찾을 수 없습니다")?;
     let selected_project: Project = store.get("project", "selected")?.ok_or("프로젝트를 선택해 주세요")?;
@@ -670,7 +674,7 @@ fn bootstrap_project_git(goal_id: String, fingerprint: String, selected_files: V
             let refreshed = platform::refresh_registered_project(project, actual);
             store.select_project(&refreshed)?;
             store.append_event(NewEvent::goal("git_bootstrap_completed", &goal, &format!("main 첫 커밋 {} · {}개 파일", result.commit_id, result.committed_files.len())))?;
-            result.qa_started = match engine::verify_bootstrap_goal(app.clone(), &goal.id, &result.commit_id, &result.committed_files) {
+            result.qa_started = if !recovery { false } else { match engine::verify_bootstrap_goal(app.clone(), &goal.id, &result.commit_id, &result.committed_files) {
                 Ok(true) => true,
                 Ok(false) => {
                     let _ = store.append_event(NewEvent::goal("git_bootstrap_qa_unavailable", &goal, "커밋 파일이 실패 업무의 선언 파일과 다르거나 다른 미완료 업무가 있어 자동 QA를 시작하지 않았습니다. 목표 대화에서 남은 업무 범위를 조정해 주세요"));
@@ -680,7 +684,7 @@ fn bootstrap_project_git(goal_id: String, fingerprint: String, selected_files: V
                     let _ = store.append_event(NewEvent::goal("git_bootstrap_qa_unavailable", &goal, &error));
                     false
                 }
-            };
+            } };
             let _ = app.emit("state-changed", ());
             Ok(result)
         }
@@ -706,9 +710,53 @@ fn save_task(task: Task, store: tauri::State<'_, Store>, app: tauri::AppHandle) 
     Ok(())
 }
 
+/// ADR-0059: `이어서 하기` on a conversation: check its original objective, then close or continue it.
+#[tauri::command]
+fn resume_conversation(conversation_id: String, app: tauri::AppHandle) -> Result<(), String> { objective::resume(app, conversation_id) }
+
+/// ADR-0059: `다시 열기` on a closed conversation.
+#[tauri::command]
+fn reopen_conversation(conversation_id: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
+    objective::reopen(&store, &conversation_id)?;
+    let _ = app.emit("state-changed", ());
+    Ok(())
+}
+
+/// ADR-0060: the CEO's choice on a criteria card (`결정대로 다시 확인` or `멈추기`).
+#[tauri::command]
+fn decide_criteria(approval_id: String, decisions: Vec<criteria::CriteriaDecision>, stop: bool, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
+    criteria::decide(&store, &approval_id, &decisions, stop)?;
+    let _ = app.emit("state-changed", ());
+    Ok(())
+}
+
+/// ADR-0058: the CEO's choice on a command-permission card (`모두 승인`, one rule, or none).
+#[tauri::command]
+fn decide_command_permission(approval_id: String, rules: Vec<String>, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
+    permissions_flow::decide(&store, &approval_id, &rules)?;
+    let _ = app.emit("state-changed", ());
+    Ok(())
+}
+
+/// ADR-0063: the goal conversation's allow-all mode. Turning it on needs the CEO's confirmed
+/// button on a pending plan card of the same conversation; turning it off is always possible.
+#[tauri::command]
+fn get_command_mode(goal_id: String, store: tauri::State<'_, Store>) -> Result<permissions_flow::CommandMode, String> {
+    permissions_flow::mode(&store, &goal_id)
+}
+
+#[tauri::command]
+fn set_command_mode(goal_id: String, allow_all: bool, confirmed: bool, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<permissions_flow::CommandMode, String> {
+    let mode = permissions_flow::set_mode(&store, &goal_id, allow_all, confirmed)?;
+    let _ = app.emit("state-changed", ());
+    Ok(mode)
+}
+
 #[tauri::command]
 fn decide_approval(id: String, approved: bool, squad_digest: Option<String>, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
     let approval: Approval = store.get("approval", &id)?.ok_or("Approval not found")?;
+    if approval.operation == permissions::OPERATION { return Err("명령 권한은 명령 권한 카드에서 결정해 주세요".into()); }
+    if approval.operation == criteria::OPERATION { return Err("완료 기준은 완료 기준 결정 카드에서 결정해 주세요".into()); }
     if let Some(goal_id) = &approval.goal_id {
         let goal: Goal = store.get("goal", goal_id)?.ok_or("승인 목표를 찾을 수 없습니다")?;
         if goal.kind != "execution" { return Err("회의 전송은 별도 승인 명령을 사용하세요".into()); }
@@ -864,7 +912,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, add_mock_connection, get_goal_result, get_block_stats, open_project_folder, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, request_team_fix, stage_text_reference, stage_image_reference, discard_reference, set_reference_caption, set_reference_role, set_curator_enabled, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, revise_plan, cancel_goal, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
+        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, add_mock_connection, get_goal_result, get_block_stats, open_project_folder, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, request_team_fix, stage_text_reference, stage_image_reference, discard_reference, set_reference_caption, set_reference_role, set_curator_enabled, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, decide_command_permission, get_command_mode, set_command_mode, decide_criteria, resume_conversation, reopen_conversation, revise_plan, cancel_goal, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
         .run(tauri::generate_context!())
         .expect("error while running AI Organization OS");
 }

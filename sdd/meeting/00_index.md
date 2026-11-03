@@ -1,6 +1,6 @@
 # Meeting topic index
 
-This folder owns the intended current contract for a Goal-bound multi-perspective meeting. The [review record](../multiAgentMeeting/00_index.md) explains how the design was reached; it is not an approval. [Security](../security.md) owns transmission and project-write authority, [DM-04](../domain/DM-04-lifecycle.md) owns Goal states, and [AI-03](../aiIntegration/AI-03-adapter.md) owns provider transport. [WORKLOG](../../WORKLOG.md) records what is actually implemented and verified.
+This folder owns the intended current contract for a Goal-bound multi-perspective meeting. The [review record](../multiAgentMeeting/00_index.md) explains how the design was reached; it is not an approval. [Security](../security.md) owns transmission and project-write authority, [DM-04](../domain/DM-04-lifecycle.md) owns Goal states, and [AI-03](../aiIntegration/AI-03-adapter.md) owns provider transport. [WORKLOG](../../worklog/00_index.md) records what is actually implemented and verified.
 
 | ID | Owner | Facts owned |
 | --- | --- | --- |

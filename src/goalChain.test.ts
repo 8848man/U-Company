@@ -33,5 +33,6 @@ describe('goal versions as one conversation (ADR-0051)', () => {
   it('says why a version was made', () => {
     expect(versionReason('멈춘 원인을 해결해 주세요.\n멈춘 이유: QA')).toContain('막힌 문제');
     expect(versionReason('버튼 색을 바꿔 주세요')).toContain('방향');
+    expect(versionReason('다음 기능을 만들어 주세요', '완료 후 후속 작업')).toContain('후속 작업');
   });
 });

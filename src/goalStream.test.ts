@@ -74,6 +74,13 @@ describe('plan cards', () => {
     expect(cards[1].summary).toBe('마감일 기능을 넣어요');
     expect(cards.map(planCardLabel)).toEqual(['계획 · 바뀜', '계획이 나왔어요']);
   });
+  it('shows refused commands as a permission card (ADR-0058)', () => {
+    const card = { ...approval('perm', 'pending', '2026-10-26T00:09:00Z'), operation: 'command_permission', reason: '팀원이(가) 이 명령을 실행하려다 막혔어요.\n- node --test' };
+    const cards = planCards(goal('awaiting_approval'), [approval('plan', 'approved', '2026-10-26T00:05:00Z'), card], [task('1', 'dev-a', 'completed', 'a', ['a.ts'])], '요약');
+    expect(cards.map(item => [item.approval.id, item.permission, item.current, item.counts])).toEqual([['plan', false, false, '작업 1개 · 팀원 1명 · 파일 1개'], ['perm', true, true, '']]);
+    expect(planCardLabel(cards[1])).toBe('명령 실행 승인이 필요해요');
+    expect(planCardLabel({ ...cards[1], status: 'approved' })).toBe('명령 권한 · CEO가 승인함');
+  });
   it('shows a repair scope addition as its own file-addition card without plan counts (ADR-0053)', () => {
     const scope = { ...approval('scope', 'pending', '2026-10-14T00:09:00Z'), operation: 'project_write_scope', reason: '재작업에 새 파일 1개가 필요해요: README.md\n세부' };
     const cards = planCards(goal('awaiting_approval'), [approval('plan', 'approved', '2026-10-14T00:05:00Z'), scope], [task('1', 'dev-a', 'completed', 'a', ['a.ts'])], '요약');

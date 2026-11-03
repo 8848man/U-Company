@@ -1,6 +1,6 @@
 # Goal-centered workflow improvement plan
 
-Status: Active delivery plan. The checkbox evidence and resume point live in `WORKLOG.md`.
+Status: Active delivery plan. The checkbox evidence and resume point live in the [worklog index](../worklog/00_index.md) and its round files.
 
 The proposed [whole-app UX simplification plan](uxSimplification/00_index.md) addresses menu and information density across all surfaces. This plan remains the goal-centered workflow delivery record; neither document marks the proposed navigation as implemented.
 
@@ -14,7 +14,7 @@ Build a goal workspace rather than more disconnected status panels. Codex-style 
 2. **Guidance queue and checkpoints:** persist CEO guidance and pending status; engine checkpoints before planning, approval, each dispatch wave, and QA. The first safe implementation paused the old goal and created a linked new goal. [ADR-0027](architecture/decisions/ADR-0027.md) extends that path: an addressed worker escalates to CTO, PM plans remaining file work, the engine verifies any completed-task reuse, and only new writes request fresh approval. Add integration tests for message arrival during a slow call, restart, denial, and repeated guidance. A future proven scope classifier may permit narrower clarification within an existing approval.
 3. **Goal workspace:** one view with conversation, current stage/owner, approved scope, task graph, latest evidence, decisions, QA loop, and token details. Bring the previously planned Office current-goal rail into this view as a compact navigation projection. Share selectors with the board; retain Office characters as a secondary spatial view.
 4. **Interaction consistency:** every action has visible preconditions and recovery instructions; toasts link to the resulting entity; all lists and long text use `sdd/content-density.md`; loading, stale/backend-version, partial failure, keyboard, and narrow layouts are handled consistently. Test with novice users using tasks, not feature names.
-5. **Operational closure:** finish existing real Windows end-to-end QA, runtime cancellation/streaming and recovery, approval enforcement, drift review, then Ubuntu build and real app flow. These are not complete until evidence is in `WORKLOG.md`. Do not auto-install system packages merely to mark Ubuntu done.
+5. **Operational closure:** finish existing real Windows end-to-end QA, runtime cancellation/streaming and recovery, approval enforcement, drift review, then Ubuntu build and real app flow. These are not complete until evidence is in the [worklog index](../worklog/00_index.md) and its round files. Do not auto-install system packages merely to mark Ubuntu done.
 
 ## Experience contract by surface
 
@@ -31,7 +31,7 @@ The goal workspace should become the shared destination behind cards and toasts,
 
 ## Earlier plan disposition
 
-The previously planned Office current-goal rail is partly delivered in slice 3; its detailed expansion and live layout checks remain open. The historical Windows QA-03B/05G/17–21 checklists are still live acceptance gates, not new implementations to duplicate. Runtime streaming/cancellation and full session resume, stronger runtime operation approvals, and Ubuntu verification are still open foundational work. The unified goal workspace should absorb the older board/Office detail ideas before adding more independent panels. `WORKLOG.md` keeps the exact unchecked evidence and next steps.
+The previously planned Office current-goal rail is partly delivered in slice 3; its detailed expansion and live layout checks remain open. The historical Windows QA-03B/05G/17–21 checklists are still live acceptance gates, not new implementations to duplicate. Runtime streaming/cancellation and full session resume, stronger runtime operation approvals, and Ubuntu verification are still open foundational work. The unified goal workspace should absorb the older board/Office detail ideas before adding more independent panels. The [worklog index](../worklog/00_index.md) and its round files keep the exact unchecked evidence and next steps.
 
 ## Review gates
 

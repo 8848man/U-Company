@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseArgs, respond, reviewItems, stageOf } from './mock-adapter.mjs';
+import { parseArgs, REPLACEMENT_CRITERION, respond, reviewItems, stageOf, STUCK_CRITERION } from './mock-adapter.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const scenario = JSON.parse(readFileSync(join(here, 'scenarios', 'todo-app.json'), 'utf8'));
@@ -57,11 +57,23 @@ describe('mock AI adapter', () => {
     expect(existsSync(join(folder, '..', 'escape.txt'))).toBe(false);
   });
 
+  it('never passes the stuck criterion and names its precondition in qa-precondition (ADR-0060)', () => {
+    const folder = mkdtempSync(join(tmpdir(), 'mock-stuck-'));
+    respond('Work only inside this isolated task folder and change ONLY these declared files: todo.js. The engine', folder, options(), scenario);
+    const prompt = `independently reviewing the team's deliverables for this CEO goal: 앱. Inspect\nDeliverables:\n- taskId: t1\n  deliverable: d\n  files: todo.js\n  evidence (read-only inputs): none\n  acceptance criteria (answer in this order):\n    1. a\n    2. ${STUCK_CRITERION}\nNewly integrated diff summary:\n`;
+    const judged = JSON.parse(respond(prompt, folder, options(['qa-precondition']), scenario));
+    expect(judged.verdict).toBe('FAIL');
+    expect(judged.deliverables[0].criteria[1]).toMatchObject({ met: false, evidence: expect.stringContaining('[stuck-criterion index=1]'), precondition: expect.stringContaining('Git 이력') });
+    expect(JSON.parse(respond(prompt, folder, options(['qa-fail-always']), scenario)).deliverables[0].criteria[1].precondition).toBe('');
+    const proposal = JSON.parse(respond('Propose how the CEO could change acceptance criteria the team cannot meet.\n- taskId t1 · index 1 · criterion: x', folder, options(), scenario));
+    expect(proposal.changes).toEqual([{ taskId: 't1', index: 1, action: 'replace', text: REPLACEMENT_CRITERION, reason: expect.any(String) }]);
+  });
+
   it('judges every criterion, failing once in qa-fail-once', () => {
     const folder = mkdtempSync(join(tmpdir(), 'mock-qa-'));
     respond('Work only inside this isolated task folder and change ONLY these declared files: todo.js, todo.test.js. The engine', folder, options(), scenario);
     const prompt = "independently reviewing the team's deliverables for this CEO goal: 앱. Inspect\nDeliverables:\n- taskId: t1\n  deliverable: d\n  files: todo.js, todo.test.js\n  evidence (read-only inputs): none\n  acceptance criteria (answer in this order):\n    1. a\n    2. b\n    3. c\nNewly integrated diff summary:\n";
-    expect(reviewItems(prompt)).toEqual([{ taskId: 't1', files: ['todo.js', 'todo.test.js'], criteria: 3 }]);
+    expect(reviewItems(prompt)).toEqual([{ taskId: 't1', files: ['todo.js', 'todo.test.js'], criteria: 3, texts: ['a', 'b', 'c'] }]);
     const modes = options(['qa-fail-once']);
     const first = JSON.parse(respond(prompt, folder, modes, scenario));
     expect(first.verdict).toBe('FAIL');
@@ -77,5 +89,24 @@ describe('mock AI adapter', () => {
     expect(inScope.tasks[0].files).toEqual(['todo.js', 'todo.test.js', 'README.md']);
     const plain = JSON.parse(respond(repair('todo.js, todo.test.js'), tmpdir(), options(), scenario));
     expect(plain.tasks[0].files).toEqual(['todo.js', 'todo.test.js']);
+  });
+});
+
+describe('mock AI command permissions (ADR-0058)', () => {
+  const implement = 'Work only inside this isolated task folder and change ONLY these declared files: todo.js, todo.test.js. The engine rejects';
+  it('reports a refused test command until node --test is granted', async () => {
+    const { respondWithDenials, mayRunTests } = await import('./mock-adapter.mjs');
+    const folder = mkdtempSync(join(tmpdir(), 'mock-perm-'));
+    const refused = respondWithDenials(implement, folder, options(['needs-permission-once']), scenario, []);
+    expect(refused.denials).toEqual([{ tool: 'Bash', command: 'npm install && node --test; echo "=== exit: $? ==="' }]);
+    expect(respondWithDenials(implement, folder, options(['needs-permission-once']), scenario, ['Bash(node --test)', 'Bash(node --test *)']).denials).toEqual([]);
+    expect(respondWithDenials(implement, folder, options(), scenario, []).denials).toEqual([]);
+    expect(mayRunTests(['Bash(npm test)'])).toBe(false);
+    const resumed = respondWithDenials('You are A (dev). The CEO approved these commands for this goal conversation: node --test. Continue your task in this isolated folder: run', folder, options(), scenario, ['Bash(node --test *)']);
+    expect(resumed.text).toContain('pass 3');
+  });
+  it('lists plan commands in plan-commands mode', () => {
+    const plan = JSON.parse(respond('Decompose the CEO goal into remaining FILE-CHANGING implementation tasks', tmpdir(), options(['plan-commands']), scenario));
+    expect(plan.tasks[0].commands).toEqual(['node --test', 'npm install']);
   });
 });

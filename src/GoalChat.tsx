@@ -14,8 +14,16 @@ import { SquadPanel } from './SquadPanel';
 import { PlanningOriginPanel } from './PlanningOriginPanel';
 import { planCardLabel, planCards, progressLine, stageLines, type PlanCard } from './goalStream';
 import { planEstimate } from './planEstimate';
+import { CommandPermissionCard } from './CommandPermissionCard';
+import { CriteriaDecisionCard } from './CriteriaDecisionCard';
+import { decidedLine } from './criteriaDecision';
+import { planCommandLine } from './commandPermission';
+import { canTurnOn, useCommandMode } from './commandMode';
+import { CommandModeBanner, CommandModeToggle } from './CommandModeControl';
+import { canResume, conversationState, objectiveLine } from './conversationObjective';
+import { ceoOnly, gitRelevant, nowTodo } from './nowTodo';
 import type { GoalOrigin } from './sddOrigin';
-import type { Agent, AiConnection, Approval, DeliverableReview, Event, Goal, GoalGuidance, GoalResult, GoalTurn, Project, Reference, Squad, Task, TokenUsageRecord } from './types';
+import type { Agent, AiConnection, Approval, CommandRequest, ConversationObjective, CriteriaDecision, CriteriaRequest, DeliverableReview, Event, Goal, GoalGuidance, GoalResult, GoalTurn, Project, Reference, Squad, Task, TokenUsageRecord } from './types';
 import { ReferenceButton } from './ReferenceList';
 import { requirementCoverage } from './referenceAttach';
 import { versionReason } from './goalChain';
@@ -44,6 +52,11 @@ type Props = {
   onDecide: (approvalId: string, approved: boolean, squadDigest: string | null) => Promise<boolean>;
   /** ADR-0054: optional result summary of a finished goal and a way to open its folder (v3). */
   result?: GoalResult | null; onOpenFolder?: () => void;
+  /** ADR-0058: command requests (plan cards and refused calls) and the CEO's choice on a refused-command card. */
+  commandRequests?: CommandRequest[]; onDecideCommands?: (approvalId: string, rules: string[]) => Promise<boolean>;
+  criteriaRequests?: CriteriaRequest[]; onDecideCriteria?: (approvalId: string, decisions: CriteriaDecision[], stop: boolean) => Promise<boolean>;
+  /** ADR-0059: the conversation's original-objective record and `이어서 하기`/`다시 열기`. */
+  objective?: ConversationObjective | null; onResumeConversation?: () => Promise<boolean>; onReopenConversation?: () => Promise<boolean>;
   /** ADR-0046 M3: `개선` (same goal, new plan) and `거부` (cancel the goal); `다시 시작` sends the same goal again. */
   onRevise: (approvalId: string, note: string) => Promise<boolean>; onCancel: (approvalId: string) => Promise<boolean>; onRestart: (intent: string) => Promise<boolean>;
   onSwapSquad: (from: string, to: string) => void; onAddSquad: (slot: 'writer' | 'reviewer', agentId: string, taskId: string | null) => void;
@@ -68,9 +81,11 @@ type StreamItem =
 
 /** v3 goal conversation (ADR-0046): the goal, stage lines, plan cards and recovery in one stream, with a progress line. */
 export function GoalChat(props: Props) {
-  const { result = null, onOpenFolder } = props;
+  const { result = null, onOpenFolder, commandRequests = [], onDecideCommands, criteriaRequests = [], onDecideCriteria, objective = null, onResumeConversation, onReopenConversation } = props;
   const { goal, projectKind, focusTaskId = null, turns: chainTurns, guidance, earlier = [], agents, connections, tasks, approvals, events, usage, reviews, runBlock, squad, squads, summary, goalOrigins, projects, layout = 'dialog', onClose, onSend, onArchive, onRevision, onOpenGoal, onRetry, onResume, onRequestFix, onDecide, onRevise, onCancel, onRestart, onSwapSquad, onAddSquad, onOpenConnections, onOpenOffice, onOpenTeam, onOpenProject, onError, onPreviewGit, onBootstrapGit } = props;
   const turns = chainTurns.filter(turn => turn.goalId === goal.id);
+  // ADR-0063: the conversation's opt-in allow-all mode (red band, banner, plan-card switch).
+  const commandMode = useCommandMode(goal.id, onError);
   // ADR-0051: earlier versions of this goal read as the top of the same conversation.
   const versions = [...earlier, goal];
   const versionIds = new Set(versions.map(item => item.id));
@@ -99,7 +114,8 @@ export function GoalChat(props: Props) {
   const sourceGuidance = guidance.find(item => item.replacementGoalId === goal.id);
   const replacementId = guidance.find(item => item.goalId === goal.id && item.status === 'revised' && item.replacementGoalId)?.replacementGoalId;
   const gitEvidence = [goal.intent, goal.report, ...tasks.filter(task => task.goalId === goal.id).flatMap(task => [task.title, task.result]), ...turns.map(turn => turn.answer)].join(' ');
-  const gitBootstrapRelevant = (goal.status === 'blocked' && /\.git|git init|git repository|첫 커밋|초기 커밋|깃 저장소|Git 저장소/i.test(gitEvidence)) || turns.some(turn => turn.route === 'git_bootstrap');
+  // ADR-0061: starting Git is offered from '지금 할 일' for a folder project when the conversation is about Git.
+  const git = gitRelevant({ projectKind, goal, evidence: gitEvidence, gitTurn: turns.some(turn => turn.route === 'git_bootstrap'), objective, criteria: criteriaRequests });
   const gitBootstrapCompleted = events.find(event => event.goalId === goal.id && event.kind === 'git_bootstrap_completed');
   const qaReview = events.find(event => event.goalId === goal.id && event.kind === 'qa_review');
   const progress = progressLine(goal, tasks, agents, events, squad);
@@ -112,7 +128,9 @@ export function GoalChat(props: Props) {
   const fix = decision?.kind === 'revision' ? teamFixRoute(goal, tasks, approvals, guidance) : null;
   const fixReceiverName = fixReceiver(goal.id, squads, agents);
   const coverage = requirementCoverage(props.references ?? [], tasks.filter(task => task.goalId === goal.id));
-  const todoTitle = goal.status === 'new' ? (runBlock ? runBlock.title : '팀 실행 시작') : decision?.label ?? null;
+  const convState = conversationState(versions, objective);
+  const todo = nowTodo({ goal, versions: versions.length, decisionLabel: decision?.label ?? null, startTitle: runBlock ? runBlock.title : '팀 실행 시작', state: convState, objective, git });
+  const todoTitle = todo?.title ?? null;
 
   const stream: StreamItem[] = [
     ...chainTurns.filter(turn => versionIds.has(turn.goalId)).map(turn => ({ kind: 'turn' as const, id: `turn:${turn.id}`, at: turn.askedAt, turn })),
@@ -124,7 +142,7 @@ export function GoalChat(props: Props) {
     ...versions.slice(1).map((version, index) => {
       const link = guidance.find(item => item.goalId === versions[index].id && item.replacementGoalId === version.id);
       const reused = link?.continuation ? `이전 결과 재사용 ${link.continuation.reusedTaskIds.length}개 · 새 작업 ${link.continuation.newTaskCount}개` : '';
-      return { kind: 'version' as const, id: `0version:${version.id}`, at: version.createdAt, goal: version, number: index + 2, reason: versionReason(link?.text ?? ''), reused };
+      return { kind: 'version' as const, id: `0version:${version.id}`, at: version.createdAt, goal: version, number: index + 2, reason: versionReason(link?.text ?? '', link?.checkpoint), reused };
     }),
   ].sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id));
   const history = useLimitedItems([...stream].reverse());
@@ -156,7 +174,35 @@ export function GoalChat(props: Props) {
     } finally { setSending(false); }
   }
 
+  // ADR-0059/0061: the original objective of the whole conversation, shown inside '지금 할 일'.
+  function objectiveSection(withButtons: boolean) {
+    if (goal.kind === 'deliberation' || (!onResumeConversation && !onReopenConversation)) return null;
+    const line = objectiveLine(convState, objective);
+    if (!line || (convState === 'achieved' && versions.length === 1)) return null;
+    const closed = convState === 'closed' || convState === 'achieved';
+    const ceoActions = objective?.ceoActions ?? [];
+    const onlyCeo = ceoOnly(objective);
+    return <section className={`gc-objective is-${convState}`} aria-label="원래 목표">
+      <p className="gc-objective-row"><span className="gc-objective-kicker">원래 목표</span><strong>{line}</strong></p>
+      {objective && objective.remaining.length > 0 && <><p className="gc-objective-head">남은 일(팀이 해요)</p><ul>{objective.remaining.map(item => <li key={item}>{item}</li>)}</ul></>}
+      {ceoActions.length > 0 && <><p className="gc-objective-head">CEO가 할 일(팀은 하지 않아요)</p><ul>{ceoActions.map(item => <li key={item}>{item}</li>)}</ul></>}
+      {objective && objective.evidence.length > 0 && <><p className="gc-objective-head">근거</p><ul>{objective.evidence.map(item => <li key={item}>{item}</li>)}</ul></>}
+      {objective?.projectChanges && <details><summary>프로젝트 상태(앱이 계산)</summary><pre className="report">{objective.projectChanges}</pre></details>}
+      {objective?.checkedAt && <small className="muted">CTO의 판단이에요 · {new Date(objective.checkedAt).toLocaleString()} · 닫아도 파일과 기록은 그대로예요</small>}
+      {withButtons && canResume(convState, goal) && <p className="chat-decision-hint">{onlyCeo ? 'CEO가 할 일을 마친 뒤 이어서 하면 원래 목표를 다시 확인해요. 팀은 푸시·배포 같은 일을 하지 않아요.' : '이어서 하면 CTO가 버전 기록·지금 프로젝트 변경·이 프로젝트의 이후 목표를 보고, 이미 달성됐으면 닫고 아니면 남은 일로 다음 계획을 세워요. 새 파일 작업은 계획 카드에서 승인해요.'}</p>}
+      {withButtons && <div className="chat-decision-actions">
+        {canResume(convState, goal) && onResumeConversation && <button type="button" className={onlyCeo ? 'secondary' : 'primary'} disabled={working} onClick={() => void guarded(async () => { const ok = await onResumeConversation(); if (ok) setTodoOpen(false); return ok; })}>{onlyCeo ? '마쳤어요 · 다시 확인 →' : convState === 'unchecked' ? '원래 목표 확인하고 이어서 하기 →' : '이어서 하기 →'}</button>}
+        {closed && onReopenConversation && objective && <button type="button" className="secondary" disabled={working} onClick={() => void guarded(async () => { const ok = await onReopenConversation(); if (ok) setTodoOpen(false); return ok; })}>다시 열기</button>}
+      </div>}
+    </section>;
+  }
+
   function planCardView(card: PlanCard) {
+    // ADR-0058: a refused command waits for the CEO here; 모두 승인 grants it for this conversation only.
+    if (card.permission && card.current) return <CommandPermissionCard key={card.approval.id} approval={card.approval} request={commandRequests.find(item => item.id === card.approval.id)} working={working || !onDecideCommands} onDecide={keys => { if (onDecideCommands) void guarded(() => onDecideCommands(card.approval.id, keys)).then(scrollDown); }} />;
+    // ADR-0060: criteria the team cannot meet wait for the CEO here instead of another rework.
+    if (card.criteria && card.current) return <CriteriaDecisionCard key={card.approval.id} approval={card.approval} request={criteriaRequests.find(item => item.id === card.approval.id)} working={working || !onDecideCriteria} onDecide={(decisions, stop) => { if (onDecideCriteria) void guarded(() => onDecideCriteria(card.approval.id, decisions, stop)).then(scrollDown); }} />;
+    if (card.criteria) return <div className="gc-plan is-closed" key={card.approval.id}><strong>{planCardLabel(card)}</strong>{decidedLine(criteriaRequests.find(item => item.id === card.approval.id)) && <span> · {decidedLine(criteriaRequests.find(item => item.id === card.approval.id))}</span>}<details><summary>멈춘 기준 보기</summary><ContentPreview><pre className="report">{card.approval.reason}</pre></ContentPreview></details></div>;
     // ADR-0053: a repair that needs new files asks once on the same goal; 거절 stops the goal (no cancel).
     if (card.scope && card.current) return <section className="gc-plan is-scope" key={card.approval.id} aria-label="파일 추가 확인">
       <h3>{planCardLabel(card)}</h3>
@@ -173,6 +219,7 @@ export function GoalChat(props: Props) {
       <h3>{planCardLabel(card)}</h3>
       {card.summary && <p>{card.summary}</p>}
       {card.counts && <p className="gc-plan-counts">{card.counts}</p>}
+      {planCommandLine(commandRequests.find(item => item.id === card.approval.id)) && <p className="gc-plan-commands">{planCommandLine(commandRequests.find(item => item.id === card.approval.id))}</p>}
       {(() => { const estimate = planEstimate(goal, card.approval, tasks, squad, usage); return <p className="gc-plan-estimate">{estimate.text}<br /><small>{estimate.tokens} · {estimate.rework}</small></p>; })()}
       {coverage && <p className={`gc-plan-coverage${coverage.covered < coverage.total ? ' is-partial' : ''}`}>요구사항 {coverage.total}절 중 {coverage.covered}절을 업무에 반영{coverage.covered < coverage.total ? ' · 나머지는 승인 범위에 이유가 적혀 있어요' : ''}</p>}
       <details className="gc-plan-detail"><summary>작업과 팀 자세히 보기</summary>
@@ -180,6 +227,7 @@ export function GoalChat(props: Props) {
         {squad && <SquadPanel squad={squad} agents={agents} connections={connections} tasks={tasks} editable onSwap={onSwapSquad} onAdd={onAddSquad} />}
         <p className="muted">승인 범위 전문</p><ContentPreview><pre className="report">{card.approval.reason}</pre></ContentPreview>
       </details>
+      {canTurnOn(goal, approvals) && <CommandModeToggle allowAll={commandMode.allowAll} working={working || commandMode.working} onChange={commandMode.change} />}
       <small className="muted">승인 전에는 프로젝트 파일을 바꾸지 않아요 · 승인은 이 버튼으로만 해요</small>
       <div className="gc-plan-actions">
         <button type="button" className={improving ? 'secondary' : 'primary'} disabled={working} onClick={() => void decide(card, true)}>승인</button>
@@ -193,7 +241,7 @@ export function GoalChat(props: Props) {
   function turnView(turn: GoalTurn) {
     return <div className="chat-exchange" key={`turn:${turn.id}`}>
       <div className="chat-bubble ceo"><div className="chat-bubble-meta"><strong>{turn.route === 'plan_revision' ? 'CEO · 계획 개선 방침' : `CEO → ${turn.agentName || agents.find(agent => agent.id === turn.agentId)?.name || '팀원'}`}</strong><time>{new Date(turn.askedAt).toLocaleString()}</time></div><ContentPreview><p>{turn.question}</p></ContentPreview></div>
-      <div className="chat-bubble worker"><div className="chat-bubble-meta"><strong>{turn.route === 'plan_revision' ? '시스템 · 계획 다시 세우기' : turn.route === 'direction' || turn.route === 'continue' ? `시스템 · ${turn.route === 'direction' ? '작업 지시 접수' : '실행 시작'}` : `${turn.agentName || '팀원'} · ${turn.status === 'pending' ? '의도 확인 중…' : turn.status === 'answered' ? '답변' : turn.status === 'interrupted' ? '중단됨' : '답변 실패'}`}</strong></div>{turn.answer ? <ContentPreview><p>{turn.answer}</p></ContentPreview> : <p>{turn.status === 'pending' ? '메시지를 확인하고 있습니다.' : '저장된 답변이 없습니다.'}</p>}</div>
+      <div className="chat-bubble worker"><div className="chat-bubble-meta"><strong>{turn.route === 'plan_revision' ? '시스템 · 계획 다시 세우기' : ['direction', 'followup', 'continue'].includes(turn.route ?? '') ? `시스템 · ${turn.route === 'continue' ? '실행 시작' : '작업 지시 접수'}` : `${turn.agentName || '팀원'} · ${turn.status === 'pending' ? '의도 확인 중…' : turn.status === 'answered' ? '답변' : turn.status === 'interrupted' ? '중단됨' : '답변 실패'}`}</strong></div>{turn.answer ? <ContentPreview><p>{turn.answer}</p></ContentPreview> : <p>{turn.status === 'pending' ? '메시지를 확인하고 있습니다.' : '저장된 답변이 없습니다.'}</p>}</div>
     </div>;
   }
 
@@ -202,18 +250,21 @@ export function GoalChat(props: Props) {
       <strong>계획 v{item.number}</strong><span>{item.reason}</span>
       {item.reused && <small>{item.reused}</small>}
       <details><summary>이 버전의 목표 보기</summary><ContentPreview><p>{item.goal.intent}</p></ContentPreview></details>
+      {item.goal.status === 'completed' && item.goal.report && <details><summary>이전 작업 결과와 QA 보기</summary><ContentPreview><pre className="report">{item.goal.report}</pre></ContentPreview><DeliverablePanel rows={deliverableRows(item.goal, tasks, reviews, agents)} mode="result" /></details>}
     </div>;
   }
 
   function guidanceView(item: GoalGuidance) {
+    const followup = item.checkpoint === '완료 후 후속 작업';
     return <div className="chat-exchange" key={`guidance:${item.id}`}>
-      {!chainTurns.some(turn => turn.guidanceId === item.id) && <div className="chat-bubble ceo"><div className="chat-bubble-meta"><strong>CEO · 목표 변경 지시</strong><time>{new Date(item.createdAt).toLocaleString()}</time></div><ContentPreview><p>{item.text}</p></ContentPreview></div>}
-      <div className="chat-bubble worker chat-guidance-status" role="status"><strong>{item.status === 'pending' ? '작업 지시 접수 · 안전 지점 대기' : item.status === 'review_required' ? item.autoContinue && !autoContinuationFailure ? '안전 지점에서 멈춤 · 새 목표 자동 준비 중' : '안전 지점에서 멈춤 · 새 목표 검토 필요' : item.replacementGoalId && versionIds.has(item.replacementGoalId) ? '다음 계획 버전으로 이어짐 · 아래에서 계속' : '새 목표 버전으로 연결됨'}</strong>{item.replacementGoalId && !versionIds.has(item.replacementGoalId) && <button type="button" className="text-button" onClick={() => onOpenGoal(item.replacementGoalId!)}>새 목표 열기 →</button>}</div>
+      {!chainTurns.some(turn => turn.guidanceId === item.id) && <div className="chat-bubble ceo"><div className="chat-bubble-meta"><strong>CEO · {followup ? '후속 작업 요청' : '목표 변경 지시'}</strong><time>{new Date(item.createdAt).toLocaleString()}</time></div><ContentPreview><p>{item.text}</p></ContentPreview></div>}
+      <div className="chat-bubble worker chat-guidance-status" role="status"><strong>{followup && item.status === 'review_required' ? '후속 작업 접수 · 다음 계획 준비 중' : item.status === 'pending' ? '작업 지시 접수 · 안전 지점 대기' : item.status === 'review_required' ? item.autoContinue && !autoContinuationFailure ? '안전 지점에서 멈춤 · 새 목표 자동 준비 중' : '안전 지점에서 멈춤 · 새 목표 검토 필요' : item.replacementGoalId && versionIds.has(item.replacementGoalId) ? '다음 계획 버전으로 이어짐 · 아래에서 계속' : '새 목표 버전으로 연결됨'}</strong>{item.replacementGoalId && !versionIds.has(item.replacementGoalId) && <button type="button" className="text-button" onClick={() => onOpenGoal(item.replacementGoalId!)}>새 목표 열기 →</button>}</div>
     </div>;
   }
 
-  const body = <section className={layout === 'dialog' ? 'goal-conversation chat-workspace gc' : 'chat-workspace gc gc-panel'} role={layout === 'dialog' ? 'dialog' : 'region'} aria-modal={layout === 'dialog' ? true : undefined} aria-labelledby="goal-chat-title" onClick={event => event.stopPropagation()}>
+  const body = <section className={`${layout === 'dialog' ? 'goal-conversation chat-workspace gc' : 'chat-workspace gc gc-panel'}${commandMode.allowAll ? ' is-allow-all' : ''}`} role={layout === 'dialog' ? 'dialog' : 'region'} aria-modal={layout === 'dialog' ? true : undefined} aria-labelledby="goal-chat-title" onClick={event => event.stopPropagation()}>
     <header className="chat-workspace-header"><div><span className="card-kicker">{goalStageLabel(goal.status)}{earlier.length > 0 && ` · 계획 v${versions.length}`}</span><h2 id="goal-chat-title" title={versions[0].intent}>{goalTitle(versions[0], 105)}</h2></div><div className="button-row"><ReferenceButton references={props.references ?? []} tasks={tasks.filter(task => task.goalId === goal.id)} /><button type="button" className="secondary" onClick={onOpenOffice}>Office ↗</button>{onArchive && <ArchiveGoalButton goal={goal} tasks={tasks} onArchive={onArchive} />}{layout === 'dialog' && <button type="button" className="secondary" onClick={onClose} aria-label="목표 대화 닫기">닫기</button>}</div></header>
+    <CommandModeBanner allowAll={commandMode.allowAll} working={commandMode.working} onChange={commandMode.change} />
     <div className="chat-workspace-feed" ref={feedRef}>
       <ListDisclosure label="이전 기록" total={history.total} hidden={history.hidden} expanded={history.expanded} onToggle={history.toggle} />
       {(history.hidden === 0 || history.expanded) && <div className="chat-bubble ceo gc-goal"><div className="chat-bubble-meta"><strong>CEO · 목표</strong><time>{new Date(versions[0].createdAt).toLocaleString()}</time></div><ContentPreview><p>{versions[0].intent}</p></ContentPreview></div>}
@@ -221,15 +272,14 @@ export function GoalChat(props: Props) {
       <div className="chat-timeline" aria-label="목표 대화와 진행 기록">{[...history.visible].reverse().map(item => item.kind === 'turn' ? turnView(item.turn) : item.kind === 'guidance' ? guidanceView(item.guidance) : item.kind === 'line' ? <p className="gc-line" key={item.id}>{item.text}</p> : item.kind === 'version' ? versionView(item) : planCardView(item.card))}</div>
 
       {goal.status === 'cancelled' && <section className="chat-context gc-cancelled" aria-label="취소됨"><strong>이 목표를 취소했어요</strong><p>계획을 거부해 프로젝트 파일은 바뀌지 않았어요. 같은 내용으로 다시 맡기려면 다시 시작하세요.</p><div className="chat-decision-actions"><button type="button" className="secondary" disabled={working} onClick={() => void guarded(() => onRestart(goal.intent))}>같은 내용으로 다시 시작</button></div></section>}
-      {goal.status === 'completed' && <section className="chat-context gc-result" aria-label="결과"><strong>결과</strong>{result && <div className="gc-result-summary"><p><b>바뀐 파일 {result.files.length}개</b>{onOpenFolder && <button type="button" className="secondary" onClick={onOpenFolder}>폴더 열기</button>}</p><ul className="gc-result-files">{resultFiles.visible.map(file => <li key={file.path}><code>{file.path}</code>{!file.exists && <small> · 지금은 없음</small>}</li>)}</ul><ListDisclosure label="바뀐 파일" total={resultFiles.total} hidden={resultFiles.hidden} expanded={resultFiles.expanded} onToggle={resultFiles.toggle} /><p><b>해 보는 법</b></p><ul className="gc-result-hints">{result.hints.map(hint => <li key={hint}>{hint}</li>)}</ul></div>}{result ? <details className="gc-result-more"><summary>QA 판정과 전체 보고 보기</summary>{deliverables.length > 0 && <DeliverablePanel rows={deliverables} mode="result" />}{goal.report && <ContentPreview><pre className="report">{goal.report}</pre></ContentPreview>}</details> : <>{deliverables.length > 0 && <DeliverablePanel rows={deliverables} mode="result" />}{goal.report && <ContentPreview><pre className="report">{goal.report}</pre></ContentPreview>}</>}<p>후속 작업은 새 목표로 보내 주세요.</p></section>}
-      {gitBootstrapRelevant && projectKind === 'folder' && <GitBootstrapPanel onPreview={onPreviewGit} onApply={onBootstrapGit} />}
+      {goal.status === 'completed' && <section className="chat-context gc-result" aria-label="결과"><strong>결과</strong>{result && <div className="gc-result-summary"><p><b>바뀐 파일 {result.files.length}개</b>{onOpenFolder && <button type="button" className="secondary" onClick={onOpenFolder}>폴더 열기</button>}</p><ul className="gc-result-files">{resultFiles.visible.map(file => <li key={file.path}><code>{file.path}</code>{!file.exists && <small> · 지금은 없음</small>}</li>)}</ul><ListDisclosure label="바뀐 파일" total={resultFiles.total} hidden={resultFiles.hidden} expanded={resultFiles.expanded} onToggle={resultFiles.toggle} /><p><b>해 보는 법</b></p><ul className="gc-result-hints">{result.hints.map(hint => <li key={hint}>{hint}</li>)}</ul></div>}{result ? <details className="gc-result-more"><summary>QA 판정과 전체 보고 보기</summary>{deliverables.length > 0 && <DeliverablePanel rows={deliverables} mode="result" />}{goal.report && <ContentPreview><pre className="report">{goal.report}</pre></ContentPreview>}</details> : <>{deliverables.length > 0 && <DeliverablePanel rows={deliverables} mode="result" />}{goal.report && <ContentPreview><pre className="report">{goal.report}</pre></ContentPreview>}</>}<p>후속 작업도 아래 입력창에서 바로 요청할 수 있어요. 새 파일 작업은 다음 계획에서 승인받습니다.</p></section>}
       {gitBootstrapCompleted && projectKind === 'git' && <section className="chat-context" role="status"><strong>Git 저장소 초기화 완료</strong><p>{gitBootstrapCompleted.message}</p></section>}
       {autoContinuationFailure && !activeGuidance && <section className="chat-context" role="status"><strong>자동 진행을 끝내지 못했습니다.</strong><p>{autoContinuationFailure.message}</p>{replacementId && <button type="button" className="text-button" onClick={() => onOpenGoal(replacementId)}>새 목표에서 이어가기 →</button>}</section>}
 
       <details className="chat-progress"><summary>진행 정보 · 업무 {ownedTasks.length}개 · QA {goal.reviewLoopsUsed}/{goal.reviewLoopLimit ?? 2}회 · 토큰 {brief.tokenTotal.toLocaleString()}개</summary><div className="chat-progress-body"><GoalGraph goal={goal} tasks={tasks} />{brief.latestEvent && <p>마지막 확인 기록 · {new Date(brief.latestEvent.at).toLocaleString()} · {brief.latestEvent.message}</p>}{ownedTasks.length > 0 && <div className="chat-progress-tasks"><strong>업무</strong>{taskWindow.visible.map(task => <p key={task.id}>{task.title} · {agents.find(agent => agent.id === task.assigneeId)?.name ?? '배정 전'} · {taskStageLabel(task.status)}</p>)}<ListDisclosure label="업무" total={taskWindow.total} hidden={taskWindow.hidden} expanded={taskWindow.expanded} onToggle={taskWindow.toggle} /></div>}{qaReview && <ContentPreview><p>최근 QA 기록: {qaReview.message}</p></ContentPreview>}</div></details>
     </div>
 
-    {todoTitle && <button type="button" className="gc-todo" onClick={() => setTodoOpen(true)} aria-haspopup="dialog"><span className="gc-todo-kicker">지금 할 일</span><strong>{todoTitle}</strong><span className="gc-todo-more" aria-hidden="true">자세히 ›</span></button>}
+    {todo && <button type="button" className={`gc-todo is-${todo.kind}`} onClick={() => setTodoOpen(true)} aria-haspopup="dialog"><span className="gc-todo-kicker">지금 할 일</span><strong>{todoTitle}</strong><span className="gc-todo-more" aria-hidden="true">자세히 ›</span></button>}
     {todoOpen && todoTitle && <div className="dialog-backdrop gc-todo-backdrop" onClick={() => setTodoOpen(false)} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setTodoOpen(false); } }}><section className="reason-dialog chat-decision gc-todo-dialog" role="dialog" aria-modal="true" aria-label={`지금 할 일: ${todoTitle}`} onClick={event => event.stopPropagation()}>
       <button type="button" className="text-button gc-todo-close" autoFocus onClick={() => setTodoOpen(false)} aria-label="닫기">닫기</button>
       {goal.status === 'new' ? <><span className="card-kicker">지금 할 일</span><h3>{runBlock ? runBlock.title : '팀 실행 시작'}</h3><p>{runBlock ? `${runBlock.reason} ${runBlock.next}` : '목표를 팀에 전달했습니다. 시작하면 AI 팀이 분석합니다.'}</p><div className="chat-decision-actions"><button type="button" className="primary" disabled={working || Boolean(runBlock)} onClick={() => void guarded(onRetry)}>팀 실행 시작 →</button>{runBlock && <button type="button" className="secondary" onClick={onOpenConnections}>AI 연결 열기 →</button>}{runBlock && <button type="button" className="secondary" onClick={onOpenTeam}>팀 설정 확인 →</button>}</div></> : decision ? <><span className="card-kicker">지금 할 일</span><h3>{decision.label}</h3>
@@ -251,12 +301,17 @@ export function GoalChat(props: Props) {
           {decision.kind === 'revision' && <button type="button" className="secondary" onClick={onOpenProject}>프로젝트 확인 →</button>}
         </div>
         {decision.kind === 'guidance' && activeGuidance?.status === 'review_required' && (!activeGuidance.autoContinue || autoContinuationFailure) && <div ref={revisionRef}><RevisionForm key={activeGuidance.id} goal={goal} guidance={activeGuidance} onRevision={onRevision} /></div>}
-      </> : null}
+        {versions.length > 1 && canResume(convState, goal) && onResumeConversation && <div className="gc-todo-more-section"><p className="chat-decision-hint">버전이 여러 개인 대화예요. 해결 요청 대신 원래 목표부터 확인하면, 다른 목표가 이미 끝냈을 때는 닫고 아니면 남은 일과 지금 프로젝트 상태를 붙여 이어서 해요.</p><button type="button" className="secondary" disabled={working} onClick={() => void guarded(async () => { const ok = await onResumeConversation(); if (ok) setTodoOpen(false); return ok; })}>원래 목표 확인하고 이어서 하기</button></div>}
+      </> : <><span className="card-kicker">지금 할 일</span><h3>{todo?.title}</h3>
+        {todo?.kind === 'git' && <p>이 대화는 Git 이력·커밋·푸시와 관련이 있어요. 지금 폴더는 Git 저장소가 아니라서 팀이 커밋 이력을 볼 수 없어요. 아래에서 첫 커밋에 넣을 파일을 고르면 앱이 main 브랜치로 저장소를 시작해요(원격 추가와 push는 하지 않아요).</p>}
+        {objectiveSection(true)}
+      </>}
+      {git && <GitBootstrapPanel onPreview={onPreviewGit} onApply={onBootstrapGit} />}
     </section></div>}
     {progress && <button type="button" className="gc-progress" onClick={onOpenOffice} aria-label={`진행 중: ${progress}. Office 열기`}><span className="gc-progress-dot" aria-hidden="true" />{progress}</button>}
     <div className="chat-composer"><div className="chat-composer-top"><strong>{improving ? '계획을 어떻게 고칠까요?' : '팀원에게 메시지'}</strong>{improving ? <button type="button" className="text-button" onClick={() => { setImproving(null); setDraft(''); }}>개선 취소</button> : <label>받는 팀원 <select value={selectedAgentId} onChange={event => setSelectedAgentId(event.target.value)}>{routable.length ? routable.map(agent => <option value={agent.id} key={agent.id}>{agent.name} · {agent.role}{eligible.some(ready => ready.id === agent.id) ? '' : ' · 연결 확인 필요'}</option>) : <option value="">활성 팀원 없음</option>}</select></label>}</div>
       <label className="chat-input-label" htmlFor="goal-chat-input">메시지</label><textarea id="goal-chat-input" ref={inputRef} value={draft} maxLength={4000} placeholder={improving ? '예: 파일을 하나로 합쳐 주세요. 시험도 같이 추가해 주세요.' : '팀원에게 질문하거나 원하는 일을 말해 주세요.'} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) void sendMessage(); }} />
-      <div className="chat-composer-bottom"><small>{improving ? '보낸 방침으로 팀이 같은 목표에서 계획을 다시 세웁니다. 새 계획은 다시 승인받습니다.' : goal.status === 'cancelled' ? '취소한 목표예요. 새 일은 새 목표로 보내 주세요.' : !selectedAgent ? '선택한 팀원의 AI 연결을 확인해 주세요.' : pending ? '이전 메시지의 AI 해석이 끝나면 다음 메시지를 보낼 수 있습니다.' : goal.status === 'completed' ? '완료된 목표의 후속 작업은 새 목표가 필요합니다.' : '대화는 승인이 아니에요. 새 파일 작업은 계획 카드에서 승인해요.'}</small><div className="chat-send-actions">{!selectedAgent && <button type="button" className="secondary" onClick={onOpenConnections}>AI 연결 확인 →</button>}<button type="button" className={cards.some(card => card.current) && !improving ? 'secondary' : 'primary'} disabled={sending || pending || (!improving && !selectedAgent) || draft.trim().length < 4} onClick={() => void sendMessage()}>{improving ? '개선 방침 보내기' : '전송'}</button></div></div>
+      <div className="chat-composer-bottom"><small>{improving ? '보낸 방침으로 팀이 같은 목표에서 계획을 다시 세웁니다. 새 계획은 다시 승인받습니다.' : goal.status === 'cancelled' ? '취소한 목표예요. 새 일은 새 목표로 보내 주세요.' : !selectedAgent ? '선택한 팀원의 AI 연결을 확인해 주세요.' : pending ? '이전 메시지의 AI 해석이 끝나면 다음 메시지를 보낼 수 있습니다.' : goal.status === 'completed' ? '질문하거나 다음 작업을 바로 요청하세요. 새 파일 작업은 새 계획에서 승인받습니다.' : '대화는 승인이 아니에요. 새 파일 작업은 계획 카드에서 승인해요.'}</small><div className="chat-send-actions">{!selectedAgent && <button type="button" className="secondary" onClick={onOpenConnections}>AI 연결 확인 →</button>}<button type="button" className={cards.some(card => card.current) && !improving ? 'secondary' : 'primary'} disabled={sending || pending || (!improving && !selectedAgent) || draft.trim().length < 4} onClick={() => void sendMessage()}>{improving ? '개선 방침 보내기' : '전송'}</button></div></div>
     </div>
   </section>;
   return layout === 'dialog' ? <div className="dialog-backdrop" onClick={onClose}>{body}</div> : body;

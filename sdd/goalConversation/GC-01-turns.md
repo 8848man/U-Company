@@ -12,7 +12,13 @@ Only one AI-interpreted turn may be pending for a goal. The pending-turn check a
 
 For an AI-routed direction change, the CEO addresses a team member in the same conversation. Save the addressee as routing provenance, not as proof that a model has read the message. After the safe checkpoint and linked revision starts, the selected connected member gives a real read-only escalation memo to CTO; if that runtime is unavailable, the revised goal blocks with a repair reason instead of claiming delivery. A direction addressed to CTO proceeds directly to CTO analysis. CTO analyzes the changed requirements against the old goal and saved task results; PM proposes only remaining file work and may nominate completed tasks for reuse. The engine independently verifies each nomination against an integration-time file digest and the current project files. A task without complete evidence, an unintegrated worktree, an invalid dependency, or changed bytes is not skipped. Record the accepted reuse decision in the goal lineage; QA inspects the whole revised outcome, including reused artifacts. Fresh file writes require a new explicit approval; an old approval never authorizes a revised goal. A revision with no remaining file work still requires QA but not project-write approval.
 
-The default goal card offers `대화 및 방향 변경` regardless of stage, including blocked and completed goals. Completed goals support discussion; an execution request on a completed goal explains that the CEO must create a follow-up goal. Goal conversation is separate from the illustrative idle character dialogue.
+The default goal card offers `대화 및 방향 변경` regardless of stage, including blocked and completed goals. A completed execution goal supports discussion and a clear follow-up work instruction in the same visible conversation. The follow-up saves the exact CEO message, creates a linked next work version without rewriting the completed version, and starts CTO/PM analysis. New file work receives a fresh scoped approval. A completed goal's status, report, tasks, QA evidence and approval remain immutable. Ambiguous messages ask for clarification; asking a question never starts work. Goal conversation is separate from the illustrative idle character dialogue.
+
+A conversation reply also receives, from saved records and with no extra model call, the newest per-deliverable QA verdicts with each failed criterion and QA's evidence, the rework count and limit, and the block kind and reason ([ADR-0057](../architecture/decisions/ADR-0057.md)), so "why does QA keep sending this back" is answered from the record.
+
+Under the conversation header an **original objective** line shows the objective's state ([ADR-0059](../architecture/decisions/ADR-0059.md)). While it is open and the newest version is completed or blocked, `이어서 하기` checks it against the versions, the project's current changes and later completed goals of the project, then either closes it with evidence or starts the next pass with the remaining work. A closed conversation shows who achieved it and `다시 열기`.
+
+At every linked work-pass boundary, the engine constructs a bounded structured handoff from saved records ([ADR-0056](../architecture/decisions/ADR-0056.md)). It identifies the original CEO goal, the latest instruction, earlier pass status, task/file evidence and relevant short excerpts. The exact conversation and evidence remain saved and visible. The handoff is untrusted context, not a replacement for an approval or independent QA. At 8,000 estimated accumulated text tokens (four characters per token), omit recent chat excerpts from the new intent and pass only the structured handoff; below that level, at most two bounded exchanges may be included. No extra AI call is made for this handoff.
 
 ## Teammate reply style
 
@@ -30,4 +36,4 @@ Concise style must not weaken truthfulness or the security boundary: distinguish
 
 ## 검증 참조
 
-[주제 수용 기준](acceptance.md), [수동 QA](../../qa/MANUAL-QA.md). 구현 증거와 미완료 항목은 [WORKLOG](../../WORKLOG.md)를 따른다.
+[주제 수용 기준](acceptance.md), [수동 QA](../../qa/MANUAL-QA.md). 구현 증거와 미완료 항목은 [WORKLOG](../../worklog/00_index.md)를 따른다.

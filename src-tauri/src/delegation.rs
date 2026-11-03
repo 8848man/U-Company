@@ -27,7 +27,8 @@ pub struct ContractInput<'a> {
 const MARK_OPEN: &str = "⟦";
 const MARK_CLOSE: &str = "⟧ ";
 /// `plan_form` (ADR-0048): the planner's plan failed the app's format checks twice in a row.
-pub const BLOCK_KINDS: [&str; 10] = ["precall", "approval_denied", "interrupted", "integration_conflict", "qa_failed", "needs_scope", "qa_form", "plan_form", "provider", "other"];
+/// `criteria_blocked` (ADR-0060): the CEO stopped at a criteria card.
+pub const BLOCK_KINDS: [&str; 11] = ["precall", "approval_denied", "interrupted", "integration_conflict", "qa_failed", "needs_scope", "qa_form", "plan_form", "provider", "criteria_blocked", "other"];
 
 /// Tags an engine-generated error with its block kind. Only engine code calls this; model text is
 /// never parsed for a kind because provider errors are passed through `provider` sites.
@@ -323,7 +324,9 @@ pub fn parse_review(text: &str, tasks: &[Task]) -> Result<ParsedReview, String> 
         for (index, criterion) in criteria.iter().enumerate() {
             let met = criterion.get("met").and_then(Value::as_bool).ok_or_else(|| format!("업무 '{}'의 기준 {}에 met(true/false)가 없습니다", task.title, index + 1))?;
             let evidence = criterion.get("evidence").and_then(Value::as_str).unwrap_or("").trim().chars().take(600).collect::<String>();
-            results.push(CriterionResult { criterion: task.acceptance[index].clone(), met, evidence });
+            // ADR-0060: an unmet criterion may name a precondition the team cannot provide.
+            let precondition = if met { String::new() } else { criterion.get("precondition").and_then(Value::as_str).unwrap_or("").trim().chars().take(300).collect::<String>() };
+            results.push(CriterionResult { criterion: task.acceptance[index].clone(), met, evidence, precondition });
         }
         let unverified = item.get("unverified").and_then(Value::as_array).map(|list| list.iter().filter_map(Value::as_str).map(|text| text.chars().take(300).collect()).collect()).unwrap_or_default();
         per_task.push((task.id.clone(), task_verdict, results, unverified));

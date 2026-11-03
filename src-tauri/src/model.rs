@@ -731,6 +731,9 @@ pub struct CriterionResult {
     pub met: bool,
     #[serde(default)]
     pub evidence: String,
+    /// ADR-0060: what is missing that the team cannot provide (QA output, untrusted).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub precondition: String,
 }
 
 /// Independent QA verdict for one deliverable task in one QA round (ADR-0038).
@@ -810,6 +813,17 @@ pub struct Snapshot {
     pub references: Vec<crate::references::Reference>,
     #[serde(default)]
     pub curator_enabled: bool,
+    /// ADR-0058: command permission requests (plan cards and refused calls) and conversation grants.
+    #[serde(default)]
+    pub command_requests: Vec<crate::permissions::CommandRequest>,
+    #[serde(default)]
+    pub command_grants: Vec<crate::permissions::CommandGrants>,
+    /// ADR-0059: each conversation's original-objective state.
+    #[serde(default)]
+    pub conversation_objectives: Vec<crate::objective::ConversationObjective>,
+    /// ADR-0060: criteria cards (stuck acceptance criteria and the CEO's decisions).
+    #[serde(default)]
+    pub criteria_requests: Vec<crate::criteria::CriteriaRequest>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

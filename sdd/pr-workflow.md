@@ -8,7 +8,7 @@ Status: Accepted (2026-10-12, CEO). [개발 워크플로우](workflow.md)의 마
 
 ## 1. 단위와 브랜치
 
-- PR 하나는 [WORKLOG](../WORKLOG.md)의 마일스톤 하나(M#)다. 서로 무관한 변경을 한 PR에 섞지 않는다. 구조 리팩터링과 새 동작은 다른 PR로 나눈다.
+- PR 하나는 [WORKLOG](../worklog/00_index.md)의 마일스톤 하나(M#)다. 서로 무관한 변경을 한 PR에 섞지 않는다. 구조 리팩터링과 새 동작은 다른 PR로 나눈다.
 - 브랜치는 `main`에서 만들고 이름은 `<종류>/<영어-소문자-요약>`이다. 종류: `feature`(새 기능), `fix`(버그), `docs`(문서만), `refactor`(동작 변화 없음), `chore`(빌드·설정).
   - 예: `feature/goal-archive`, `fix/meeting-summary`, `docs/pr-workflow`.
 - `main`에는 직접 커밋하지 않는다. 첫 커밋은 예외였다.

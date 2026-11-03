@@ -164,7 +164,7 @@ pub(crate) fn send_json(connection: &AiConnection, url: &str, body: &Value) -> R
     response.body_mut().read_json().map_err(|e| format!("HTTP response: {e}"))
 }
 
-pub(crate) fn run_plugin(connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool) -> Result<RuntimeResult, String> {
+pub(crate) fn run_plugin(connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool, options: &crate::provider::CallOptions) -> Result<RuntimeResult, String> {
     let mut command = Command::new(&connection.executable);
     command.args(&connection.args).current_dir(cwd).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
     // A console adapter (e.g. node.exe for the mock AI) must not open a window over the app.
@@ -187,7 +187,8 @@ pub(crate) fn run_plugin(connection: &AiConnection, prompt: &str, cwd: &Path, wr
     };
     if init_result.get("error").is_some() { let _ = child.kill(); let _ = child.wait(); let _ = reader.join(); return Err(format!("Plugin initialization failed: {init_result}")); }
     if init_result.pointer("/result/protocolVersion").and_then(Value::as_u64) != Some(1) { let _ = child.kill(); let _ = child.wait(); let _ = reader.join(); return Err("Plugin protocol major version must be 1".into()); }
-    let request = json!({"id": 2, "method": "send_task", "params": {"prompt": prompt, "cwd": cwd.to_string_lossy(), "modelId": connection.model_id, "writable": writable}});
+    // ADR-0058: optional fields; protocol v1 adapters ignore unknown ones.
+    let request = json!({"id": 2, "method": "send_task", "params": {"prompt": prompt, "cwd": cwd.to_string_lossy(), "modelId": connection.model_id, "writable": writable, "allowedCommands": options.allowed, "resumeSession": options.resume, "readOnlyCommands": options.read_only_commands}});
     writeln!(stdin, "{request}").map_err(|e| e.to_string())?;
     let result = match rx.recv_timeout(Duration::from_secs(30 * 60)) {
         Ok(Ok(value)) => value,
@@ -199,7 +200,8 @@ pub(crate) fn run_plugin(connection: &AiConnection, prompt: &str, cwd: &Path, wr
     let _ = reader.join();
     let text = result.pointer("/result/text").and_then(Value::as_str).ok_or_else(|| format!("Plugin returned no result: {result}"))?.to_string();
     let usage = token_usage(&result);
-    Ok(RuntimeResult { text, session_id: result.pointer("/result/sessionId").and_then(Value::as_str).map(str::to_string), usage })
+    let permission_denials = result.pointer("/result/permissionDenials").and_then(Value::as_array).map(|items| items.iter().filter_map(|item| Some(crate::permissions::Denial { tool: item.get("tool")?.as_str()?.to_string(), command: item.get("command").and_then(Value::as_str).unwrap_or("").to_string() })).collect()).unwrap_or_default();
+    Ok(RuntimeResult { text, session_id: result.pointer("/result/sessionId").and_then(Value::as_str).map(str::to_string), usage, permission_denials, commands_run: Vec::new() })
 }
 
 fn read_json_line(reader: &mut impl std::io::BufRead) -> Result<Value, String> {
