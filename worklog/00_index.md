@@ -10,6 +10,7 @@
 
 ## 최근 단독 마일스톤
 
+- [미통합 작업 브랜치 정리 (2026-11-04, Codex)](milestones/WLG-064.md)
 - [작업 차수 경계 구조화 요약과 미완료 기록 점검 (2026-10-25, Codex)](milestones/WLG-058.md)
 - [워크로그 폴더와 라운드 인덱스 (2026-10-25, Codex)](milestones/WLG-057.md)
 - [한 목표 대화에서 반복 작업 (2026-10-25, Codex)](milestones/WLG-001.md)
@@ -131,6 +132,7 @@
 
 | 기록 | 작업 요약 | 상태 | 파일 |
 | --- | --- | --- | --- |
+| WLG-064 (2026-11-04, Codex) | 미통합 목표·권한·모델 선택 브랜치 통합, 기록 충돌 해결 | 프런트 시험·빌드와 Rust 컴파일 통과, Rust 시험 실행 환경 오류·실앱 QA 대기 | [WLG-064.md](milestones/WLG-064.md) |
 | 작업 차수 경계 구조화 요약과 미완료 기록 점검 (2026-10-25, Codex) | 새 작업 차수마다 저장 기록으로 요약 인계를 만들고 누적 약 8,000토큰부터 대화 발췌를 제외; 실제 Rust 실행·실앱 QA는 미검증 | 구현, 검증 대기 | [WLG-058.md](milestones/WLG-058.md) |
 | 워크로그 폴더와 라운드 인덱스 (2026-10-25, Codex) | 네 프로그램의 36개 라운드와 56개 기존 단독 기록을 파일별로 이관하고 인덱스에서 탐색하도록 연결 | 완료 | [WLG-057.md](milestones/WLG-057.md) |
 | 한 목표 대화에서 반복 작업 (2026-10-25, Codex) | CEO 결정: 완료된 실행 목표의 기존 대화에서 후속 작업을 바로 지시한다. 내부적으로는 차수별 Goal ID를 유지하고, 이전 완료·QA·승인은 보존하며 다음 차수의 파일 쓰기는 새 계획 승인을 받는… | 기록 | [WLG-001.md](milestones/WLG-001.md) |
@@ -189,4 +191,3 @@
 | Active QA-driven improvement checklist (2026-10-01) | Inspect the current discovery, connection save path, disabled controls, project persistence, Office interaction,… | 기록 | [WLG-054.md](milestones/WLG-054.md) |
 | Verified commands | 2026-10-01 follow-up revision: node node_modules/typescript/bin/tsc --noEmit, Vite production build, and vitest… | 기록 | [WLG-055.md](milestones/WLG-055.md) |
 | Next action | The currently running Windows app (PID 27372 when last checked) still uses the previous desktop binary. After th… | 기록 | [WLG-056.md](milestones/WLG-056.md) |
-

@@ -48,7 +48,7 @@ describe('window place', () => {
 
 describe('office mini chat (ADR-0047)', () => {
   it('says why a teammate cannot be asked, from saved state only', () => {
-    
+
     expect(miniChatBlock(null, agent('dev', '개발'))).toContain('목표를 고르면');
     expect(miniChatBlock({ ...goal('executing'), kind: 'deliberation' }, agent('dev', '개발'))).toContain('회의');
     expect(miniChatBlock({ ...goal('executing'), projectId: null }, agent('dev', '개발'))).toContain('프로젝트');
@@ -57,7 +57,7 @@ describe('office mini chat (ADR-0047)', () => {
     expect(miniChatBlock(goal('executing'), agent('dev', '개발'))).toBeNull();
   });
   it('shows only the selected teammate’s latest turns, oldest first', () => {
-    
+
     const turns = Array.from({ length: 9 }, (_, i) => ({ id: `t${i}`, agentId: i % 3 === 0 ? 'pm' : 'dev', askedAt: `2026-10-14T00:0${i}` }));
     const shown = miniChatTurns([...turns].reverse(), 'dev', 4);
     expect(shown.map(turn => turn.id)).toEqual(['t4', 't5', 't7', 't8']);
