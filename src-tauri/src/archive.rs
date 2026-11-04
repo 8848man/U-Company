@@ -86,8 +86,10 @@ pub fn archive(store: &Store, goal_id: &str) -> Result<(), String> {
         let chain = version_chain(tx, goal_id, |id| !archived.contains(id))?;
         let tasks: Vec<Task> = tx_list(tx, "task")?;
         let meetings: Vec<Meeting> = tx_list(tx, "meeting")?;
+        let guidance: Vec<GoalGuidance> = tx_list(tx, "goal_guidance")?;
         // Every version must be archivable before any is archived.
         for id in &chain {
+            if guidance.iter().any(|item| &item.goal_id == id && ["pending", "review_required"].contains(&item.status.as_str())) { return Err("후속 작업이나 방향 변경을 준비 중입니다. 다음 계획을 확인한 뒤 보관해 주세요".into()); }
             let goal: Goal = tx_get(tx, "goal", id)?.ok_or("목표를 찾을 수 없습니다")?;
             archivable(&goal, &tasks, meetings.iter().find(|item| &item.goal_id == id)).map_err(|error| if id == goal_id { error } else { format!("같은 대화의 다른 버전 때문에 보관할 수 없습니다: {error}") })?;
         }

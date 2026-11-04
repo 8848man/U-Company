@@ -1,5 +1,6 @@
 use crate::model::{AiConnection, DiscoveredAi};
 use std::env;
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::thread;
@@ -283,6 +284,12 @@ fn probe_models(url: &str) -> Option<Vec<String>> {
 }
 
 pub fn list_models(connection: &AiConnection) -> Result<Vec<String>, String> {
+    if connection.kind == "cli" && connection.id == "claude" {
+        return Ok(vec!["sonnet".into(), "opus".into(), "haiku".into()]);
+    }
+    if connection.kind == "cli" && connection.id == "codex" {
+        return list_codex_models(connection);
+    }
     if connection.kind != "http" { return Ok(Vec::new()); }
     let base = connection.endpoint.trim_end_matches('/');
     if !(base.starts_with("http://127.0.0.1:") || base.starts_with("http://localhost:") || base.starts_with("https://")) {
@@ -304,9 +311,80 @@ pub fn list_models(connection: &AiConnection) -> Result<Vec<String>, String> {
     Ok(names)
 }
 
+fn list_codex_models(connection: &AiConnection) -> Result<Vec<String>, String> {
+    let mut command = runtime_command(connection)?;
+    command.args(["app-server", "--listen", "stdio://"])
+        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    let mut child = command.spawn().map_err(|error| format!("Codex 모델 목록을 시작하지 못했습니다: {error}"))?;
+    let result = (|| -> Result<Vec<String>, String> {
+        let mut stdin = child.stdin.take().ok_or("Codex 모델 목록 입력을 열지 못했습니다")?;
+        for message in [
+            serde_json::json!({"method":"initialize","id":1,"params":{"clientInfo":{"name":"utopia_company","title":"Utopia Company","version":"0.1.0"}}}),
+            serde_json::json!({"method":"initialized","params":{}}),
+            serde_json::json!({"method":"model/list","id":2,"params":{"limit":100,"includeHidden":false}}),
+        ] {
+            writeln!(stdin, "{message}").map_err(|error| format!("Codex 모델 목록 요청에 실패했습니다: {error}"))?;
+        }
+        stdin.flush().map_err(|error| format!("Codex 모델 목록 요청에 실패했습니다: {error}"))?;
+        let stdout = child.stdout.take().ok_or("Codex 모델 목록 출력을 열지 못했습니다")?;
+        let (sender, receiver) = std::sync::mpsc::channel();
+        thread::spawn(move || {
+            for line in BufReader::new(stdout).lines() {
+                if sender.send(line).is_err() { break; }
+            }
+        });
+        let deadline = Instant::now() + Duration::from_secs(12);
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() { return Err("Codex 모델 목록 응답 시간이 초과됐습니다".into()); }
+            let line = receiver.recv_timeout(remaining).map_err(|_| "Codex 모델 목록 응답을 받지 못했습니다")?
+                .map_err(|error| format!("Codex 모델 목록을 읽지 못했습니다: {error}"))?;
+            let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) else { continue; };
+            if value.get("id").and_then(serde_json::Value::as_i64) != Some(2) { continue; }
+            return parse_codex_models(&value);
+        }
+    })();
+    let _ = child.kill();
+    let _ = child.wait();
+    result
+}
+
+fn parse_codex_models(response: &serde_json::Value) -> Result<Vec<String>, String> {
+    if response.get("error").is_some() { return Err("Codex 모델 목록 요청이 거절됐습니다. CLI 로그인과 버전을 확인해 주세요".into()); }
+    let rows = response.pointer("/result/data").and_then(serde_json::Value::as_array)
+        .ok_or("Codex 모델 목록 응답 형식이 올바르지 않습니다")?;
+    let mut models = Vec::new();
+    for row in rows {
+        if row.get("hidden").and_then(serde_json::Value::as_bool) == Some(true) { continue; }
+        let Some(id) = row.get("model").or_else(|| row.get("id")).and_then(serde_json::Value::as_str) else { continue; };
+        if !id.is_empty() && id.len() <= 100 && !id.chars().any(char::is_control) && !models.iter().any(|known| known == id) {
+            models.push(id.to_string());
+        }
+    }
+    if models.is_empty() { return Err("Codex가 선택 가능한 모델을 반환하지 않았습니다".into()); }
+    Ok(models)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn codex_catalog_uses_visible_model_ids_without_claiming_access() {
+        let response = serde_json::json!({"id":2,"result":{"data":[
+            {"model":"gpt-a","hidden":false},
+            {"model":"gpt-b","hidden":true},
+            {"model":"gpt-a","hidden":false},
+            {"id":"gpt-c"}
+        ]}});
+        assert_eq!(parse_codex_models(&response).unwrap(), vec!["gpt-a", "gpt-c"]);
+        assert!(parse_codex_models(&serde_json::json!({"id":2,"error":{"message":"denied"}})).is_err());
+    }
 
     #[test]
     fn login_commands_are_fixed_to_builtin_providers() {

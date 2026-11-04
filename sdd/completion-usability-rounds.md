@@ -1,6 +1,6 @@
 # 완주율·사용성 개선 라운드
 
-Status: R0~R7 구현 완료, Windows 수동 점검(QA-50) 대기 (2026-10-20, 브랜치 `feature/completion-usability-rounds`). 결정: [ADR-0052](architecture/decisions/ADR-0052.md). 진행 증거: [WORKLOG](../WORKLOG.md).
+Status: R0~R7 구현 완료, Windows 수동 점검(QA-50) 대기 (2026-10-20, 브랜치 `feature/completion-usability-rounds`). 결정: [ADR-0052](architecture/decisions/ADR-0052.md). 진행 증거: [WORKLOG](../worklog/00_index.md).
 
 ## 왜 하는가
 

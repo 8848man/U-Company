@@ -66,6 +66,13 @@ fn check_target_parent(root: &Path, relative: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// ADR-0058: a plain copy of the project for a review that may run approved commands (no baseline).
+pub fn copy_for_review(root: &Path, destination: &Path) -> Result<(), String> {
+    if destination.exists() { return Err("검토용 복사본이 이미 있습니다".into()); }
+    let files = folder_files(root)?;
+    copy_folder_files(root, destination, &files)
+}
+
 pub fn prepare_folder_copy(root: &Path, workspace: &Path) -> Result<(), String> {
     if workspace.exists() { return Err("작업 복사본이 이미 존재합니다. 이전 작업을 확인해 주세요".into()); }
     let baseline = workspace.with_extension("baseline");
@@ -80,25 +87,50 @@ pub fn folder_changes(workspace: &Path) -> Result<Vec<String>, String> {
     let baseline = workspace.with_extension("baseline");
     let before = folder_files(&baseline)?;
     let after = folder_files(workspace)?;
-    let names: BTreeSet<_> = before.keys().chain(after.keys()).cloned().collect();
+    // ADR-0057: a case-only rename counts as a change to the original file, not a new file.
+    let renamed = case_renames(&before, &after);
+    let after_name = |relative: &LocalPathBuf| -> Option<LocalPathBuf> {
+        if after.contains_key(relative) { return Some(relative.clone()); }
+        renamed.iter().find(|(original, _)| original == relative).map(|(_, workspace_name)| workspace_name.clone())
+    };
+    let names: BTreeSet<_> = before.keys().chain(after.keys().filter(|name| !renamed.iter().any(|(_, workspace_name)| workspace_name == *name))).cloned().collect();
     let mut changes = Vec::new();
     for relative in names {
         let old = if before.contains_key(&relative) { Some(std::fs::read(baseline.join(&relative)).map_err(|e| e.to_string())?) } else { None };
-        let new = if after.contains_key(&relative) { Some(std::fs::read(workspace.join(&relative)).map_err(|e| e.to_string())?) } else { None };
+        let new = match after_name(&relative) { Some(name) => Some(std::fs::read(workspace.join(&name)).map_err(|e| e.to_string())?), None => None };
         if old != new { changes.push(relative.to_string_lossy().replace('\\', "/")); }
     }
     Ok(changes)
+}
+
+/// Pairs (baseline name, workspace name) that differ only by ASCII case, where the baseline name is
+/// gone from the workspace and the workspace name is not in the baseline.
+fn case_renames(before: &BTreeMap<LocalPathBuf, u64>, after: &BTreeMap<LocalPathBuf, u64>) -> Vec<(LocalPathBuf, LocalPathBuf)> {
+    let mut pairs = Vec::new();
+    for original in before.keys().filter(|name| !after.contains_key(*name)) {
+        let lower = original.to_string_lossy().to_ascii_lowercase();
+        if let Some(workspace_name) = after.keys().find(|name| !before.contains_key(*name) && name.to_string_lossy().to_ascii_lowercase() == lower) {
+            pairs.push((original.clone(), workspace_name.clone()));
+        }
+    }
+    pairs
 }
 
 pub fn integrate_folder_copy(root: &Path, workspace: &Path, allowed_files: &[String]) -> Result<Vec<String>, String> {
     let baseline = workspace.with_extension("baseline");
     let before = folder_files(&baseline)?;
     let after = folder_files(workspace)?;
-    let names: BTreeSet<_> = before.keys().chain(after.keys()).cloned().collect();
+    // ADR-0057: a case-only rename (`readme.md` for `README.md`) is the same file, applied under the original name.
+    let renamed = case_renames(&before, &after);
+    let after_name = |relative: &LocalPathBuf| -> Option<LocalPathBuf> {
+        if after.contains_key(relative) { return Some(relative.clone()); }
+        renamed.iter().find(|(original, _)| original == relative).map(|(_, workspace_name)| workspace_name.clone())
+    };
+    let names: BTreeSet<_> = before.keys().chain(after.keys().filter(|name| !renamed.iter().any(|(_, workspace_name)| workspace_name == *name))).cloned().collect();
     let mut changes = Vec::new();
     for relative in names {
         let old = if before.contains_key(&relative) { Some(std::fs::read(baseline.join(&relative)).map_err(|e| e.to_string())?) } else { None };
-        let new = if after.contains_key(&relative) { Some(std::fs::read(workspace.join(&relative)).map_err(|e| e.to_string())?) } else { None };
+        let new = match after_name(&relative) { Some(name) => Some(std::fs::read(workspace.join(&name)).map_err(|e| e.to_string())?), None => None };
         if old == new { continue; }
         let label = relative.to_string_lossy().replace('\\', "/");
         if !allowed_files.iter().any(|allowed| allowed.eq_ignore_ascii_case(&label)) { return Err(format!("Agent changed undeclared file: {label}")); }
@@ -256,6 +288,23 @@ pub fn create_worktree(root: &Path, destination: &Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_case_only_rename_in_the_workspace_updates_the_original_file() {
+        let base = std::env::temp_dir().join(format!("utopia-folder-case-{}", crate::model::id()));
+        let root = base.join("project");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("README.md"), "old").unwrap();
+        let workspace = base.join("ws");
+        prepare_folder_copy(&root, &workspace).unwrap();
+        std::fs::remove_file(workspace.join("README.md")).unwrap();
+        std::fs::write(workspace.join("readme.md"), "new").unwrap();
+        let applied = integrate_folder_copy(&root, &workspace, &["readme.md".into()]).unwrap();
+        assert_eq!(applied, vec!["README.md".to_string()]);
+        assert_eq!(std::fs::read_to_string(root.join("README.md")).unwrap(), "new");
+        assert!(std::fs::read_dir(&root).unwrap().filter_map(Result::ok).all(|entry| entry.file_name() != "readme.md"), "no second file beside the original");
+        let _ = std::fs::remove_dir_all(&base);
+    }
 
     #[test]
     fn a_folder_copy_skips_reference_material_and_a_copied_reference_is_no_change() {

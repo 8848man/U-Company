@@ -70,6 +70,16 @@ fn valid_root(project: &Project) -> Result<(PathBuf, bool), String> {
     Ok((root, initialized))
 }
 
+/// ADR-0061: Git can be started from a goal conversation's `지금 할 일` when the goal is an execution
+/// goal and no goal of its project is running or waiting for approval (the execution mode changes).
+pub fn allowed(goals: &[crate::model::Goal], goal: &crate::model::Goal) -> Result<(), String> {
+    if goal.kind != "execution" { return Err("회의 목표에서는 Git 저장소를 시작하지 않아요".into()); }
+    let project_id = goal.project_id.as_deref().ok_or("프로젝트가 연결되지 않은 목표입니다")?;
+    let busy = goals.iter().find(|other| other.project_id.as_deref() == Some(project_id) && ["analyzing", "planning", "awaiting_approval", "executing", "integrating", "validating"].contains(&other.status.as_str()));
+    if let Some(other) = busy { return Err(format!("이 프로젝트에서 진행 중이거나 승인을 기다리는 목표가 있어요({}). 그 목표가 끝나거나 멈춘 뒤 Git 저장소를 시작해 주세요", other.intent.chars().take(40).collect::<String>())); }
+    Ok(())
+}
+
 pub fn preview(project: &Project) -> Result<Preview, String> {
     let (root, initialized) = valid_root(project)?;
     let mut pending = vec![PathBuf::new()];
@@ -190,6 +200,15 @@ mod tests {
         let root = root.canonicalize().unwrap();
         assert!(root.starts_with(temp) && root.file_name().unwrap().to_string_lossy().starts_with("utopia-bootstrap-test-"));
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn it_is_offered_for_any_execution_goal_while_nothing_runs_in_the_project() {
+        let goal = |id: &str, status: &str, project: &str, kind: &str| -> crate::model::Goal { serde_json::from_value(serde_json::json!({ "id": id, "kind": kind, "intent": format!("{id} 목표"), "status": status, "report": "", "createdAt": "t", "projectId": project })).unwrap() };
+        let done = goal("a", "completed", "p", "execution");
+        assert!(allowed(&[done.clone(), goal("b", "blocked", "p", "execution"), goal("c", "executing", "q", "execution")], &done).is_ok(), "a completed goal, another project running");
+        assert!(allowed(&[done.clone(), goal("b", "awaiting_approval", "p", "execution")], &done).unwrap_err().contains("b 목표"), "a plan waiting in the same project");
+        assert!(allowed(&[], &goal("m", "completed", "p", "deliberation")).is_err());
     }
 
     #[test]

@@ -77,6 +77,7 @@ pub fn block_label(kind: &str) -> &'static str {
         "qa_form" => "QA 판정 형식이 틀림",
         "plan_form" => "계획 형식이 두 번 틀림",
         "provider" => "AI 호출이 실패함",
+        "criteria_blocked" => "팀이 채울 수 없는 완료 기준",
         _ => "기타 이유로 멈춤",
     }
 }

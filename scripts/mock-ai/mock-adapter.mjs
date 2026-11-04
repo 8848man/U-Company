@@ -31,12 +31,15 @@ export function parseArgs(argv) {
 
 /** Which engine stage sent this request, from the fixed wording of the engine's prompts. */
 export function stageOf(prompt) {
+  if (prompt.includes('Judge whether the ORIGINAL CEO objective of this goal conversation is achieved')) return 'objective';
+  if (prompt.includes('Propose how the CEO could change acceptance criteria the team cannot meet')) return 'criteria_proposal';
   if (prompt.includes('Return ONLY JSON: {"kind":"discuss')) return 'conversation_decision';
   if (prompt.includes('READ-ONLY goal conversation') || prompt.includes('READ-ONLY escalation')) return 'conversation';
   if (prompt.includes('reviewing a CEO-approved Git bootstrap')) return 'bootstrap_review';
   if (prompt.includes('planning repairs after QA rejected')) return 'repair_plan';
   if (prompt.includes('Decompose the CEO goal into remaining FILE-CHANGING')) return 'plan';
   if (prompt.includes("maintains this project's U-SDD")) return 'sdd';
+  if (prompt.includes('Continue your task in this isolated folder')) return 'resume';
   if (prompt.includes('Work only inside this isolated task folder')) return 'implement';
   if (prompt.includes("independently reviewing the team's deliverables")) return 'review_deliverables';
   if (prompt.includes("reviewing the team's work for this CEO goal")) return 'review';
@@ -72,7 +75,7 @@ export function reviewItems(prompt) {
     if (!current) continue;
     const files = line.match(/^ {2}files: (.*)$/);
     if (files) current.files = files[1].split(',').map(item => item.trim()).filter(Boolean);
-    if (/^ {4}\d+\. /.test(line)) current.criteria += 1;
+    if (/^ {4}\d+\. /.test(line)) { current.criteria += 1; (current.texts ??= []).push(line.replace(/^ {4}\d+\. /, '')); }
   }
   return items;
 }
@@ -90,7 +93,24 @@ function insideFolder(root, relative) {
   return target.startsWith(resolve(root) + sep) ? target : null;
 }
 
-export function respond(prompt, cwd, options, scenario) {
+/** ADR-0058: whether the call may run `node --test` (granted rules arrive as `allowedCommands`). */
+export function mayRunTests(allowed = []) {
+  return allowed.some(rule => rule === 'Bash(node --test)' || rule === 'Bash(node --test *)');
+}
+
+const TEST_DENIAL = { tool: 'Bash', command: 'npm install && node --test; echo "=== exit: $? ==="' };
+
+/** Text plus the calls this mock was refused, like Claude's `permission_denials`. */
+export function respondWithDenials(prompt, cwd, options, scenario, allowed = []) {
+  const stage = stageOf(prompt);
+  const text = respond(prompt, cwd, options, scenario, allowed);
+  const denials = [];
+  if (stage === 'implement' && options.modes.has('needs-permission-once') && !mayRunTests(allowed) && listAfter(prompt, 'change ONLY these declared files: ', '. The engine').some(file => /test/i.test(file))) denials.push(TEST_DENIAL);
+  if (stage === 'review_deliverables' && options.modes.has('qa-needs-permission-once') && !mayRunTests(allowed)) denials.push({ tool: 'Bash', command: 'node --test' });
+  return { text, denials };
+}
+
+export function respond(prompt, cwd, options, scenario, allowed = []) {
   const stage = stageOf(prompt);
   switch (stage) {
     case 'conversation_decision':
@@ -107,11 +127,16 @@ export function respond(prompt, cwd, options, scenario) {
       if (options.modes.has('plan-form-once') && !retried) {
         tasks[0] = { ...tasks[0], acceptance: Array.from({ length: 9 }, (_, index) => `기준 ${index + 1}`) };
       }
+      // plan-commands: the plan says which commands its test task runs (approved with the plan).
+      if (options.modes.has('plan-commands')) tasks[0] = { ...tasks[0], commands: ['node --test', 'npm install'] };
+      // ADR-0060: a criterion the team can never meet (there is no earlier commit).
+      if (STUCK_MODES.some(mode => options.modes.has(mode))) tasks[0] = { ...tasks[0], acceptance: [...tasks[0].acceptance, STUCK_CRITERION] };
       return JSON.stringify({ tasks, reusedTaskIds: [], squad: { structure: 'standard', reason: '모의 AI: 독립된 파일 묶음 두 개라 기본 팀이면 충분해요' } });
     }
     case 'repair_plan': {
-      const approved = prompt.includes('Use these CEO-approved files: ')
-        ? listAfter(prompt, 'Use these CEO-approved files: ', '. A new file needs')
+      const marker = ['Use these CEO-approved files (exact names): ', 'Use these CEO-approved files: '].find(item => prompt.includes(item));
+      const approved = marker
+        ? listAfter(prompt, marker, '. A new file needs').map(file => file.toLowerCase())
         : listAfter(prompt, 'You may modify ONLY these CEO-approved files: ', '. Never request');
       // The engine lists approved files in lower case; the repair fixes the first task's files.
       const first = scenario.tasks[0];
@@ -119,7 +144,10 @@ export function respond(prompt, cwd, options, scenario) {
       const files = owned.length ? owned : approved.slice(0, 1);
       // needs-scope-once: also ask for README.md, which stays in the repair once it is approved.
       if (options.modes.has('needs-scope-once') || approved.includes('readme.md')) files.push('README.md');
-      return JSON.stringify({ tasks: [{ ...first, title: `${first.title} 고치기`, files, dependsOn: [] }] });
+      // repair-criteria: propose replacing the stuck criterion QA reported (task and index from its evidence).
+      const stuck = options.modes.has('repair-criteria') ? prompt.match(/"taskId":"([^"]+)"[^\]]*?\[stuck-criterion index=(\d+)\]/) : null;
+      const criteriaChanges = stuck ? [{ taskId: stuck[1], index: Number(stuck[2]), action: 'replace', text: REPLACEMENT_CRITERION, reason: '변경 전 커밋이 없어 비교할 수 없어요' }] : undefined;
+      return JSON.stringify({ tasks: [{ ...first, title: `${first.title} 고치기`, files, dependsOn: [] }], ...(criteriaChanges ? { criteriaChanges } : {}) });
     }
     case 'implement': {
       const files = listAfter(prompt, 'change ONLY these declared files: ', '. The engine');
@@ -141,10 +169,15 @@ export function respond(prompt, cwd, options, scenario) {
     }
     case 'review_deliverables': {
       const items = reviewItems(prompt);
-      const failNow = options.modes.has('qa-fail-once') && counter(options, `qa:${resolve(cwd)}:${goalOf(prompt)}`) === 0;
+      const failNow = options.modes.has('qa-fail-once') && counter(options, `qa:${goalOf(prompt)}`) === 0;
       const deliverables = items.map((item, index) => {
         const missing = item.files.filter(file => { const target = insideFolder(cwd, file); return !target || !existsSync(target); });
         const criteria = Array.from({ length: item.criteria }, (_, position) => {
+          // ADR-0060: the stuck criterion never passes; qa-precondition names why.
+          if (item.texts?.[position] === STUCK_CRITERION) {
+            const precondition = options.modes.has('qa-precondition') ? '프로젝트에 Git 이력이 없어 변경 전 커밋을 확인할 수 없음' : '';
+            return { met: false, evidence: `README.md에 커밋 ID 없음 [stuck-criterion index=${position}]`, precondition };
+          }
           const met = missing.length === 0 && !(failNow && index === 0 && position === 1);
           return { met, evidence: met ? `${item.files.join(', ')} 존재(모의 AI 확인)` : missing.length ? `없는 파일: ${missing.join(', ')}` : '모의 AI가 일부러 실패로 판정(qa-fail-once)' };
         });
@@ -153,6 +186,23 @@ export function respond(prompt, cwd, options, scenario) {
       const verdict = deliverables.every(item => item.verdict === 'PASS') ? 'PASS' : 'FAIL';
       return JSON.stringify({ verdict, deliverables, risks: ['모의 AI 판정이라 실제 품질은 확인되지 않았어요'] });
     }
+    case 'objective': {
+      // ADR-0059: objective-achieved → a later goal of the project achieved it; objective-bad → malformed;
+      // default → not achieved yet, with remaining work.
+      if (options.modes.has('objective-bad')) return '판단할 수 없어요';
+      const later = prompt.slice(prompt.indexOf('Later completed goals of this project:'));
+      const id = later.match(/- goal ([0-9a-f-]{36}) \[completed\]/)?.[1];
+      if (options.modes.has('objective-ceo')) return JSON.stringify({ achieved: false, achievedBy: [], evidence: [], remaining: [], ceoActions: ['GitHub 원격 저장소에 푸시해요'], summary: '팀이 할 일은 끝났고 푸시만 남았어요' });
+      if (options.modes.has('objective-achieved') && id) return JSON.stringify({ achieved: true, achievedBy: [id], evidence: ['todo.js · todo.test.js (모의 AI 확인)'], remaining: [], summary: '나중에 만든 목표가 원래 목표를 이미 끝냈어요' });
+      return JSON.stringify({ achieved: false, achievedBy: [], evidence: [], remaining: ['화면 파일(index.html, main.js)을 마무리해요', 'node --test로 확인해요'], summary: '원래 목표 중 화면 작업이 남았어요' });
+    }
+    case 'criteria_proposal': {
+      // ADR-0060: suggest replacing every listed stuck criterion with one the team can check.
+      const changes = [...prompt.matchAll(/- taskId (\S+) · index (\d+) ·/g)].map(match => ({ taskId: match[1], index: Number(match[2]), action: 'replace', text: REPLACEMENT_CRITERION, reason: '변경 전 커밋이 없어 비교할 수 없어요' }));
+      return JSON.stringify({ changes });
+    }
+    case 'resume':
+      return mayRunTests(allowed) ? '모의 AI가 승인된 `node --test`를 실행했어요: tests 3, pass 3, fail 0.' : '모의 AI: 아직 테스트 명령이 승인되지 않았어요.';
     case 'review':
       return 'PASS\n모의 AI 확인: 재사용 결과를 그대로 받아들였어요.';
     case 'sdd':
@@ -165,6 +215,10 @@ export function respond(prompt, cwd, options, scenario) {
 }
 
 const REPAIR_PREFIX = '재작업 ';
+/** ADR-0060 modes that add a criterion the team cannot meet. */
+const STUCK_MODES = ['qa-precondition', 'qa-fail-always', 'repair-criteria'];
+export const STUCK_CRITERION = 'README.md에 변경 전 커밋 ID와 두 파일의 SHA-256을 적는다';
+export const REPLACEMENT_CRITERION = 'README.md는 변경 전 비교를 미확인으로 표시한다';
 
 function remark(file) {
   if (/\.(js|mjs|css)$/i.test(file)) return '\n/* 재작업 반영(모의 AI) */\n';
@@ -188,8 +242,8 @@ function main() {
     } else if (message.method === 'send_task') {
       const { prompt = '', cwd = process.cwd() } = message.params ?? {};
       try {
-        const text = respond(prompt, cwd, options, scenario);
-        process.stdout.write(`${JSON.stringify({ id: message.id, result: { text, sessionId: null, usage: usageFor(prompt, text) } })}\n`);
+        const { text, denials } = respondWithDenials(prompt, cwd, options, scenario, message.params?.allowedCommands ?? []);
+        process.stdout.write(`${JSON.stringify({ id: message.id, result: { text, sessionId: `mock-${Date.now()}`, usage: usageFor(prompt, text), permissionDenials: denials } })}\n`);
       } catch (error) {
         process.stderr.write(`${error?.stack ?? error}\n`);
         process.stdout.write(`${JSON.stringify({ id: message.id, error: { message: String(error?.message ?? error) } })}\n`);

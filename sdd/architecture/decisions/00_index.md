@@ -49,6 +49,14 @@
 | [ADR-0045](ADR-0045.md) | SDD origin in onboarding and planning: folder first, development goals only | Accepted, implemented (protocol 34); refines ADR-0044 |
 | [ADR-0046](ADR-0046.md) | One conversation per goal: plan card, revise, cancel, and an in-app Office window | Accepted (v3); refines ADR-0042, ADR-0045 |
 | [ADR-0054](ADR-0054.md) | Show what approval sets in motion, what a finished goal changed, where goals stop, and how to start | Accepted; refines ADR-0046, ADR-0047 |
+| [ADR-0063](ADR-0063.md) | Fewer command cards (read-only commands, project-wide safe grants) and an opt-in per-conversation allow-all mode without push or pull requests | Accepted; refines ADR-0058 |
+| [ADR-0061](ADR-0061.md) | `지금 할 일` is the one place for the CEO's next action: original objective, CEO actions and starting Git | Accepted; refines ADR-0047, ADR-0048, ADR-0059, ADR-0060 |
+| [ADR-0060](ADR-0060.md) | Stop the QA loop: criteria the team cannot meet go to the CEO instead of another rework | Accepted; refines ADR-0038, ADR-0048, ADR-0053, ADR-0059 |
+| [ADR-0059](ADR-0059.md) | A conversation keeps its original objective: resume it with the project's changes, and close it when later work achieved it | Accepted; refines ADR-0048, ADR-0051, ADR-0055, ADR-0056 |
+| [ADR-0058](ADR-0058.md) | Ask the CEO for command permissions a teammate needs, inside the goal conversation | Accepted; refines ADR-0002, ADR-0053, ADR-0055 |
+| [ADR-0057](ADR-0057.md) | Keep file-name case, pass earlier results forward, and give the goal conversation the QA record | Accepted; refines ADR-0048, ADR-0053, ADR-0056 |
+| [ADR-0055](ADR-0055.md) | Repeated work in one visible goal conversation | Accepted; refines ADR-0051, ADR-0046 |
+| [ADR-0056](ADR-0056.md) | Structured context at each linked goal work-pass boundary | Accepted; refines ADR-0055, ADR-0051 |
 | [ADR-0053](ADR-0053.md) | A repair that needs new files asks on the same goal; a repair with nothing to change goes back to QA | Accepted; refines ADR-0048, ADR-0051 |
 | [ADR-0052](ADR-0052.md) | Prove goal completion with a mock AI and close usability gaps in rounds | Accepted; refines ADR-0002, ADR-0048, ADR-0051 |
 | [ADR-0051](ADR-0051.md) | Goal versions read as one conversation | Accepted; refines ADR-0048, ADR-0043, ADR-0046 |

@@ -40,6 +40,6 @@ export function conversationGoals<T extends Goal>(goals: T[], guidance: Link[]):
 }
 
 /** Why a version was made, from the guidance that created it. */
-export function versionReason(text: string): string {
-  return text.startsWith('멈춘 원인을 해결해 주세요') ? '막힌 문제를 고치려고 다시 계획해요' : '바뀐 방향을 반영해 다시 계획해요';
+export function versionReason(text: string, checkpoint?: string | null): string {
+  return checkpoint === '완료 후 후속 작업' ? '후속 작업을 계획해요' : text.startsWith('멈춘 원인을 해결해 주세요') ? '막힌 문제를 고치려고 다시 계획해요' : '바뀐 방향을 반영해 다시 계획해요';
 }
