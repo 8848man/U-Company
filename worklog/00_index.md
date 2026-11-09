@@ -24,9 +24,9 @@
 
 | 작업 | 현재 확인 상태 | 근거 |
 | --- | --- | --- |
-| 같은 대화의 후속 작업과 차수 요약 | 코드·빌드 확인, Rust 저장소 시험 실행과 실제 화면·모의 AI 종단 검증 대기 | [WLG-058](milestones/WLG-058.md), [QA-51](../qa/MANUAL-QA.md#qa-51-완료-후-후속-작업과-차수-경계-요약-adr-0055-adr-0056) |
-| v3 출시 준비 파일럿과 중단 복구 | 실제 Windows 앱 QA-39 대기 | [v3 검증 범위](programs/v3-first-package/open-verification.md) |
-| v2 화면·알림·회의 | 실제 Windows QA-36/37/38 대기, 회의 제공자별 격리 검증 별도 필요 | [회의 구현 기록](milestones/WLG-012.md), [v3 검증 범위](programs/v3-first-package/open-verification.md) |
+| 같은 대화의 후속 작업과 차수 요약 | 코드·빌드 확인, Rust 저장소 시험 실행과 v4 앱에서 실제 화면·모의 AI 종단 검증 대기 | [WLG-058](milestones/WLG-058.md), [QA-51](../qa/MANUAL-QA.md#qa-51-완료-후-후속-작업과-차수-경계-요약-adr-0055-adr-0056) |
+| v3 출시 준비 파일럿과 중단 복구 | v4 앱에서 실제 Windows QA-39 대기([WLG-073](milestones/WLG-073.md)) | [v3 검증 범위](programs/v3-first-package/open-verification.md) |
+| v2 화면·알림·회의 | v4 앱에서 QA-38 오프라인 1~7단계 대기; QA-37은 배포 직전, QA-36은 QA-51·39에 포함, 회의 실제 제공자(8~10) 검증은 회의를 계속 쓸 때만([WLG-073](milestones/WLG-073.md)) | [회의 구현 기록](milestones/WLG-012.md), [v3 검증 범위](programs/v3-first-package/open-verification.md) |
 | 런타임 이벤트·취소·세션 재개, 추가 승인, Ubuntu | 초기 체크리스트에서 미완료; 현행 명세·코드를 대조해 별도 마일스톤으로 진행 | [초기 체크리스트](milestones/WLG-054.md), [개선 계획](../sdd/workflow-improvement-plan.md) |
 
 ## `지금 할 일` 통합 (2026-10-27, Claude)
@@ -132,7 +132,8 @@
 
 | 기록 | 작업 요약 | 상태 | 파일 |
 | --- | --- | --- | --- |
-| WLG-072 (2026-11-10, Claude) | 10-27 이후 미커밋 작업을 한 브랜치로 정리하고 main 병합: ADR-0063→0068·WLG-064→071 번호 변경, `명령 전부 허용` 제거하고 ADR-0066 모드 기준으로 통합 | 타입 검사·vitest 160개 통과, Rust 시험 컴파일 통과·실행 `0xc0000139`, 실앱 QA 미검증 | [WLG-072.md](milestones/WLG-072.md) |
+| WLG-072 (2026-11-10, Claude) | 10-27 이후 미커밋 작업을 한 브랜치로 정리하고 main 병합: ADR-0063→0068·WLG-064→071 번호 변경, `명령 전부 허용` 제거하고 ADR-0066 모드 기준으로 통합 | PR #23 merge(2026-11-09 UTC). 타입 검사·vitest 160개 통과, Rust 시험 컴파일 통과·실행 `0xc0000139`, 실앱 QA 미검증 | [WLG-072.md](milestones/WLG-072.md) |
+| WLG-073 (2026-11-10, Claude) | v2·v3 수동 QA(QA-36~39, QA-51)를 v4 앱 하나로 실행하도록 실행 명령과 우선순위 정리 | 문서만 변경; 실제 QA 미실행 | [WLG-073.md](milestones/WLG-073.md) |
 | WLG-066 (2026-11-07, Codex) | QA 첫 실패 재작업 경로와 ttj 원인 대조: PM은 `source/`를 CEO 선행 조치로 넘겼고 Claude 세션은 웹 접속을 시도하지 않음 | 코드 확인·v3 빌드 통과; Rust 시험 실행 `0xc0000139`·승인 후 실제 웹 접속·원본 확보 전 계획 차단 미검증 | [WLG-066.md](milestones/WLG-066.md) |
 | WLG-067 (2026-11-07, Codex) | Dev의 거절된 명령을 PM이 먼저 검토하고 기존 권한 재시도·CEO 요청·명령 없이 진행으로 분기 | Rust 컴파일·모의 어댑터 구문 통과; Windows 시험 실행 `0xc0000139`, 실제 Claude 미검증 | [WLG-067.md](milestones/WLG-067.md) |
 | WLG-068 (2026-11-07, Codex) | 채팅·설정에 수동/오토/풀 오토 명령 모드: 로컬 조회 자동, 선언 파일 삭제·이동은 풀 오토만 | Rust·v3 빌드·UI 단위 시험 통과; Windows Rust 시험 실행·실제 Claude 미검증 | [WLG-068.md](milestones/WLG-068.md) |
