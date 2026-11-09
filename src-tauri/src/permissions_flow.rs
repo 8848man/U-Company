@@ -83,13 +83,13 @@ fn add_grants(store: &Store, goal_id: &str, rules: &[Rule]) -> Result<(), String
 }
 
 pub fn options_for(store: &Store, goal_id: &str, resume: Option<String>, read_only_commands: bool) -> Result<CallOptions, String> {
-    Ok(CallOptions { allowed: permissions::cli_allowed(&grants(store, goal_id)?), resume, read_only_commands })
+    Ok(CallOptions { allowed: permissions::cli_allowed(&grants(store, goal_id)?), resume, read_only_commands, cancel: None })
 }
 
 pub fn options_for_task(store: &Store, task: &Task, resume: Option<String>) -> Result<CallOptions, String> {
     let mut allowed = grants(store, &task.goal_id)?;
     allowed.extend(task_auto_grants(store, task)?);
-    Ok(CallOptions { allowed: permissions::cli_allowed(&allowed), resume, read_only_commands: false })
+    Ok(CallOptions { allowed: permissions::cli_allowed(&allowed), resume, read_only_commands: false, cancel: None })
 }
 
 /// A line for the teammate's prompt naming what it may run (also useful to providers without grants).

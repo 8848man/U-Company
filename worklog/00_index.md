@@ -27,7 +27,7 @@
 | 같은 대화의 후속 작업과 차수 요약 | 코드·빌드 확인, Rust 저장소 시험 실행과 v4 앱에서 실제 화면·모의 AI 종단 검증 대기 | [WLG-058](milestones/WLG-058.md), [QA-51](../qa/MANUAL-QA.md#qa-51-완료-후-후속-작업과-차수-경계-요약-adr-0055-adr-0056) |
 | v3 출시 준비 파일럿과 중단 복구 | v4 앱에서 실제 Windows QA-39 대기([WLG-073](milestones/WLG-073.md)) | [v3 검증 범위](programs/v3-first-package/open-verification.md) |
 | v2 화면·알림·회의 | v4 앱에서 QA-38 오프라인 1~7단계 대기; QA-37은 배포 직전, QA-36은 QA-51·39에 포함, 회의 실제 제공자(8~10) 검증은 회의를 계속 쓸 때만([WLG-073](milestones/WLG-073.md)) | [회의 구현 기록](milestones/WLG-012.md), [v3 검증 범위](programs/v3-first-package/open-verification.md) |
-| 런타임 이벤트·취소·세션 재개, 추가 승인, Ubuntu | 초기 체크리스트에서 미완료; 현행 명세·코드를 대조해 별도 마일스톤으로 진행 | [초기 체크리스트](milestones/WLG-054.md), [개선 계획](../sdd/workflow-improvement-plan.md) |
+| 런타임 이벤트·취소·세션 재개, 추가 승인, Ubuntu | 외부 어댑터 이벤트·취소·재개 선언은 WLG-079에서 구현(화면 취소 동작 미정); 나머지는 초기 체크리스트에서 미완료; 현행 명세·코드를 대조해 별도 마일스톤으로 진행 | [초기 체크리스트](milestones/WLG-054.md), [개선 계획](../sdd/workflow-improvement-plan.md) |
 
 ## `지금 할 일` 통합 (2026-10-27, Claude)
 
@@ -150,6 +150,7 @@
 | WLG-074 (2026-11-10, Claude) | ADR 색인을 번호순으로 정리하고 모든 ADR에 `Date:` 줄을 맞춤; Self grill U16·E15 기록 정정(E21은 이미 정정됨, U17은 v1·v2 정리 결정 대기) | 문서만 변경, v4 빌드 통과 | [WLG-074.md](milestones/WLG-074.md) |
 | WLG-077 (2026-11-10, Claude) | Windows 엔진 시험 실패 19개 해결: 오토 모드 재개, 승인된 파일 안 재작업의 불필요한 카드, 재사용 충돌 표시 위치·내용 등 제품 결함 4건과 시험 환경·오래된 기대 정리 | `cargo test` 238 통과·0 실패; 실제 앱·제공자 미확인 | [WLG-077.md](milestones/WLG-077.md) |
 | WLG-078 (2026-11-10, Claude) | clippy 설치 후 경고 26개를 0개로 정리하고, 상태만 기다리고 기록을 바로 읽던 종단 시험 2개의 경합을 고침 | clippy 0, `cargo test` 3회 연속 238 통과 | [WLG-078.md](milestones/WLG-078.md) |
+| WLG-079 (2026-11-10, Claude) | 외부 어댑터 프로토콜에 진행 이벤트·취소 요청·재개 선언을 추가(ADR-0070, v1 호환); 화면의 취소 동작은 별도 결정 | 새 시험 7개 포함 `cargo test` 245 통과, clippy 0; 실제 제3자 어댑터 미확인 | [WLG-079.md](milestones/WLG-079.md) |
 | WLG-064 (2026-11-04, Codex) | 미통합 목표·권한·모델 선택 브랜치 통합, 기록 충돌 해결 | 프런트 시험·빌드와 Rust 컴파일 통과, Rust 시험 실행 환경 오류·실앱 QA 대기 | [WLG-064.md](milestones/WLG-064.md) |
 | 작업 차수 경계 구조화 요약과 미완료 기록 점검 (2026-10-25, Codex) | 새 작업 차수마다 저장 기록으로 요약 인계를 만들고 누적 약 8,000토큰부터 대화 발췌를 제외; 실제 Rust 실행·실앱 QA는 미검증 | 구현, 검증 대기 | [WLG-058.md](milestones/WLG-058.md) |
 | 워크로그 폴더와 라운드 인덱스 (2026-10-25, Codex) | 네 프로그램의 36개 라운드와 56개 기존 단독 기록을 파일별로 이관하고 인덱스에서 탐색하도록 연결 | 완료 | [WLG-057.md](milestones/WLG-057.md) |

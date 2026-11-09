@@ -4,6 +4,8 @@
 
 The CLI runtime consumes stdout incrementally and maps supported structured events to short operational summaries. Persist at most a bounded number per runtime call and emit state changes for the UI. Summaries identify the agent, goal, task, and milestone; omit raw prompts, model reasoning, tool inputs, command strings, credentials, and arbitrary stdout. Providers without structured progress show stage and elapsed-time state; the UI does not fabricate runtime logs. Office's idle dialogue is labeled as illustrative and is distinct from the real event feed.
 
+An external adapter that declared `events` ([ADR-0070](../architecture/decisions/ADR-0070.md)) reports progress and output-token counts the same way; its event text is bounded display text and is never trusted as a result or state change.
+
 ## Token accounting
 
 For a meeting invocation, the record keeps the same project and Goal IDs but uses a namespaced Meeting slot ID as agent ID; the UI resolves its snapshot name, connection and model instead of presenting it as an Office teammate. A stopped or uncertain invocation keeps a conservative estimated count. Forced call/round limits and per-call timeout are separate from estimated cumulative usage that can only block the next call. No count is a subscription quota or billing hard cap ([ME-01](../meeting/ME-01-process.md)).

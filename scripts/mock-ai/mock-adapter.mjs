@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // U컴퍼니 모의 AI (ADR-0052). 플러그인 프로토콜 v1(`initialize` → `send_task`)을 따르는 테스트용 어댑터.
+// ADR-0070: `events`와 `cancel`을 선언하고, 결과 전에 진행 이벤트를 하나 보내며, `cancel`을 받으면 끝낸다.
 // 요청문으로 단계를 알아보고 시나리오 파일을 그대로 재생한다. 실제 모델이 아니며 토큰을 쓰지 않는다.
 //
 // 사용: node mock-adapter.mjs [--scenario <json>] [--mode qa-fail-once,plan-form-once,needs-scope-once] [--state <dir>]
@@ -250,9 +251,13 @@ function main() {
     let message;
     try { message = JSON.parse(line); } catch { return; }
     if (message.method === 'initialize') {
-      process.stdout.write(`${JSON.stringify({ id: message.id, result: { protocolVersion: 1, name: 'u-company-mock-ai' } })}\n`);
+      process.stdout.write(`${JSON.stringify({ id: message.id, result: { protocolVersion: 1, name: 'u-company-mock-ai', capabilities: ['events', 'cancel'] } })}\n`);
+    } else if (message.method === 'cancel') {
+      process.stdout.write(`${JSON.stringify({ id: message.id, result: { cancelled: true } })}\n`);
+      process.exit(0);
     } else if (message.method === 'send_task') {
       const { prompt = '', cwd = process.cwd() } = message.params ?? {};
+      process.stdout.write(`${JSON.stringify({ method: 'event', params: { kind: 'progress', text: '모의 AI가 응답을 만들고 있어요' } })}\n`);
       try {
         const { text, denials } = respondWithDenials(prompt, cwd, options, scenario, message.params?.allowedCommands ?? []);
         process.stdout.write(`${JSON.stringify({ id: message.id, result: { text, sessionId: `mock-${Date.now()}`, usage: usageFor(prompt, text), permissionDenials: denials } })}\n`);

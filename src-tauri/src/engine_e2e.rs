@@ -144,6 +144,8 @@ fn a_sample_app_goal_runs_from_analysis_to_a_qa_passed_report() {
     assert!(goal.report.contains("QA result:\nPASS"), "the report carries the QA verdict:\n{}", goal.report);
     assert_eq!(goal.review_loops_used, 0);
     assert!(h.tasks(&id).iter().all(|task| task.status == "completed"));
+    // ADR-0070: the adapter's progress events reach the goal as runtime progress.
+    assert!(h.store().snapshot().unwrap().events.iter().any(|event| event.goal_id.as_deref() == Some(id.as_str()) && event.kind == "runtime_progress" && event.message == "모의 AI가 응답을 만들고 있어요"), "adapter progress is recorded on the goal");
     // ADR-0054: the result card lists what changed and how to try it.
     let result = crate::goal_result::result(&h.store(), &id).unwrap();
     assert_eq!(result.files.len(), 5);
