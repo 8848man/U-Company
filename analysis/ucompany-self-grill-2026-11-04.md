@@ -133,7 +133,7 @@
 
 ## 7. 승인·신뢰·운영 거버넌스 — 12문항
 
-근거: [Security](../sdd/security.md), [ADR-0062](../sdd/architecture/decisions/ADR-0062.md), [ADR-0063](../sdd/architecture/decisions/ADR-0063.md), [AI 어댑터](../sdd/aiIntegration/AI-03-adapter.md). 이 질문은 정책을 완화하자는 제안이 아니다.
+근거: [Security](../sdd/security.md), [ADR-0062](../sdd/architecture/decisions/ADR-0062.md), [ADR-0068](../sdd/architecture/decisions/ADR-0068.md), [AI 어댑터](../sdd/aiIntegration/AI-03-adapter.md). 이 질문은 정책을 완화하자는 제안이 아니다.
 
 | ID | 우선 | 질문 | 답을 가를 증거 |
 | --- | --- | --- | --- |

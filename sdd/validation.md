@@ -1,6 +1,6 @@
 # Validation specification
 
-## Reused-file approved modification and QA re-entry (ADR-0063)
+## Reused-file approved modification and QA re-entry (ADR-0068)
 
 Use a disposable project with an integrated source task, saved per-file SHA-256 proof, one dependent task, a linked goal, explicit plan and repair approvals, and an event ledger. Record task IDs, approval IDs and file scopes, event IDs, before/after hashes, exact changed paths, and QA outcome. Run these as engine fixtures and a local end-to-end pass; a document-only check does not prove runtime behavior.
 

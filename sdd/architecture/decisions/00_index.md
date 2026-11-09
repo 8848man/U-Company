@@ -1,7 +1,7 @@
 # ADR index
 
 | [ADR-0062](ADR-0062.md) | v4 application technology and structure presets: app-local selections, immutable plan snapshots, approval boundary | Accepted decision; storage/engine and v4 screen partially implemented; exact AI transmission approval, SDD/API owner checks, build and desktop QA unverified; refines ADR-0046 and ADR-0027 |
-| [ADR-0063](ADR-0063.md) | 승인된 재수정 파일의 재사용 소유권 전환 | Accepted specification; engine implementation and plan/rework/QA runtime verification pending; refines ADR-0027 without widening approval |
+| [ADR-0068](ADR-0068.md) | 승인된 재수정 파일의 재사용 소유권 전환 | Accepted specification; engine implementation and plan/rework/QA runtime verification pending; refines ADR-0027 without widening approval |
 
 | ID | Decision | Status |
 | --- | --- | --- |

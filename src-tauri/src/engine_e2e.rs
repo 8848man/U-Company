@@ -338,7 +338,7 @@ fn a_repair_with_nothing_to_change_goes_back_to_qa_instead_of_blocking() {
     assert!(h.event_kinds(&id).contains(&"task_unchanged".to_string()));
 }
 
-/// ADR-0063 fixture: only the mock provider's *answers* are adapted. The engine still creates
+/// ADR-0068 fixture: only the mock provider's *answers* are adapted. The engine still creates
 /// the plan, approval, isolated worktree, integration proof, transition and independent QA.
 /// The second source task depends on the first and remains untouched in the linked pass.
 fn reuse_harness(modes: &[&str]) -> Option<Harness> {
