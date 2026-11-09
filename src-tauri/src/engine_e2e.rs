@@ -398,7 +398,9 @@ fn enable_reuse_mock_modes(h: &Harness, modes: &str) {
 fn snapshot_reuse_conflict(h: &Harness, goal_id: &str, path: &str, kind: &str) -> crate::model::ReuseConflict {
     let snapshot = h.store().snapshot().unwrap();
     let wire = serde_json::to_value(&snapshot).unwrap();
-    let conflict = snapshot.reuse_conflicts.into_iter().find(|item| item.goal_id == goal_id && item.path == path && item.kind == kind).expect("saved conflict is present in the snapshot");
+    let present: Vec<String> = snapshot.reuse_conflicts.iter().map(|item| format!("{}:{}:{}", item.goal_id, item.path, item.kind)).collect();
+    let report = h.goal(goal_id).report;
+    let conflict = snapshot.reuse_conflicts.into_iter().find(|item| item.goal_id == goal_id && item.path == path && item.kind == kind).unwrap_or_else(|| panic!("saved conflict is present in the snapshot; present: {present:?}; goal report: {}", report.chars().take(400).collect::<String>()));
     assert!(!conflict.recovery.is_empty() && !conflict.missing_evidence.is_empty(), "the UI needs a recovery path and missing proof: {conflict:?}");
     let item = wire["reuseConflicts"].as_array().unwrap().iter().find(|item| item["goalId"] == goal_id && item["path"] == path && item["kind"] == kind).expect("saved conflict is serialized for the UI");
     assert!(item["recovery"].as_str().is_some());
@@ -479,7 +481,7 @@ fn approved_linked_reuse_integrates_new_evidence_then_independent_qa_checks_it_a
     assert!(!h.store().list::<crate::model::ReuseFileTransition>("reuse_file_transition").unwrap().iter().any(|item| item.path == "index.html"));
     let screen_proof: crate::model::TaskIntegrationProof = h.store().get("task_proof", &screen.id).unwrap().unwrap();
     assert_eq!(screen_proof.files.iter().find(|file| file.path == "index.html").unwrap().sha256, crate::engine::digest_project_file(&h.root, "index.html").unwrap().sha256, "the untouched dependent keeps its original proof");
-    assert!(h.store().list::<crate::model::DeliverableReview>("deliverable_review").unwrap().iter().any(|review| review.goal_id == next && review.task_id == changed.id && review.verdict == "PASS"), "the current deliverable was independently reviewed");
+    assert!(h.store().list::<crate::model::DeliverableReview>("deliverable_review").unwrap().iter().any(|review| review.goal_id == next && review.task_id == changed.id && review.verdict == "pass"), "the current deliverable was independently reviewed");
     assert!(h.event_kinds(&next).contains(&"qa_review".to_string()));
     assert!(goal.report.contains("QA result:\nPASS"));
     assert!(h.store().snapshot().unwrap().reuse_conflicts.iter().all(|item| item.goal_id != next));
@@ -520,8 +522,9 @@ fn linked_reuse_qa_repair_inside_scope_integrates_but_empty_repair_creates_no_tr
     assert!(transitions.iter().any(|item| item.goal_id == next));
     assert!(!transitions.iter().any(|item| item.task_id == repairs[0].id), "a no-change QA repair has no new ownership event");
     let reviews: Vec<crate::model::DeliverableReview> = h.store().list("deliverable_review").unwrap();
-    assert!(reviews.iter().any(|item| item.goal_id == next && item.round == 0 && item.verdict == "FAIL"));
-    assert!(reviews.iter().any(|item| item.goal_id == next && item.round == 1 && item.verdict == "PASS"), "unchanged current artifacts were independently reviewed again");
+    let seen: Vec<String> = reviews.iter().filter(|item| item.goal_id == next).map(|item| format!("round {} {} {}", item.round, item.task_id, item.verdict)).collect();
+    assert!(reviews.iter().any(|item| item.goal_id == next && item.round == 0 && item.verdict == "fail"), "reviews of the goal: {seen:?}");
+    assert!(reviews.iter().any(|item| item.goal_id == next && item.round == 1 && item.verdict == "pass"), "unchanged current artifacts were independently reviewed again");
 }
 
 #[test]
@@ -552,9 +555,10 @@ fn linked_reuse_qa_repair_inside_approved_files_records_a_second_integration() {
     assert_eq!(repaired.after_sha256, crate::engine::digest_project_file(&h.root, "todo.js").unwrap().sha256);
     assert!(h.store().snapshot().unwrap().events.iter().any(|event| event.id.to_string() == repaired.integration_event && event.kind == "task_integrated" && event.task_id.as_deref() == Some(&repair.id)));
     let reviews: Vec<crate::model::DeliverableReview> = h.store().list("deliverable_review").unwrap();
-    assert!(reviews.iter().any(|item| item.goal_id == next && item.round == 0 && item.verdict == "FAIL"));
-    assert!(reviews.iter().any(|item| item.goal_id == next && item.round == 1 && item.verdict == "PASS"), "the repaired current artifact received a new independent QA verdict");
-    assert!(reviews.iter().any(|item| item.goal_id == next && item.task_id == previous.task_id && item.round == 1 && item.verdict == "PASS"), "QA independently reviewed the original deliverable after its repair");
+    let seen: Vec<String> = reviews.iter().filter(|item| item.goal_id == next).map(|item| format!("round {} {} {}", item.round, item.task_id, item.verdict)).collect();
+    assert!(reviews.iter().any(|item| item.goal_id == next && item.round == 0 && item.verdict == "fail"), "reviews of the goal: {seen:?}");
+    assert!(reviews.iter().any(|item| item.goal_id == next && item.round == 1 && item.verdict == "pass"), "the repaired current artifact received a new independent QA verdict");
+    assert!(reviews.iter().any(|item| item.goal_id == next && item.task_id == previous.task_id && item.round == 1 && item.verdict == "pass"), "QA independently reviewed the original deliverable after its repair");
 }
 
 #[test]
@@ -709,9 +713,12 @@ fn linked_reuse_integration_failure_after_approval_creates_no_transition() {
     }
     assert!(!h.event_kinds(&next).contains(&"task_integrated".to_string()));
     assert!(!h.store().list::<crate::model::ReuseFileTransition>("reuse_file_transition").unwrap().iter().any(|item| item.goal_id == next));
-    let conflict = snapshot_reuse_conflict(&h, &next, "todo.js", "integration_conflict");
-    assert!(conflict.approval_id.is_some(), "approval alone cannot create a transition");
-    assert_eq!(conflict.current_sha256, conflict.before_sha256, "failed patch never becomes selected-project evidence");
+    // ADR-0068 §5: the outside edit has no task, approval or integration provenance, so it is blocked as
+    // `출처 불명 변경` before any patch is applied (earlier than a patch conflict would surface).
+    let conflict = snapshot_reuse_conflict(&h, &next, "todo.js", "unknown_change");
+    assert!(conflict.approval_id.is_none() && conflict.after_sha256.is_none(), "approval alone cannot create a transition");
+    assert_ne!(conflict.current_sha256, conflict.before_sha256, "the outside bytes are reported, never adopted as evidence");
+    assert!(std::fs::read_to_string(h.root.join("todo.js")).unwrap().contains("outside edit"), "the failed patch was not applied over the outside edit");
 }
 
 /// Screen fixtures for headless rendering checks: real snapshots of a project with no goal, a plan

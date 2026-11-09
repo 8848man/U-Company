@@ -71,4 +71,4 @@ Rows are in ID order. Each ADR starts with its title, a `Status:` line, and a `D
 | [ADR-0065](ADR-0065.md) | Dev의 거절된 명령을 PM이 검토하고 기존 권한 재시도 또는 CEO 요청을 선택 | Accepted; refines ADR-0058 |
 | [ADR-0066](ADR-0066.md) | 프로젝트 기본·목표 대화별 수동/오토/풀 오토 명령 승인 모드 | Accepted; refines ADR-0058, ADR-0065 |
 | [ADR-0067](ADR-0067.md) | PM이 필요한 거절 호출만 골라 CEO에게 요청하고 스크립트 본문은 명령 규칙으로 나누지 않음 | Accepted; refines ADR-0058, ADR-0065, ADR-0066 |
-| [ADR-0068](ADR-0068.md) | 승인된 재수정 파일의 재사용 소유권 전환 | Accepted specification; engine implementation and plan/rework/QA runtime verification pending; refines ADR-0027 without widening approval |
+| [ADR-0068](ADR-0068.md) | 승인된 재수정 파일의 재사용 소유권 전환 | Accepted; engine tests pass 2026-11-10, runtime QA pending |
