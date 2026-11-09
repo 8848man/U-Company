@@ -251,7 +251,7 @@ fn check_value(issues: &mut Vec<Issue>, preset_id: &str, field: &str, rule: &Ran
             _ => issue(issues, "conflict", preset_id, field, "숫자가 아닙니다"),
         },
         "path" => if let Err(reason) = safe_relative_path(value) { issue(issues, "conflict", preset_id, field, reason); },
-        "text" => if value.chars().count() > 300 { issue(issues, "conflict", preset_id, field, "300자 이하로 적어 주세요"); },
+        "text" if value.chars().count() > 300 => { issue(issues, "conflict", preset_id, field, "300자 이하로 적어 주세요"); },
         _ => {}
     }
 }
@@ -659,6 +659,7 @@ pub struct Preview { pub project_id: String, pub changes: Vec<StageChange>, pub 
 
 fn label(id: &str, version: &str) -> String { format!("{id}/{version}") }
 
+#[allow(clippy::type_complexity)] // a one-off tuple read straight from SQLite
 fn tx_preview(tx: &Transaction<'_>, project_id: &str, pick: &Pick, project_root: Option<&Path>) -> Result<(Preview, Option<(TechPreset, Option<String>)>), String> {
     project_exists(tx, project_id)?;
     if !STAGES.contains(&pick.stage.as_str()) { return Err("알 수 없는 단계입니다".into()); }
@@ -699,7 +700,7 @@ fn tx_preview(tx: &Transaction<'_>, project_id: &str, pick: &Pick, project_root:
         plan_effect: "저장해도 대기 중이거나 승인된 계획, 실행 중인 작업은 바뀌지 않습니다. 다음 계획부터 적용되며, 대기 중인 계획에 반영하려면 계획 카드의 `개선`을, 승인 뒤에는 방향 변경으로 새 버전을 만드세요.".into(),
         fingerprint: selection_fingerprint(&choices),
     };
-    Ok((preview, frozen.map(|(preset, draft)| (preset, draft))))
+    Ok((preview, frozen))
 }
 
 pub fn preview(store: &Store, project_id: &str, pick: &Pick, project_root: Option<&Path>) -> Result<Preview, String> { store.transact(|tx| tx_preview(tx, project_id, pick, project_root).map(|(preview, _)| preview)) }
@@ -742,6 +743,7 @@ fn qa_checklist(choices: &[Choice]) -> Vec<String> {
 }
 
 fn selection_fingerprint(choices: &[Choice]) -> String {
+    #[allow(clippy::type_complexity)] // a one-off tuple read straight from SQLite
     let key: Vec<(&str, &str, &str, &str, BTreeMap<String, String>)> = choices.iter().map(|c| (c.stage.as_str(), c.preset.id.as_str(), c.preset.version.as_str(), c.digest.as_str(), c.values.clone())).collect();
     crate::meeting::digest(&serde_json::to_string(&key).unwrap_or_default())
 }
@@ -1075,6 +1077,7 @@ pub fn request_ai_draft(store: &Store, project_id: &str, requirement: &str, dest
 }
 
 fn tx_request(tx: &Transaction<'_>, request_id: &str) -> Result<Option<DraftRequest>, String> {
+    #[allow(clippy::type_complexity)] // a one-off tuple read straight from SQLite
     let row: Option<(String, String, String, String, String, String, String, Option<String>, String, String, Option<String>)> = tx.query_row("SELECT project_id,requirement,payload,payload_sha256,destination,destination_sha256,status,draft_id,note,created_at,decided_at FROM tech_preset_draft_request WHERE id=?1", [request_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?, r.get(8)?, r.get(9)?, r.get(10)?))).optional().map_err(|e| e.to_string())?;
     row.map(|(project_id, requirement, payload, payload_sha256, destination, destination_sha256, status, draft_id, note, created_at, decided_at)| Ok(DraftRequest { id: request_id.into(), project_id, requirement, payload, payload_sha256, destination: serde_json::from_str(&destination).map_err(|e: serde_json::Error| e.to_string())?, destination_sha256, status, draft_id, note, created_at, decided_at })).transpose()
 }
@@ -1373,8 +1376,8 @@ mod tests {
         select(&s, "p1", &pick("beginner", "B-API"), "ceo", None, None).unwrap();
         let t1 = task(&s, "t1", "g", "server.js");
         let plan = prepare_plan(&s, &p, "g").unwrap();
-        assert!(bind_plan(&s, "p2", "g", &approval("x", "g"), &plan, &[t1.clone()]).is_err(), "a goal binds only in its own project");
-        bind_plan(&s, "p1", "g", &approval("a1", "g"), &plan, &[t1.clone()]).unwrap();
+        assert!(bind_plan(&s, "p2", "g", &approval("x", "g"), &plan, std::slice::from_ref(&t1)).is_err(), "a goal binds only in its own project");
+        bind_plan(&s, "p1", "g", &approval("a1", "g"), &plan, std::slice::from_ref(&t1)).unwrap();
         // `개선` on the same goal: a new revision and a new approval; the first card is now stale.
         let mut old = s.get::<Approval>("approval", "a1").unwrap().unwrap();
         old.status = crate::plan_review::REVISE_REQUESTED.into();

@@ -24,6 +24,8 @@ pub struct CallOptions {
     pub resume: Option<String>,
     /// A read-only role that may run the granted commands (QA in an isolated copy).
     pub read_only_commands: bool,
+    /// ADR-0070: raising this signal cancels the running call.
+    pub cancel: Option<crate::runtime::CancelSignal>,
 }
 
 struct AiRequest<'a> {
@@ -74,8 +76,8 @@ impl AiProvider for HttpProvider<'_> {
 }
 
 impl AiProvider for PluginProvider<'_> {
-    fn execute(&self, request: &AiRequest<'_>, _: &mut dyn FnMut(&str), _: &mut dyn FnMut(u64, bool)) -> Result<AiResponse, String> {
-        runtime::run_plugin(self.0, request.prompt, request.cwd, request.writable, request.options)
+    fn execute(&self, request: &AiRequest<'_>, progress: &mut dyn FnMut(&str), usage_progress: &mut dyn FnMut(u64, bool)) -> Result<AiResponse, String> {
+        runtime::run_plugin(self.0, request.prompt, request.cwd, request.writable, request.options, progress, usage_progress)
     }
 }
 
@@ -133,11 +135,11 @@ fn run_cli(connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool, 
         if length > crate::meeting::PACKET_CHAR_CAP { return Err(format!("prompt command length {length} exceeds {} UTF-16 units; no content was truncated", crate::meeting::PACKET_CHAR_CAP)); }
     }
     let input = (delivery == PromptDelivery::Stdin).then_some(prompt.as_bytes());
-    let (stdout, stderr) = runtime::capture_with_timeout(cmd, Duration::from_secs(30 * 60), progress, usage_progress, &connection.name, input)?;
+    let (stdout, stderr) = runtime::capture_with_timeout(cmd, Duration::from_secs(30 * 60), progress, usage_progress, &connection.name, input, options.cancel.as_ref())?;
     let text = extract_text(&stdout);
     if text.trim().is_empty() { return Err(format!("response: no answer; stderr={}", runtime::truncate(&stderr, 300))); }
     let session_id = stdout.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()).find_map(|v| v.get("thread_id").or_else(|| v.get("session_id")).and_then(Value::as_str).map(str::to_string));
-    let usage = stdout.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()).filter_map(|value| runtime::token_usage(&value)).last();
+    let usage = stdout.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()).filter_map(|value| runtime::token_usage(&value)).next_back();
     let permission_denials = claude_denials(&stdout);
     let commands_run = if stem == "claude" { claude_commands(&stdout) } else { Vec::new() };
     Ok(AiResponse { text, session_id, usage, permission_denials, commands_run })
@@ -215,7 +217,7 @@ mod tests {
         let none = CallOptions::default();
         assert_eq!(claude_permission_args(true, &none), vec!["--permission-mode", "acceptEdits"]);
         assert_eq!(claude_permission_args(false, &none), vec!["--permission-mode", "plan"], "meetings and analysis stay in plan mode");
-        let granted = CallOptions { allowed: vec!["Bash(npm test)".into(), "Bash(npm test *)".into()], resume: Some("s1".into()), read_only_commands: false, ..CallOptions::default() };
+        let granted = CallOptions { allowed: vec!["Bash(npm test)".into(), "Bash(npm test *)".into()], resume: Some("s1".into()), read_only_commands: false, cancel: None };
         assert_eq!(claude_permission_args(true, &granted), vec!["--resume", "s1", "--permission-mode", "acceptEdits", "--allowedTools", "Bash(npm test)", "Bash(npm test *)"]);
         let qa = CallOptions { read_only_commands: true, ..granted.clone() };
         assert_eq!(claude_permission_args(false, &qa), vec!["--resume", "s1", "--permission-mode", "dontAsk", "--disallowedTools", "Write", "Edit", "MultiEdit", "NotebookEdit", "--allowedTools", "Bash(npm test)", "Bash(npm test *)"]);

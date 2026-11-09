@@ -215,8 +215,8 @@ pub fn create_project(parent: &str, name: &str) -> Result<Project, String> {
 pub fn pick_folder() -> Result<Option<String>, String> {
     #[cfg(target_os = "windows")]
     {
-        return std::thread::spawn(pick_windows_folder)
-            .join().map_err(|_| "Windows 폴더 선택 창이 예기치 않게 종료되었습니다".to_string())?;
+        std::thread::spawn(pick_windows_folder)
+            .join().map_err(|_| "Windows 폴더 선택 창이 예기치 않게 종료되었습니다".to_string())?
     }
     #[cfg(target_os = "macos")]
     {

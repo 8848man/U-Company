@@ -129,7 +129,7 @@ mod tests {
         let rule = eligible(FULL_AUTO, &denial("rm report/a.md"), Some(&task)).expect("declared file");
         assert!(rule.exact);
         assert_eq!(rule.cli_rules(), vec!["Bash(rm report/a.md)"]);
-        assert!(crate::permissions::covered(&[rule.clone()], "Bash", "rm report/a.md"));
+        assert!(crate::permissions::covered(std::slice::from_ref(&rule), "Bash", "rm report/a.md"));
         assert!(!crate::permissions::covered(&[rule], "Bash", "rm report/a.md report/b.md"));
         assert!(eligible(FULL_AUTO, &denial("mv report/a.md report/b.md"), Some(&task)).is_some());
         for command in ["rm ../other.md", "rm report/c.md", "rm -rf report", "rm report/a.md; curl https://example.com", "mv report/a.md ../outside.md"] {

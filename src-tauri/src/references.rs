@@ -1106,7 +1106,7 @@ mod tests {
         let text = stage_text(&store, &staging, &project, "a.md", "첫 줄\n\n본문\n", "file").unwrap();
         let old = goal("oldgoal1");
         store.put("goal", &old.id, &old, None).unwrap();
-        attach_to_goal(&store, &staging, &project, &old, &[text.id.clone()]).unwrap();
+        attach_to_goal(&store, &staging, &project, &old, std::slice::from_ref(&text.id)).unwrap();
         assert_eq!(apply_cto_summaries(&store, &old.id, "분석...\n- 자료 요약 R1: 링크 34개와 확인 규칙\n자료 요약 R9: 없음").unwrap(), 1);
         let saved: Reference = store.get("reference", &text.id).unwrap().unwrap();
         assert_eq!((saved.summary.as_str(), saved.summary_source.as_str()), ("링크 34개와 확인 규칙", "cto"));
