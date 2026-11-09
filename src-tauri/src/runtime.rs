@@ -113,7 +113,7 @@ fn structured_error_hint(stdout: &str) -> String {
         let message = value.get("message").and_then(Value::as_str)
             .or_else(|| value.pointer("/error/message").and_then(Value::as_str)).unwrap_or("");
         Some(format!("{kind}: {}", safe_diagnostic(message, 250)))
-    }).last().unwrap_or_else(|| "none".into())
+    }).next_back().unwrap_or_else(|| "none".into())
 }
 
 pub(crate) fn safe_diagnostic(value: &str, max: usize) -> String {

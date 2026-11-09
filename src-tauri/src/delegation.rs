@@ -141,7 +141,7 @@ pub fn assign_within(capabilities: &[&str], agents: &[Agent], connections: &[AiC
         // ADR-0049: `document+images` / `code+images` marks a task whose evidence includes an image;
         // only a teammate whose connection can look at images may take it.
         let (capability, needs_images) = match requested.strip_suffix("+images") { Some(base) => (base, true), None => (*requested, false) };
-        let declared = |agent: &&&Agent| agent.external.as_ref().filter(|_| agent.is_external()).map_or(true, |contract| contract.capabilities.iter().any(|item| item == capability));
+        let declared = |agent: &&&Agent| agent.external.as_ref().filter(|_| agent.is_external()).is_none_or(|contract| contract.capabilities.iter().any(|item| item == capability));
         let sees_images = |agent: &&&Agent| !needs_images || connections.iter().find(|item| item.id == agent.connection_id).is_some_and(crate::curation::can_view_images);
         if needs_images && !eligible.iter().filter(declared).any(|agent| sees_images(&agent)) {
             return Err("이미지 자료를 볼 수 있는 개발 팀원이 없습니다. Claude 연결을 배정하거나, 이미지를 볼 수 있는 연결이면 연결 설정에서 '이미지 가능'을 켜 주세요".into());

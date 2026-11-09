@@ -658,6 +658,7 @@ fn preview_git_bootstrap(goal_id: String, store: tauri::State<'_, Store>) -> Res
 fn git_bootstrap_allowed(store: &Store, goal: &Goal) -> Result<(), String> { git_bootstrap::allowed(&store.list::<Goal>("goal")?, goal) }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // each argument is a field of the CEO's confirmed commit form
 fn bootstrap_project_git(goal_id: String, fingerprint: String, selected_files: Vec<String>, author_name: String, author_email: String, message: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<git_bootstrap::ResultInfo, String> {
     let goal: Goal = store.get("goal", &goal_id)?.ok_or("목표를 찾을 수 없습니다")?;
     git_bootstrap_allowed(&store, &goal)?;

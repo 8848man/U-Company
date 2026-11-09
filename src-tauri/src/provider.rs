@@ -137,7 +137,7 @@ fn run_cli(connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool, 
     let text = extract_text(&stdout);
     if text.trim().is_empty() { return Err(format!("response: no answer; stderr={}", runtime::truncate(&stderr, 300))); }
     let session_id = stdout.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()).find_map(|v| v.get("thread_id").or_else(|| v.get("session_id")).and_then(Value::as_str).map(str::to_string));
-    let usage = stdout.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()).filter_map(|value| runtime::token_usage(&value)).last();
+    let usage = stdout.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()).filter_map(|value| runtime::token_usage(&value)).next_back();
     let permission_denials = claude_denials(&stdout);
     let commands_run = if stem == "claude" { claude_commands(&stdout) } else { Vec::new() };
     Ok(AiResponse { text, session_id, usage, permission_denials, commands_run })
@@ -215,7 +215,7 @@ mod tests {
         let none = CallOptions::default();
         assert_eq!(claude_permission_args(true, &none), vec!["--permission-mode", "acceptEdits"]);
         assert_eq!(claude_permission_args(false, &none), vec!["--permission-mode", "plan"], "meetings and analysis stay in plan mode");
-        let granted = CallOptions { allowed: vec!["Bash(npm test)".into(), "Bash(npm test *)".into()], resume: Some("s1".into()), read_only_commands: false, ..CallOptions::default() };
+        let granted = CallOptions { allowed: vec!["Bash(npm test)".into(), "Bash(npm test *)".into()], resume: Some("s1".into()), read_only_commands: false };
         assert_eq!(claude_permission_args(true, &granted), vec!["--resume", "s1", "--permission-mode", "acceptEdits", "--allowedTools", "Bash(npm test)", "Bash(npm test *)"]);
         let qa = CallOptions { read_only_commands: true, ..granted.clone() };
         assert_eq!(claude_permission_args(false, &qa), vec!["--resume", "s1", "--permission-mode", "dontAsk", "--disallowedTools", "Write", "Edit", "MultiEdit", "NotebookEdit", "--allowedTools", "Bash(npm test)", "Bash(npm test *)"]);

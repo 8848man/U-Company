@@ -327,6 +327,7 @@ fn a_denied_scope_addition_blocks_as_needs_scope_without_changing_files() {
     };
     assert_eq!(goal.block_kind, "needs_scope");
     let project_id = goal.project_id.clone().unwrap();
+    eventually("the block record is saved", || !crate::goal_result::block_stats(&h.store().list("goal_block").unwrap(), &project_id).is_empty());
     let stats = crate::goal_result::block_stats(&h.store().list("goal_block").unwrap(), &project_id);
     assert_eq!(stats.iter().map(|stat| (stat.kind.as_str(), stat.count)).collect::<Vec<_>>(), vec![("needs_scope", 1)]);
     assert_eq!(std::fs::read_to_string(h.root.join("README.md")).unwrap(), "# 샘플 프로젝트\n");
@@ -391,6 +392,15 @@ fn enable_reuse_mock_modes(h: &Harness, modes: &str) {
     let mut connection = h.store().list::<crate::model::AiConnection>("connection").unwrap().remove(0);
     connection.args.extend(["--mode".into(), modes.into()]);
     h.store().put("connection", &connection.id, &connection, None).unwrap();
+}
+
+/// Waits up to ten seconds for a record the engine writes right after the status a test waited for.
+fn eventually(what: &str, check: impl Fn() -> bool) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !check() {
+        assert!(Instant::now() < deadline, "timed out waiting until {what}");
+        std::thread::sleep(Duration::from_millis(50));
+    }
 }
 
 /// The blocked case must reach the same serialized snapshot consumed by the UI, not only the
@@ -1040,7 +1050,7 @@ fn resume_closes_a_conversation_a_later_goal_achieved_without_touching_files_and
     assert!(!closed.evidence.is_empty());
     assert_eq!(h.goal(B).status, "blocked", "closing changes no goal record");
     assert_eq!(std::fs::read_to_string(h.root.join("README.md")).unwrap(), readme);
-    assert!(h.store().list::<crate::model::GoalTurn>("goal_turn").unwrap().iter().any(|turn| turn.route.as_deref() == Some("objective_closed")));
+    eventually("the closing turn is saved", || h.store().list::<crate::model::GoalTurn>("goal_turn").unwrap().iter().any(|turn| turn.route.as_deref() == Some("objective_closed")));
     assert!(crate::objective::resume(h.app.handle().clone(), A.into()).is_err(), "a closed conversation is reopened first");
     assert_eq!(crate::objective::reopen(&h.store(), A).unwrap().state, "reopened");
     assert!(crate::objective::reopen(&h.store(), A).is_err());
