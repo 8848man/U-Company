@@ -84,7 +84,11 @@ impl Harness {
             let goal = self.goal(id);
             if statuses.contains(&goal.status.as_str()) { return goal; }
             if ["completed", "blocked", "cancelled"].contains(&goal.status.as_str()) { panic!("goal ended as {} ({}) while waiting for {statuses:?}:\n{}", goal.status, goal.block_kind, goal.report); }
-            assert!(Instant::now() < deadline, "timed out in {} waiting for {statuses:?}", goal.status);
+            if Instant::now() >= deadline {
+                let pending: Vec<String> = self.store().list::<Approval>("approval").unwrap().into_iter().filter(|item| item.goal_id.as_deref() == Some(id) && item.status == "pending").map(|item| format!("{} ({})", item.operation, item.reason.chars().take(120).collect::<String>())).collect();
+                let events = self.event_kinds(id);
+                panic!("timed out in {} waiting for {statuses:?}; pending approvals: {pending:?}; last events: {:?}", goal.status, &events[events.len().saturating_sub(12)..]);
+            }
             std::thread::sleep(Duration::from_millis(100));
         }
     }

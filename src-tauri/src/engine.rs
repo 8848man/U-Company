@@ -1095,7 +1095,12 @@ fn plan_repair<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, proj
     // ADR-0053: new files ask the CEO on this goal; a denial blocks as `needs_scope` (next version).
     let added = scope_addition(&proposed, approved_files).map_err(|error| delegation::mark("needs_scope", error))?;
     let repair_files: Vec<String> = proposed.tasks.iter().flat_map(|task| task.files.iter().cloned()).collect();
-    let scope_approval_id = request_scope_addition(app, goal_id, &pm.name, &repair_files, &proposed)?;
+    // ADR-0053: only new files ask the CEO. ADR-0068: a repair that touches a file reused from an
+    // earlier goal also asks, so that file gets an explicit approval in this round. Otherwise the
+    // repair stays inside the approved plan and is bound to that plan approval without a new card.
+    let scope_approval_id = if added.is_empty() && !touches_reused_files(&store, goal_id, &repair_files)? {
+        Some(plan_approval_id(&store, goal_id)?.ok_or("승인된 계획을 찾을 수 없어 재작업을 시작할 수 없습니다")?)
+    } else { request_scope_addition(app, goal_id, &pm.name, &repair_files, &proposed)? };
     if scope_approval_id.is_none() {
         return Err(delegation::mark("needs_scope", format!("CEO가 재작업에 필요한 새 파일 {}개 추가를 거절했습니다: {}", added.len(), added.join(", "))));
     }
@@ -1214,6 +1219,18 @@ fn scope_addition(plan: &ProposedPlan, approved_files: &HashSet<String>) -> Resu
     }
     if added.len() > MAX_SCOPE_ADDITION { return Err(format!("재작업에 새 파일이 {}개 필요합니다. 한 번에 {MAX_SCOPE_ADDITION}개까지만 같은 목표에서 추가할 수 있어 새 계획 버전에서 승인해야 합니다", added.len())); }
     Ok(added)
+}
+
+/// The latest approved plan (`project_write`) approval of the goal.
+fn plan_approval_id(store: &Store, goal_id: &str) -> Result<Option<String>, String> {
+    Ok(store.list::<Approval>("approval")?.into_iter().filter(|item| item.goal_id.as_deref() == Some(goal_id) && item.status == "approved" && item.operation == "project_write").last().map(|item| item.id))
+}
+
+/// ADR-0068: whether any of `files` belongs to a task this goal reuses or replaces from an earlier goal.
+fn touches_reused_files(store: &Store, goal_id: &str, files: &[String]) -> Result<bool, String> {
+    let Some(decision) = store.list::<GoalGuidance>("goal_guidance")?.into_iter().find(|item| item.replacement_goal_id.as_deref() == Some(goal_id)).and_then(|item| item.continuation) else { return Ok(false) };
+    let source = source_lineage_tasks(&store.snapshot()?, &decision.source_goal_id);
+    Ok(source.iter().filter(|task| decision.reused_task_ids.contains(&task.id) || decision.replaced_task_ids.contains(&task.id)).flat_map(|task| task.files.iter()).any(|old| files.iter().any(|file| file.eq_ignore_ascii_case(old))))
 }
 
 const MAX_SCOPE_ADDITION: usize = 8;
@@ -1775,6 +1792,14 @@ fn approved_task_file(store: &Store, task: &Task, file: &str) -> Result<String, 
     if task.title.starts_with(delegation::REPAIR_PREFIX) {
         if let Some(scope) = store.get::<crate::model::RepairTaskScope>("repair_task_scope", &task.id)? {
             let approval: crate::model::Approval = store.get("approval", &scope.approval_id)?.ok_or("Repair approval missing")?;
+            // ADR-0053: a repair inside the approved plan is bound to the plan approval itself.
+            if approval.operation == "project_write" {
+                let planned = crate::technology_presets::snapshot_for(store, &approval.id)?.is_some_and(|snapshot| snapshot.goal_id == task.goal_id && snapshot.approval_id == approval.id && snapshot.tasks.iter().any(|planned| planned.files.iter().any(|path| path.eq_ignore_ascii_case(file))));
+                if planned && scope.task_id == task.id && scope.goal_id == task.goal_id && approval.goal_id.as_deref() == Some(&task.goal_id) && approval.status == "approved" && task.files.iter().any(|path| path.eq_ignore_ascii_case(file)) && scope.files.iter().any(|path| path.eq_ignore_ascii_case(file)) {
+                    return Ok(scope.approval_id);
+                }
+                return Err(format!("승인 범위 밖 변경: {file}; 작업 {}의 재작업 승인과 파일 범위를 확인하거나 재계획하세요", task.id));
+            }
             let added: Vec<String> = store.get("repair_scope", &scope.approval_id)?.ok_or("Repair file scope missing")?;
             // The scope card grants additions; unchanged names retain their original plan approval.
             let initially_approved = store.list::<crate::model::Approval>("approval")?.into_iter().filter(|item| item.goal_id.as_deref() == Some(&task.goal_id) && item.status == "approved" && item.operation == "project_write").any(|item| crate::technology_presets::snapshot_for(store, &item.id).ok().flatten().is_some_and(|snapshot| snapshot.goal_id == task.goal_id && snapshot.approval_id == item.id && snapshot.tasks.iter().any(|planned| planned.files.iter().any(|path| path.eq_ignore_ascii_case(file)))));
