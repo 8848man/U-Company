@@ -17,16 +17,15 @@ What changes from v2 is the CEO's minimal flow for the first pilot — three lau
 - Ubuntu 24.04: `bash v3/start-ubuntu.sh` (desktop run not yet verified)
 - Build only: `npm run build:v3`
 
-Only one launcher can use Vite port 1420: close the v2 or original app first. Without `-DataDir` the existing data is used, so v2 and v3 show the same projects and goals. Project files change only through the engine's approved actions.
+Only one launcher can use Vite port 1420: close the v4 app first. Without `-DataDir` the existing data is used, so v3 and v4 show the same projects and goals. Project files change only through the engine's approved actions.
 
 ## Source layout
 
-- `src/App.tsx`: v3 state/command controller — a copy of `v2/src/App.tsx` with the v3 Home wired in.
+- `src/App.tsx`: the state/command controller shared by v3 and v4 (v4 adds preset slots). It started as a copy of the retired v2 controller.
 - `src/V3Home.tsx`: readiness, command box with the pilot example, decision inbox, per-deliverable goal cards.
-- `src/v3.css`: v3-only styles on top of `v2/src/v2.css`.
-- Reused: `v2/src/V2Navigation.tsx`, `V2Work.tsx`, `V2Projects.tsx`, `V2Connections.tsx`, `V2NotificationSettings.tsx`, and shared `../src/` components (`GoalConversationChat`, `DeliverablePanel`, `deliverables.ts`, `OfficeGoalRail`, `MeetingPanel`, Office Canvas).
+- `src/v3.css`: v3-only styles on top of `src/shell/v2.css`.
+- Reused: `src/shell/V2Navigation.tsx`, `V2Work.tsx`, `V2Projects.tsx`, `V2Connections.tsx`, `V2NotificationSettings.tsx`, and shared `../src/` components (`GoalChat`, `DeliverablePanel`, `deliverables.ts`, `OfficeGoalRail`, `MeetingPanel`, Office Canvas).
 
-`src/App.tsx` duplicates the v2 controller. This is recorded migration debt (as v2 recorded for v1): extract the shared commands and dialogs into a typed hook, then let v2 and v3 import it and keep only their Home/navigation differences.
 
 ## Interactive QA
 

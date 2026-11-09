@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { ContentPreview, ListDisclosure, useLimitedItems } from '../../src/ContentDensity';
-import { canOpenProviderLogin, connectionRecovery } from '../../src/providerRecovery';
-import { displayPath } from '../../src/paths';
-import type { AiConnection, DiscoveredAi } from '../../src/types';
+import { ContentPreview, ListDisclosure, useLimitedItems } from '../ContentDensity';
+import { canOpenProviderLogin, connectionRecovery } from '../providerRecovery';
+import { displayPath } from '../paths';
+import type { AiConnection, DiscoveredAi } from '../types';
 
 type Props = { saved: AiConnection[]; discovered: DiscoveredAi[]; agentCounts: Record<string, number>; busy: boolean; outdated: boolean; onDiscover: () => void; onCustom: () => void; onSave: (item: DiscoveredAi) => void; onChangePath: (item: DiscoveredAi) => void; onCheck: (id: string) => void; onLogin: (id: string) => void; onExplain: (title: string, detail: string, next: string) => void; onAddMock?: (modes: string[]) => void };
 

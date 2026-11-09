@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from 'react';
-import { BoardProgress } from '../../src/OfficeActivity';
-import { ContentPreview, ListDisclosure, useLimitedItems } from '../../src/ContentDensity';
-import type { Agent, Approval, Event, Goal, Task } from '../../src/types';
-import type { MeetingAttention } from '../../src/meetingStatus';
-import { headline } from '../../src/plainText';
-import { goalTitle } from '../../src/progress';
-import { SummaryText } from '../../src/SummaryText';
+import { BoardProgress } from '../OfficeActivity';
+import { ContentPreview, ListDisclosure, useLimitedItems } from '../ContentDensity';
+import type { Agent, Approval, Event, Goal, Task } from '../types';
+import type { MeetingAttention } from '../meetingStatus';
+import { headline } from '../plainText';
+import { goalTitle } from '../progress';
+import { SummaryText } from '../SummaryText';
 
 const plainTaskStatus: Record<string, string> = { pending: '시작 전', running: '하는 중', awaiting_integration: '합치는 중', completed: '끝남', failed: '멈춤', blocked: '멈춤' };
 

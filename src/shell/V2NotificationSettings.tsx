@@ -1,4 +1,4 @@
-import type { AttentionPreferences } from '../../src/attentionNotifications';
+import type { AttentionPreferences } from '../attentionNotifications';
 
 export function V2NotificationSettings({ preferences, error, pending, onSystem, onSound, onTestSystem, onTestSound }: { preferences: AttentionPreferences; error: string; pending: boolean; onSystem: (enabled: boolean) => void; onSound: (enabled: boolean) => void; onTestSystem: () => void; onTestSound: () => void }) {
   return <section className="card v2-notification-settings v2-settings-narrow"><div className="card-kicker">ATTENTION</div><h2>중요한 일만 알림</h2><p>새 승인 요청과 목표가 중단된 순간에만 알립니다. 앱을 다시 열 때 기존 항목을 한꺼번에 알리지 않습니다.</p>

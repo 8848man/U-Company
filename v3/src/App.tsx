@@ -34,12 +34,12 @@ import '../../src/ux.css';
 import type { Agent, AiConnection, BlockStat, DiscoveredAi, Goal, GoalResult, GoalTurn, Meeting, MeetingPlan, MeetingReadiness, PlanInput, Project, Reference, RolePreset, Snapshot } from '../../src/types';
 import { BlockStats } from './BlockStats';
 // v3 shell (ADR-0039): same five menus, controller copied from v2 (migration debt recorded in v3/README.md).
-import { V2Sidebar, V2SettingsTabs, labels, type V2Tab, type SettingsSection } from '../../v2/src/V2Navigation';
+import { V2Sidebar, V2SettingsTabs, labels, type V2Tab, type SettingsSection } from '../../src/shell/V2Navigation';
 import { V3Home, type HomeMode } from './V3Home';
-import { V2Work } from '../../v2/src/V2Work';
-import { V2Connections } from '../../v2/src/V2Connections';
-import { V2Projects } from '../../v2/src/V2Projects';
-import { V2NotificationSettings } from '../../v2/src/V2NotificationSettings';
+import { V2Work } from '../../src/shell/V2Work';
+import { V2Connections } from '../../src/shell/V2Connections';
+import { V2Projects } from '../../src/shell/V2Projects';
+import { V2NotificationSettings } from '../../src/shell/V2NotificationSettings';
 import { useAttentionNotifications } from '../../src/useAttentionNotifications';
 import { useReferenceTray } from '../../src/ReferenceTray';
 import { goalReferences, stagedReferences } from '../../src/referenceAttach';

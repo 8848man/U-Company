@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { PlanPresetCard, PresetPanel, PresetSettings, canApplyPreview, canApproveAiRequest, forProject, initialScreen, manualDraftTemplate, nextAction, planFingerprintForApproval, presetActions, presetHandlers, presetScreen, selectionChanged, selectionSummary, targetLabel, type PresetEvent, type PresetScreen } from './PresetSettings';
-import { V2SettingsTabs, tabKeyTarget } from '../../v2/src/V2Navigation';
+import { V2SettingsTabs, tabKeyTarget } from '../../src/shell/V2Navigation';
 import type { Agent, Approval, Goal, Project, TechAiDraftRequest, TechPlanSnapshot, TechPreset, TechPresetState, TechPreview } from '../../src/types';
 
 const preset: TechPreset = { id: 'B-WEB', version: '1.0.0', stage: 'beginner', name: '웹 앱', purpose: '웹 화면', decisions: [], defaults: {}, allowedRange: [], dependencies: [], conflicts: [], artifactRules: [], validation: [] };

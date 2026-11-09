@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import ProjectPicker from '../../src/ProjectPicker';
-import { ListDisclosure, useLimitedItems } from '../../src/ContentDensity';
-import { displayPath } from '../../src/paths';
-import type { Goal, Project } from '../../src/types';
+import ProjectPicker from '../ProjectPicker';
+import { ListDisclosure, useLimitedItems } from '../ContentDensity';
+import { displayPath } from '../paths';
+import type { Goal, Project } from '../types';
 
 export function V2Projects({ projects, current, goals, busy, onSelect, onOpenGoal, onRegister, onExplain, reviewControl }: { projects: Project[]; current: Project | null; goals: Goal[]; busy: boolean; onSelect: (project: Project) => void; onOpenGoal: (goal: Goal, project: Project) => void; onRegister: (path: string) => void; onExplain: (title: string, reason: string, next: string) => void; reviewControl: (project: Project) => ReactNode }) {
   const registered = useLimitedItems([...projects].sort((a, b) => Number(b.id === current?.id) - Number(a.id === current?.id) || a.name.localeCompare(b.name, 'ko')));

@@ -26,7 +26,7 @@
 | --- | --- | --- |
 | 같은 대화의 후속 작업과 차수 요약 | 코드·빌드 확인, Rust 저장소 시험 실행과 v4 앱에서 실제 화면·모의 AI 종단 검증 대기 | [WLG-058](milestones/WLG-058.md), [QA-51](../qa/MANUAL-QA.md#qa-51-완료-후-후속-작업과-차수-경계-요약-adr-0055-adr-0056) |
 | v3 출시 준비 파일럿과 중단 복구 | v4 앱에서 실제 Windows QA-39 대기([WLG-073](milestones/WLG-073.md)) | [v3 검증 범위](programs/v3-first-package/open-verification.md) |
-| v2 화면·알림·회의 | v4 앱에서 QA-38 오프라인 1~7단계 대기; QA-37은 배포 직전, QA-36은 QA-51·39에 포함, 회의 실제 제공자(8~10) 검증은 회의를 계속 쓸 때만([WLG-073](milestones/WLG-073.md)) | [회의 구현 기록](milestones/WLG-012.md), [v3 검증 범위](programs/v3-first-package/open-verification.md) |
+| v2 화면·알림·회의(v2 앱은 WLG-076에서 정리, 기능은 v4에 있음) | v4 앱에서 QA-38 오프라인 1~7단계 대기; QA-37은 배포 직전, QA-36은 QA-51·39에 포함, 회의 실제 제공자(8~10) 검증은 회의를 계속 쓸 때만([WLG-073](milestones/WLG-073.md)) | [회의 구현 기록](milestones/WLG-012.md), [v3 검증 범위](programs/v3-first-package/open-verification.md) |
 | 런타임 이벤트·취소·세션 재개, 추가 승인, Ubuntu | 초기 체크리스트에서 미완료; 현행 명세·코드를 대조해 별도 마일스톤으로 진행 | [초기 체크리스트](milestones/WLG-054.md), [개선 계획](../sdd/workflow-improvement-plan.md) |
 
 ## `지금 할 일` 통합 (2026-10-27, Claude)
@@ -140,6 +140,7 @@
 | WLG-069 (2026-11-08, Codex) | 열린 작업의 기본 범위를 선택된 프로젝트로 제한하고 펼친 창에 모든 작업 보기 토글 추가 | 데이터 단위 시험·v3 빌드·타입 검사 통과; 데스크톱 수동 QA 미검증 | [WLG-069.md](milestones/WLG-069.md) |
 | WLG-070 (2026-11-08, Codex) | PM이 필요한 거절 호출만 승인 요청하고 셸 스크립트 본문은 명령 규칙에서 제외 | Rust 시험 컴파일·모의 어댑터 구문 통과; Windows Rust 실행 `0xc0000139`, 실제 Claude 미검증 | [WLG-070.md](milestones/WLG-070.md) |
 | WLG-075 (2026-11-10, Claude) | Windows에서 Rust 시험 실행 파일이 `0xc0000139`로 멈추던 원인(앱 매니페스트가 앱 실행 파일에만 들어감)을 고치고, 빠진 모의 AI 방식 7개 추가 | `cargo test` 219 통과·19 실패·3 무시; 실패 19개는 다음 마일스톤 | [WLG-075.md](milestones/WLG-075.md) |
+| WLG-076 (2026-11-10, Claude) | v1·v2 앱을 정리하고 v4를 기본 앱으로 바꿈; v3가 쓰는 v2 부품은 `src/shell/`로 옮김(ADR-0069) | 타입 검사·vitest 160·v4 빌드 통과; 데스크톱 실행·설치 파일 미확인 | [WLG-076.md](milestones/WLG-076.md) |
 | WLG-059 (2026-10-31, Developer A) | v4 기술·구조 프리셋 명세와 ADR-0062 결정 기록; 이번 차수에서 파일·검증 근거 재대조 | 명세 기록, 런타임 미검증 | [WLG-059.md](milestones/WLG-059.md) |
 | WLG-060 (2026-10-31, Developer B) | 프리셋 엔진·저장·계획 승인 결합; Rust 과거 주장과 이번 실행 결과 분리 | 코드 존재, Rust 실행 검증 대기 | [WLG-060.md](milestones/WLG-060.md) |
 | WLG-061 (2026-10-31, Developer A) | v4 설정·AI 전송 승인·계획 카드와 실행 경로; 빌드·화면·데스크톱 확인 추적 | 코드 존재, 빌드·데스크톱 미검증 | [WLG-061.md](milestones/WLG-061.md) |

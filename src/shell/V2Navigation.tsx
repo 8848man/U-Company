@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Project } from '../../src/types';
+import type { Project } from '../types';
 
 export type V2Tab = 'dashboard' | 'board' | 'office' | 'usage' | 'settings';
 export type SettingsSection = 'projects' | 'tech' | 'connections' | 'team' | 'permissions' | 'spec' | 'notifications' | 'backup';
