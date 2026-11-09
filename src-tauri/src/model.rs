@@ -660,11 +660,61 @@ pub struct TaskIntegrationProof {
     pub integrated_at: String,
 }
 
+/// A later approved task replaces one file's reuse verdict after integration.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReuseFileTransition {
+    pub source_task_id: String,
+    pub task_id: String,
+    pub goal_id: String,
+    pub approval_id: String,
+    pub path: String,
+    pub before_sha256: String,
+    pub after_sha256: String,
+    pub integrated_at: String,
+    #[serde(default)]
+    pub approved_files: Vec<String>,
+    #[serde(default)]
+    pub integration_event: String,
+    #[serde(default)]
+    pub previous_transition_key: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepairTaskScope {
+    pub task_id: String,
+    pub goal_id: String,
+    pub approval_id: String,
+    pub files: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReuseConflict {
+    pub goal_id: String,
+    pub path: String,
+    pub kind: String,
+    pub source_task_id: String,
+    pub task_id: Option<String>,
+    pub approval_id: Option<String>,
+    pub approved_files: Vec<String>,
+    pub missing_evidence: Vec<String>,
+    pub before_sha256: Option<String>,
+    pub after_sha256: Option<String>,
+    pub current_sha256: Option<String>,
+    pub diff: Option<String>,
+    pub recovery: String,
+    pub recorded_at: String,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ContinuationDecision {
     pub source_goal_id: String,
     pub reused_task_ids: Vec<String>,
+    #[serde(default)]
+    pub replaced_task_ids: Vec<String>,
     pub new_task_count: usize,
     pub reviewed_at: String,
 }
@@ -764,7 +814,7 @@ pub struct Event {
     pub message: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Approval {
     pub id: String,
@@ -794,6 +844,8 @@ pub struct Snapshot {
     pub goal_guidance: Vec<GoalGuidance>,
     pub tasks: Vec<Task>,
     #[serde(default)]
+    pub reuse_conflicts: Vec<ReuseConflict>,
+    #[serde(default)]
     pub deliverable_reviews: Vec<DeliverableReview>,
     #[serde(default)]
     pub squads: Vec<Squad>,
@@ -818,6 +870,8 @@ pub struct Snapshot {
     pub command_requests: Vec<crate::permissions::CommandRequest>,
     #[serde(default)]
     pub command_grants: Vec<crate::permissions::CommandGrants>,
+    #[serde(default)]
+    pub permission_modes: Vec<crate::permission_mode::PermissionModeSetting>,
     /// ADR-0059: each conversation's original-objective state.
     #[serde(default)]
     pub conversation_objectives: Vec<crate::objective::ConversationObjective>,

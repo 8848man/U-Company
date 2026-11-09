@@ -1,6 +1,6 @@
 //! ADR-0060: criteria the team cannot meet stop at a CEO card instead of spending QA rework rounds.
-//! A criterion is stuck when QA names a missing precondition, when the same criteria fail again after
-//! a rework (no progress), or when the planner proposes changing it. Only the CEO drops or rewrites one.
+//! QA's claimed precondition is not a stop signal. A criterion is stuck when the same criteria
+//! fail again after a repair (no progress), or when the planner proposes changing it.
 
 use crate::engine::{check_goal_guidance, connection, execute_tracked, record_progress, transition_goal};
 use crate::model::{Agent, Approval, DeliverableReview, Project, Task};
@@ -78,8 +78,8 @@ pub fn unmet(reviews: &[DeliverableReview], goal_id: &str, round: u32) -> BTreeS
         .collect()
 }
 
-/// The stuck criteria after a failed QA round: those with a precondition, or, when none has one,
-/// every unmet criterion if the set is exactly the previous round's (the rework moved nothing).
+/// The stuck criteria after a failed QA round: every unmet criterion if the set is exactly the
+/// previous round's. A model's `precondition` alone cannot take an ordinary file fix to the CEO.
 pub fn stuck(reviews: &[DeliverableReview], tasks: &[Task], goal_id: &str, round: u32) -> Vec<StuckCriterion> {
     let current: Vec<&DeliverableReview> = reviews.iter().filter(|review| review.goal_id == goal_id && review.round == round).collect();
     let item = |review: &DeliverableReview, criterion: &crate::model::CriterionResult, kind: &str, reason: String| -> Option<StuckCriterion> {
@@ -87,12 +87,10 @@ pub fn stuck(reviews: &[DeliverableReview], tasks: &[Task], goal_id: &str, round
         let index = task.acceptance.iter().position(|text| text == &criterion.criterion)?;
         Some(StuckCriterion { task_id: task.id.clone(), task_title: cut(&title(task), 120), index, criterion: criterion.criterion.clone(), kind: kind.into(), reason, evidence: cut(&criterion.evidence, 600), ..Default::default() })
     };
-    let preconditions: Vec<StuckCriterion> = current.iter().flat_map(|review| review.criteria.iter().filter(|criterion| !criterion.met && !criterion.precondition.trim().is_empty()).filter_map(|criterion| item(review, criterion, "precondition", cut(criterion.precondition.trim(), MAX_TEXT)))).collect();
-    if !preconditions.is_empty() { return preconditions; }
     if round == 0 { return Vec::new(); }
     let now = unmet(reviews, goal_id, round);
     if now.is_empty() || now != unmet(reviews, goal_id, round - 1) { return Vec::new(); }
-    current.iter().flat_map(|review| review.criteria.iter().filter(|criterion| !criterion.met || criterion.evidence.trim().is_empty()).filter_map(|criterion| item(review, criterion, "no_progress", "재작업 뒤에도 같은 기준이 같은 이유로 실패했어요".into()))).collect()
+    current.iter().flat_map(|review| review.criteria.iter().filter(|criterion| !criterion.met || criterion.evidence.trim().is_empty()).filter_map(|criterion| item(review, criterion, "no_progress", if criterion.precondition.trim().is_empty() { "재작업 뒤에도 같은 기준이 실패했어요".into() } else { format!("재작업 뒤에도 같은 기준이 실패했어요. QA가 주장한 전제: {}", cut(criterion.precondition.trim(), MAX_TEXT)) }))).collect()
 }
 
 #[derive(Deserialize)]
@@ -163,9 +161,9 @@ fn kind_label(kind: &str) -> &'static str {
     match kind { "precondition" => "팀이 채울 수 없음", "no_progress" => "재작업해도 그대로", _ => "PM 수정 제안" }
 }
 
-/// Shows the `criteria_decision` card and waits. `true`: the decisions were applied (QA runs again);
-/// `false`: the CEO stopped the goal.
-pub fn ask<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, items: Vec<StuckCriterion>, back_to: &str) -> Result<bool, String> {
+/// Shows the card and waits. `Some(true)` requests a file repair, `Some(false)` rechecks QA,
+/// and `None` stops the goal.
+pub fn ask<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, items: Vec<StuckCriterion>, back_to: &str) -> Result<Option<bool>, String> {
     let store = app.state::<Store>();
     let id = crate::model::id();
     let request = CriteriaRequest { id: id.clone(), goal_id: goal_id.into(), items: items.clone(), decisions: Vec::new(), stopped: false, created_at: crate::model::now() };
@@ -175,29 +173,44 @@ pub fn ask<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, items: V
     store.put("approval", &id, &approval, Some(NewEvent { kind: "approval_requested".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: None, message: approval.reason.clone() }))?;
     transition_goal(app, goal_id, "awaiting_approval", "CEO decision requested on acceptance criteria the team cannot meet")?;
     let deadline = Instant::now() + Duration::from_secs(24 * 60 * 60);
-    let applied = loop {
+    let outcome = loop {
         check_goal_guidance(app, goal_id, "완료 기준 결정 대기 중")?;
         let current: Approval = store.get("approval", &id)?.ok_or("Approval disappeared")?;
         match current.status.as_str() {
-            "approved" => break true,
-            "denied" => break false,
+            "approved" => break Some(false),
+            "repair" => break Some(true),
+            "denied" => break None,
             "pending" if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(300)),
             "pending" => return Err("Criteria decision expired".into()),
             _ => return Err("Unknown approval status".into()),
         }
     };
-    if applied { transition_goal(app, goal_id, back_to, "Criteria decided; QA checks the unchanged files again")?; }
-    Ok(applied)
+    match outcome {
+        Some(true) => transition_goal(app, goal_id, "planning", "CEO kept the criteria and requested a file repair")?,
+        Some(false) => transition_goal(app, goal_id, back_to, "Criteria decided; QA checks the unchanged files again")?,
+        None => {}
+    }
+    Ok(outcome)
 }
 
 /// `decide_criteria`: the CEO's choice. `stop` blocks the goal; otherwise each listed item is
 /// dropped, replaced (bounded text) or kept, and the change is recorded with the old text.
-pub fn decide(store: &Store, approval_id: &str, decisions: &[CriteriaDecision], stop: bool) -> Result<(), String> {
+pub fn decide(store: &Store, approval_id: &str, decisions: &[CriteriaDecision], stop: bool, repair: bool) -> Result<(), String> {
     let approval: Approval = store.get("approval", approval_id)?.ok_or("결정 요청을 찾을 수 없습니다")?;
     if approval.operation != OPERATION { return Err("완료 기준 결정 요청이 아닙니다".into()); }
     if approval.status != "pending" { return Err("이미 결정한 요청입니다".into()); }
     let mut request: CriteriaRequest = store.get("criteria_request", approval_id)?.ok_or("완료 기준 결정 기록이 없습니다")?;
     let goal_id = request.goal_id.clone();
+    if stop && repair { return Err("한 번에 한 동작만 선택해 주세요".into()); }
+    if repair {
+        if !decisions.is_empty() { return Err("파일 수정은 완료 기준을 바꾸지 않습니다".into()); }
+        if request.items.iter().all(|item| item.kind == "proposal") { return Err("PM의 기준 수정 제안은 먼저 결정해 주세요".into()); }
+        let goal: crate::model::Goal = store.get("goal", &goal_id)?.ok_or("목표 기록이 없습니다")?;
+        let project: Project = store.get("project_entry", goal.project_id.as_deref().ok_or("프로젝트가 없습니다")?)?.ok_or("프로젝트가 없습니다")?;
+        if goal.review_loops_used >= goal.review_loop_limit.unwrap_or(project.review_loop_limit) { return Err("QA 재작업 한도에 도달했습니다. 한도를 조정한 뒤 다시 시도해 주세요".into()); }
+        let decided = Approval { status: "repair".into(), ..approval };
+        return store.put("approval", approval_id, &decided, Some(NewEvent { kind: "criteria_repair_requested".into(), goal_id: Some(goal_id), task_id: None, agent_id: None, message: "CEO kept the acceptance criteria and requested a file repair".into() }));
+    }
     if stop {
         request.stopped = true;
         store.put("criteria_request", approval_id, &request, None)?;
@@ -247,9 +260,9 @@ pub fn stop_message(items: &[StuckCriterion]) -> String {
 }
 
 /// The whole stop-or-continue step used by the review loop and the repair planner.
-pub fn settle<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, items: Vec<StuckCriterion>) -> Result<(), String> {
+pub fn settle<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, items: Vec<StuckCriterion>) -> Result<bool, String> {
     let message = stop_message(&items);
-    if ask(app, goal_id, items, "validating")? { Ok(()) } else { Err(crate::delegation::mark("criteria_blocked", message)) }
+    ask(app, goal_id, items, "validating")?.ok_or_else(|| crate::delegation::mark("criteria_blocked", message))
 }
 
 /// Restart: nobody waits for an open card any more (the goal is blocked as interrupted).
@@ -276,12 +289,11 @@ mod tests {
     }
 
     #[test]
-    fn a_precondition_is_stuck_at_once_and_no_progress_only_after_an_unchanged_rework() {
+    fn qa_precondition_gets_a_repair_first_and_no_progress_stops_after_rework() {
         let tasks = vec![task("t1", &["커밋 ID를 적는다", "현재 측정을 적는다", "범위를 나눈다"])];
         let first = vec![review("t1", 0, &[("커밋 ID를 적는다", false, "프로젝트에 Git 이력이 없음"), ("현재 측정을 적는다", true, ""), ("범위를 나눈다", false, "")])];
         let items = stuck(&first, &tasks, "g", 0);
-        assert_eq!(items.len(), 1);
-        assert_eq!((items[0].kind.as_str(), items[0].index), ("precondition", 0));
+        assert!(items.is_empty(), "QA's precondition is a model claim; the team gets a repair chance");
 
         let plain = vec![review("t1", 0, &[("커밋 ID를 적는다", false, ""), ("현재 측정을 적는다", true, ""), ("범위를 나눈다", false, "")])];
         assert!(stuck(&plain, &tasks, "g", 0).is_empty(), "a first plain failure is reworked");
@@ -289,6 +301,11 @@ mod tests {
         again.push(review("t1", 1, &[("커밋 ID를 적는다", false, ""), ("현재 측정을 적는다", true, ""), ("범위를 나눈다", false, "")]));
         let items = stuck(&again, &tasks, "g", 1);
         assert_eq!(items.iter().map(|item| (item.kind.as_str(), item.index)).collect::<Vec<_>>(), vec![("no_progress", 0), ("no_progress", 2)]);
+        let mut claimed = first;
+        claimed.push(review("t1", 1, &[("커밋 ID를 적는다", false, "프로젝트에 Git 이력이 없음"), ("현재 측정을 적는다", true, ""), ("범위를 나눈다", false, "")]));
+        let items = stuck(&claimed, &tasks, "g", 1);
+        assert_eq!(items[0].kind, "no_progress");
+        assert!(items[0].reason.contains("QA가 주장한 전제"));
         let mut better = plain;
         better.push(review("t1", 1, &[("커밋 ID를 적는다", false, ""), ("현재 측정을 적는다", true, ""), ("범위를 나눈다", true, "")]));
         assert!(stuck(&better, &tasks, "g", 1).is_empty(), "progress keeps the rework going");

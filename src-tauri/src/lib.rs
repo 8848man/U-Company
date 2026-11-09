@@ -7,6 +7,7 @@ mod mock_ai;
 mod goal_result;
 mod goal_context;
 mod permissions;
+mod permission_mode;
 mod permissions_flow;
 mod objective;
 mod criteria;
@@ -27,6 +28,7 @@ mod curation;
 mod squad;
 mod archive;
 mod storage;
+mod technology_presets;
 
 use model::{Agent, AiConnection, Approval, DiscoveredAi, Goal, GoalGuidance, GoalTurn, Meeting, Project, RolePreset, Snapshot, Task};
 use storage::{NewEvent, Store};
@@ -724,8 +726,8 @@ fn reopen_conversation(conversation_id: String, store: tauri::State<'_, Store>, 
 
 /// ADR-0060: the CEO's choice on a criteria card (`결정대로 다시 확인` or `멈추기`).
 #[tauri::command]
-fn decide_criteria(approval_id: String, decisions: Vec<criteria::CriteriaDecision>, stop: bool, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
-    criteria::decide(&store, &approval_id, &decisions, stop)?;
+fn decide_criteria(approval_id: String, decisions: Vec<criteria::CriteriaDecision>, stop: bool, repair: bool, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
+    criteria::decide(&store, &approval_id, &decisions, stop, repair)?;
     let _ = app.emit("state-changed", ());
     Ok(())
 }
@@ -739,7 +741,14 @@ fn decide_command_permission(approval_id: String, rules: Vec<String>, store: tau
 }
 
 #[tauri::command]
-fn decide_approval(id: String, approved: bool, squad_digest: Option<String>, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
+fn set_permission_mode(scope: String, id: String, mode: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<permission_mode::PermissionModeSetting, String> {
+    let setting = permission_mode::set(&store, &scope, &id, &mode)?;
+    let _ = app.emit("state-changed", ());
+    Ok(setting)
+}
+
+#[tauri::command]
+fn decide_approval(id: String, approved: bool, squad_digest: Option<String>, preset_fingerprint: Option<String>, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
     let approval: Approval = store.get("approval", &id)?.ok_or("Approval not found")?;
     if approval.operation == permissions::OPERATION { return Err("명령 권한은 명령 권한 카드에서 결정해 주세요".into()); }
     if approval.operation == criteria::OPERATION { return Err("완료 기준은 완료 기준 결정 카드에서 결정해 주세요".into()); }
@@ -755,6 +764,8 @@ fn decide_approval(id: String, approved: bool, squad_digest: Option<String>, sto
         if current.status != "pending" { return Err("Approval already decided".into()); }
         let mut decided = current.clone();
         decided.status = if approved { "approved" } else { "denied" }.into();
+        // ADR-0062: approving a plan re-checks its project, revision, preset snapshot and declared files.
+        if approved { technology_presets::verify_binding_in_tx(tx, &current, preset_fingerprint.as_deref(), "approve")?; }
         squad::lock_in_tx(tx, &current, approved, squad_digest.as_deref())?;
         storage::tx_put(tx, "approval", &id, &decided)?;
         storage::tx_event(tx, "approval_decided", decided.goal_id.as_deref().unwrap_or(""), &format!("{}: {}", decided.operation, decided.status))
@@ -777,6 +788,84 @@ fn cancel_goal(goal_id: String, approval_id: String, store: tauri::State<'_, Sto
     plan_review::cancel(&store, &goal_id, &approval_id)?;
     let _ = app.emit("state-changed", ());
     Ok(())
+}
+
+/// ADR-0062: the project's application technology/structure preset settings (catalog, drafts, selection).
+#[tauri::command]
+fn get_tech_presets(project_id: String, store: tauri::State<'_, Store>) -> Result<technology_presets::PresetState, String> {
+    let project: Project = store.get("project_entry", &project_id)?.ok_or("등록된 프로젝트를 선택해 주세요")?;
+    technology_presets::state(&store, &project_id, Some(std::path::Path::new(&project.path)))
+}
+
+/// Saves an AI or user draft. It is always inactive; only `select_tech_preset` changes the selection.
+#[tauri::command]
+fn save_tech_preset_draft(project_id: String, draft_id: Option<String>, origin: String, definition: serde_json::Value, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<technology_presets::Draft, String> {
+    let draft = technology_presets::save_draft(&store, &project_id, draft_id.as_deref(), &origin, definition)?;
+    let _ = app.emit("state-changed", ());
+    Ok(draft)
+}
+
+/// Security `AI와 만들기`: builds the exact final provider payload and names the member's actual
+/// destination. Sends nothing and touches no goal conversation; the CEO approves it separately.
+#[tauri::command]
+fn preview_tech_preset_ai_draft(project_id: String, agent_id: String, requirement: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<technology_presets::DraftRequest, String> {
+    let snapshot = store.snapshot()?;
+    let (agent, selected) = engine::discussion_runtime(&snapshot.agents, &snapshot.connections, &agent_id)?;
+    let request = technology_presets::request_ai_draft(&store, &project_id, &requirement, &technology_presets::destination(&agent, &selected))?;
+    let _ = app.emit("state-changed", ());
+    Ok(request)
+}
+
+/// The CEO's approval of that unchanged payload and destination: one call, then an inactive AI draft.
+#[tauri::command]
+fn approve_tech_preset_ai_draft(project_id: String, request_id: String, payload_sha256: String, destination_sha256: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<technology_presets::DraftRequest, String> {
+    let request = technology_presets::ai_draft_request(&store, &request_id)?.ok_or("AI 초안 요청을 찾을 수 없습니다")?;
+    let snapshot = store.snapshot()?;
+    let (agent, selected) = engine::discussion_runtime(&snapshot.agents, &snapshot.connections, &request.destination.agent_id)?;
+    let sending = technology_presets::approve_ai_draft(&store, &project_id, &request_id, &payload_sha256, &destination_sha256, &technology_presets::destination(&agent, &selected))?;
+    let _ = app.emit("state-changed", ());
+    let (id, payload) = (sending.id.clone(), sending.payload.clone());
+    std::thread::spawn(move || {
+        let answer = engine::send_preset_draft(&selected, &payload);
+        let _ = technology_presets::finish_ai_draft(&app.state::<Store>(), &id, answer);
+        let _ = app.emit("state-changed", ());
+    });
+    Ok(sending)
+}
+
+#[tauri::command]
+fn refuse_tech_preset_ai_draft(project_id: String, request_id: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<technology_presets::DraftRequest, String> {
+    let request = technology_presets::refuse_ai_draft(&store, &project_id, &request_id)?;
+    let _ = app.emit("state-changed", ());
+    Ok(request)
+}
+
+#[tauri::command]
+fn preview_tech_preset(project_id: String, pick: technology_presets::Pick, store: tauri::State<'_, Store>) -> Result<technology_presets::Preview, String> {
+    let project: Project = store.get("project_entry", &project_id)?.ok_or("등록된 프로젝트를 선택해 주세요")?;
+    technology_presets::preview(&store, &project_id, &pick, Some(std::path::Path::new(&project.path)))
+}
+
+/// `이 프로젝트의 선택으로 저장`: the CEO's button. Pending and approved plans keep their snapshots.
+#[tauri::command]
+fn select_tech_preset(project_id: String, pick: technology_presets::Pick, preview_fingerprint: Option<String>, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<technology_presets::Preview, String> {
+    let project: Project = store.get("project_entry", &project_id)?.ok_or("등록된 프로젝트를 선택해 주세요")?;
+    let preview = technology_presets::select(&store, &project_id, &pick, "ceo", preview_fingerprint.as_deref(), Some(std::path::Path::new(&project.path)))?;
+    let _ = app.emit("state-changed", ());
+    Ok(preview)
+}
+
+#[tauri::command]
+fn get_plan_preset_snapshot(approval_id: String, store: tauri::State<'_, Store>) -> Result<Option<technology_presets::PlanSnapshot>, String> {
+    technology_presets::snapshot_for(&store, &approval_id)
+}
+
+/// Restores the exact definitions a plan saved when they were lost; never a newer catalog version.
+#[tauri::command]
+fn restore_plan_preset_definitions(approval_id: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<usize, String> {
+    let restored = technology_presets::restore_definition(&store, &approval_id)?;
+    let _ = app.emit("state-changed", ());
+    Ok(restored)
 }
 
 #[tauri::command]
@@ -898,7 +987,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, add_mock_connection, get_goal_result, get_block_stats, open_project_folder, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, request_team_fix, stage_text_reference, stage_image_reference, discard_reference, set_reference_caption, set_reference_role, set_curator_enabled, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, decide_command_permission, decide_criteria, resume_conversation, reopen_conversation, revise_plan, cancel_goal, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
+        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, add_mock_connection, get_goal_result, get_block_stats, open_project_folder, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, request_team_fix, stage_text_reference, stage_image_reference, discard_reference, set_reference_caption, set_reference_role, set_curator_enabled, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, decide_command_permission, set_permission_mode, decide_criteria, resume_conversation, reopen_conversation, revise_plan, cancel_goal, get_tech_presets, save_tech_preset_draft, preview_tech_preset_ai_draft, approve_tech_preset_ai_draft, refuse_tech_preset_ai_draft, preview_tech_preset, select_tech_preset, get_plan_preset_snapshot, restore_plan_preset_definitions, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
         .run(tauri::generate_context!())
         .expect("error while running AI Organization OS");
 }

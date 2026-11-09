@@ -130,6 +130,18 @@
 
 | 기록 | 작업 요약 | 상태 | 파일 |
 | --- | --- | --- | --- |
+| WLG-066 (2026-11-07, Codex) | QA 첫 실패 재작업 경로와 ttj 원인 대조: PM은 `source/`를 CEO 선행 조치로 넘겼고 Claude 세션은 웹 접속을 시도하지 않음 | 코드 확인·v3 빌드 통과; Rust 시험 실행 `0xc0000139`·승인 후 실제 웹 접속·원본 확보 전 계획 차단 미검증 | [WLG-066.md](milestones/WLG-066.md) |
+| WLG-067 (2026-11-07, Codex) | Dev의 거절된 명령을 PM이 먼저 검토하고 기존 권한 재시도·CEO 요청·명령 없이 진행으로 분기 | Rust 컴파일·모의 어댑터 구문 통과; Windows 시험 실행 `0xc0000139`, 실제 Claude 미검증 | [WLG-067.md](milestones/WLG-067.md) |
+| WLG-068 (2026-11-07, Codex) | 채팅·설정에 수동/오토/풀 오토 명령 모드: 로컬 조회 자동, 선언 파일 삭제·이동은 풀 오토만 | Rust·v3 빌드·UI 단위 시험 통과; Windows Rust 시험 실행·실제 Claude 미검증 | [WLG-068.md](milestones/WLG-068.md) |
+| WLG-069 (2026-11-08, Codex) | 열린 작업의 기본 범위를 선택된 프로젝트로 제한하고 펼친 창에 모든 작업 보기 토글 추가 | 데이터 단위 시험·v3 빌드·타입 검사 통과; 데스크톱 수동 QA 미검증 | [WLG-069.md](milestones/WLG-069.md) |
+| WLG-070 (2026-11-08, Codex) | PM이 필요한 거절 호출만 승인 요청하고 셸 스크립트 본문은 명령 규칙에서 제외 | Rust 시험 컴파일·모의 어댑터 구문 통과; Windows Rust 실행 `0xc0000139`, 실제 Claude 미검증 | [WLG-070.md](milestones/WLG-070.md) |
+| WLG-059 (2026-10-31, Developer A) | v4 기술·구조 프리셋 명세와 ADR-0062 결정 기록; 이번 차수에서 파일·검증 근거 재대조 | 명세 기록, 런타임 미검증 | [WLG-059.md](milestones/WLG-059.md) |
+| WLG-060 (2026-10-31, Developer B) | 프리셋 엔진·저장·계획 승인 결합; Rust 과거 주장과 이번 실행 결과 분리 | 코드 존재, Rust 실행 검증 대기 | [WLG-060.md](milestones/WLG-060.md) |
+| WLG-061 (2026-10-31, Developer A) | v4 설정·AI 전송 승인·계획 카드와 실행 경로; 빌드·화면·데스크톱 확인 추적 | 코드 존재, 빌드·데스크톱 미검증 | [WLG-061.md](milestones/WLG-061.md) |
+| WLG-062 (2026-11-01, Developer A) | 비평 반영 기획안과 `설정 > 앱 기술·구조` 안내; 문서·탐색·화면 코드 근거 및 검증 결과 기록 | 문서·정적 코드 확인, 집중 시험·빌드 의존성 없음으로 실패, 데스크톱 QA 미검증 | [WLG-062.md](milestones/WLG-062.md) |
+| WLG-063 (2026-11-01, Developer A) | 재작업 3: 실제 차단 건의 작업·승인·통합·QA 원장과 `sdd/product.md` 현재 해시 대조 및 원인 가설 분리; 엔진 재사용 증거 전환·저장 충돌 스냅샷·v3 충돌 화면 보수 코드 확인; 최초 계획·QA 재작업·외부 변경 집중 시험 | 실제 원장·이전 통합 해시 부재로 변경 주체·시점·승인 여부 미확인. 엔진·화면 동작 미검증: Rust 집중·전체 시험 컴파일 통과, 실행 파일은 `0xc0000139`로 시작 실패; v3 빌드는 로컬 `tsc` 부재로 실패. 시나리오·실제 화면 QA 미검증 | [WLG-063.md](milestones/WLG-063.md), [ADR-0063](../sdd/architecture/decisions/ADR-0063.md), [Validation](../sdd/validation.md) |
+| WLG-064 (2026-11-04, Codex) | 제품·엔진·UX·보안 관점 Self grill 93문항과 답을 가를 증거 정리 | 읽기 전용 교차 검토 및 문서 작성 완료; 고객·실앱·제공자 실행 검증은 수행하지 않음 | [WLG-064.md](milestones/WLG-064.md), [Self grill](../analysis/ucompany-self-grill-2026-11-04.md) |
+| WLG-065 (2026-11-04, Codex) | 세 서브 에이전트의 Self grill 93문항 후속 결정안 통합 | 우선순위·검증·보류 판단 기록; 실제 고객·앱·제공자 검증 및 CEO 전용 결정은 미수행 | [WLG-065.md](milestones/WLG-065.md), [결정안](../analysis/ucompany-self-grill-decisions-2026-11-04.md) |
 | 작업 차수 경계 구조화 요약과 미완료 기록 점검 (2026-10-25, Codex) | 새 작업 차수마다 저장 기록으로 요약 인계를 만들고 누적 약 8,000토큰부터 대화 발췌를 제외; 실제 Rust 실행·실앱 QA는 미검증 | 구현, 검증 대기 | [WLG-058.md](milestones/WLG-058.md) |
 | 워크로그 폴더와 라운드 인덱스 (2026-10-25, Codex) | 네 프로그램의 36개 라운드와 56개 기존 단독 기록을 파일별로 이관하고 인덱스에서 탐색하도록 연결 | 완료 | [WLG-057.md](milestones/WLG-057.md) |
 | 한 목표 대화에서 반복 작업 (2026-10-25, Codex) | CEO 결정: 완료된 실행 목표의 기존 대화에서 후속 작업을 바로 지시한다. 내부적으로는 차수별 Goal ID를 유지하고, 이전 완료·QA·승인은 보존하며 다음 차수의 파일 쓰기는 새 계획 승인을 받는… | 기록 | [WLG-001.md](milestones/WLG-001.md) |
@@ -188,4 +200,3 @@
 | Active QA-driven improvement checklist (2026-10-01) | Inspect the current discovery, connection save path, disabled controls, project persistence, Office interaction,… | 기록 | [WLG-054.md](milestones/WLG-054.md) |
 | Verified commands | 2026-10-01 follow-up revision: node node_modules/typescript/bin/tsc --noEmit, Vite production build, and vitest… | 기록 | [WLG-055.md](milestones/WLG-055.md) |
 | Next action | The currently running Windows app (PID 27372 when last checked) still uses the previous desktop binary. After th… | 기록 | [WLG-056.md](milestones/WLG-056.md) |
-

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { openWork } from './openWork';
+import { currentProjectWork, openWork } from './openWork';
 import type { Goal, Snapshot, Task } from './types';
 
 const goal = (id: string, status: string, projectId = 'p'): Goal => ({ id, projectId, intent: id, status, report: '', createdAt: id, resumedFrom: null, reviewLoopsUsed: 0, reviewLoopLimit: 2, workGroup: null });
@@ -12,6 +12,9 @@ describe('open work launcher data', () => {
     expect(result.map(item => item.goal.id)).toEqual(['a', 'b']);
     expect(result[0].tasks.map(item => item.id)).toEqual(['a1']);
     expect(result[1].projectName).toBe('Other');
+    expect(currentProjectWork(result, 'p').map(item => item.goal.id)).toEqual(['a']);
+    expect(currentProjectWork(result, 'other').map(item => item.goal.id)).toEqual(['b']);
+    expect(currentProjectWork(result, null)).toEqual([]);
   });
   it('keeps a conversation whose small newest pass completed while its objective is open, and drops closed ones (ADR-0059)', () => {
     const goals = [goal('a', 'blocked'), goal('b', 'completed'), goal('x', 'blocked'), goal('y', 'blocked'), goal('solo', 'completed')];

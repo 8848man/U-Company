@@ -211,6 +211,12 @@ body.office-docked .v3 .main{margin-right:min(440px,90vw)}
 .v3 .v3-block-stats{max-width:900px}
 /* ADR-0058: command permission card and plan-card command line */
 .v3 .gc .gc-plan.is-permission{border-color:#7fb3e6}.v3 .gc .gc-plan.is-permission h3{color:#b9dcff}
+.v3 .permission-mode-control{display:grid;gap:7px;padding:10px 14px;border:1px solid #3c5843;border-radius:10px;background:#1b2922}
+.v3 .permission-mode-control.is-chat{margin:0 12px 8px}
+.v3 .permission-mode-heading{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.v3 .permission-mode-heading small,.v3 .permission-mode-control>small{color:#aabcb0;font-size:12px}
+.v3 .permission-mode-choices{display:flex;gap:6px;flex-wrap:wrap}
+.v3 .permission-mode-choices button{padding:5px 10px;font-size:12px}
 .v3 .gc .gc-commands{list-style:none;margin:2px 0;padding:0;display:grid;gap:6px}.v3 .gc .gc-commands li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.v3 .gc .gc-commands code{padding:3px 7px;border-radius:6px;background:#122019;border:1px solid #31493a;font-size:12.5px}.v3 .gc .gc-commands small{color:#b8c9b5}.v3 .gc .gc-commands li button{margin-left:auto;padding:5px 10px;font-size:12.5px}.v3 .gc .gc-commands.is-blocked code{text-decoration:line-through;opacity:.7}
 .v3 .gc .gc-commands-head{margin:6px 0 0;font-size:13px;color:#d9c48a}
 .v3 .gc .gc-plan .gc-plan-commands{font-size:13px;color:#b9dcff}

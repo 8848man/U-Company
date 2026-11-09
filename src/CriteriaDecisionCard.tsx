@@ -3,7 +3,7 @@ import { ContentPreview } from './ContentDensity';
 import { choiceProblem, decisionsOf, defaultChoices, itemKey, kindLabel, MAX_CRITERION, type Choice } from './criteriaDecision';
 import type { Approval, CriteriaDecision, CriteriaRequest } from './types';
 
-type Props = { approval: Approval; request: CriteriaRequest | undefined; working: boolean; onDecide: (decisions: CriteriaDecision[], stop: boolean) => void };
+type Props = { approval: Approval; request: CriteriaRequest | undefined; working: boolean; onDecide: (decisions: CriteriaDecision[], stop: boolean, repair: boolean) => void };
 
 const ACTIONS: { action: Choice['action']; label: string }[] = [{ action: 'drop', label: '빼기' }, { action: 'replace', label: '바꾸기' }, { action: 'keep', label: '그대로' }];
 
@@ -16,7 +16,7 @@ export function CriteriaDecisionCard({ approval, request, working, onDecide }: P
   const problem = choiceProblem(request, current);
   return <section className="gc-plan is-criteria" aria-label="완료 기준 결정">
     <h3>완료 기준을 정해 주세요</h3>
-    <p>QA가 아래 기준을 통과시키지 못했는데, 팀이 채울 수 없거나 재작업해도 그대로예요. 재작업을 더 쓰지 않고 멈췄어요. 기준마다 고르면 <b>파일은 그대로 두고 QA만 다시</b> 확인해요.</p>
+    <p>QA가 아래 기준을 통과시키지 못했어요. QA의 이유가 잘못됐고 파일을 고치면 충족할 수 있다면, 기준을 유지하고 팀에 수정을 요청하세요.</p>
     <ol className="gc-criteria">{request.items.map(item => {
       const key = itemKey(item);
       const choice = current[key] ?? { action: 'keep', text: '' };
@@ -34,8 +34,9 @@ export function CriteriaDecisionCard({ approval, request, working, onDecide }: P
     {problem && <small className="gc-criteria-problem">{problem}</small>}
     <small className="muted">기준을 바꾸거나 빼는 건 CEO만 할 수 있어요 · PM 제안과 QA 근거는 AI가 쓴 글이에요 · 푸시·배포처럼 팀이 못 하는 일은 직접 해 주세요</small>
     <div className="gc-plan-actions">
-      <button type="button" className="primary" disabled={working || Boolean(problem)} onClick={() => onDecide(decisionsOf(request, current), false)}>결정대로 다시 확인</button>
-      <button type="button" className="secondary" disabled={working} onClick={() => onDecide([], true)}>멈추기</button>
+      {request.items.some(item => item.kind !== 'proposal') && <button type="button" className="primary" disabled={working} onClick={() => onDecide([], false, true)}>기준 유지하고 파일 고치기</button>}
+      <button type="button" className="secondary" disabled={working || Boolean(problem)} onClick={() => onDecide(decisionsOf(request, current), false, false)}>결정대로 다시 확인</button>
+      <button type="button" className="secondary" disabled={working} onClick={() => onDecide([], true, false)}>멈추기</button>
     </div>
     <small className="muted">{approval.status === 'pending' ? '멈추면 목표가 멈추고, 해결 요청으로 다음 계획 버전에서 기준을 다시 세워요.' : ''}</small>
   </section>;

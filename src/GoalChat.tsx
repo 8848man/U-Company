@@ -15,13 +15,14 @@ import { PlanningOriginPanel } from './PlanningOriginPanel';
 import { planCardLabel, planCards, progressLine, stageLines, type PlanCard } from './goalStream';
 import { planEstimate } from './planEstimate';
 import { CommandPermissionCard } from './CommandPermissionCard';
+import { PermissionModeControl } from './PermissionModeControl';
 import { CriteriaDecisionCard } from './CriteriaDecisionCard';
 import { decidedLine } from './criteriaDecision';
 import { planCommandLine } from './commandPermission';
 import { canResume, conversationState, objectiveLine } from './conversationObjective';
 import { ceoOnly, gitRelevant, nowTodo } from './nowTodo';
 import type { GoalOrigin } from './sddOrigin';
-import type { Agent, AiConnection, Approval, CommandRequest, ConversationObjective, CriteriaDecision, CriteriaRequest, DeliverableReview, Event, Goal, GoalGuidance, GoalResult, GoalTurn, Project, Reference, Squad, Task, TokenUsageRecord } from './types';
+import type { Agent, AiConnection, Approval, CommandRequest, ConversationObjective, CriteriaDecision, CriteriaRequest, DeliverableReview, Event, Goal, GoalGuidance, GoalResult, GoalTurn, PermissionMode, Project, Reference, Squad, Task, TokenUsageRecord } from './types';
 import { ReferenceButton } from './ReferenceList';
 import { requirementCoverage } from './referenceAttach';
 import { versionReason } from './goalChain';
@@ -52,7 +53,8 @@ type Props = {
   result?: GoalResult | null; onOpenFolder?: () => void;
   /** ADR-0058: command requests (plan cards and refused calls) and the CEO's choice on a refused-command card. */
   commandRequests?: CommandRequest[]; onDecideCommands?: (approvalId: string, rules: string[]) => Promise<boolean>;
-  criteriaRequests?: CriteriaRequest[]; onDecideCriteria?: (approvalId: string, decisions: CriteriaDecision[], stop: boolean) => Promise<boolean>;
+  permissionMode?: PermissionMode; permissionModeOverride?: PermissionMode | 'inherit'; onSetPermissionMode?: (mode: PermissionMode | 'inherit') => Promise<boolean>;
+  criteriaRequests?: CriteriaRequest[]; onDecideCriteria?: (approvalId: string, decisions: CriteriaDecision[], stop: boolean, repair: boolean) => Promise<boolean>;
   /** ADR-0059: the conversation's original-objective record and `이어서 하기`/`다시 열기`. */
   objective?: ConversationObjective | null; onResumeConversation?: () => Promise<boolean>; onReopenConversation?: () => Promise<boolean>;
   /** ADR-0046 M3: `개선` (same goal, new plan) and `거부` (cancel the goal); `다시 시작` sends the same goal again. */
@@ -79,7 +81,7 @@ type StreamItem =
 
 /** v3 goal conversation (ADR-0046): the goal, stage lines, plan cards and recovery in one stream, with a progress line. */
 export function GoalChat(props: Props) {
-  const { result = null, onOpenFolder, commandRequests = [], onDecideCommands, criteriaRequests = [], onDecideCriteria, objective = null, onResumeConversation, onReopenConversation } = props;
+  const { result = null, onOpenFolder, commandRequests = [], onDecideCommands, permissionMode = 'manual', permissionModeOverride = 'inherit', onSetPermissionMode, criteriaRequests = [], onDecideCriteria, objective = null, onResumeConversation, onReopenConversation } = props;
   const { goal, projectKind, focusTaskId = null, turns: chainTurns, guidance, earlier = [], agents, connections, tasks, approvals, events, usage, reviews, runBlock, squad, squads, summary, goalOrigins, projects, layout = 'dialog', onClose, onSend, onArchive, onRevision, onOpenGoal, onRetry, onResume, onRequestFix, onDecide, onRevise, onCancel, onRestart, onSwapSquad, onAddSquad, onOpenConnections, onOpenOffice, onOpenTeam, onOpenProject, onError, onPreviewGit, onBootstrapGit } = props;
   const turns = chainTurns.filter(turn => turn.goalId === goal.id);
   // ADR-0051: earlier versions of this goal read as the top of the same conversation.
@@ -197,7 +199,7 @@ export function GoalChat(props: Props) {
     // ADR-0058: a refused command waits for the CEO here; 모두 승인 grants it for this conversation only.
     if (card.permission && card.current) return <CommandPermissionCard key={card.approval.id} approval={card.approval} request={commandRequests.find(item => item.id === card.approval.id)} working={working || !onDecideCommands} onDecide={keys => { if (onDecideCommands) void guarded(() => onDecideCommands(card.approval.id, keys)).then(scrollDown); }} />;
     // ADR-0060: criteria the team cannot meet wait for the CEO here instead of another rework.
-    if (card.criteria && card.current) return <CriteriaDecisionCard key={card.approval.id} approval={card.approval} request={criteriaRequests.find(item => item.id === card.approval.id)} working={working || !onDecideCriteria} onDecide={(decisions, stop) => { if (onDecideCriteria) void guarded(() => onDecideCriteria(card.approval.id, decisions, stop)).then(scrollDown); }} />;
+    if (card.criteria && card.current) return <CriteriaDecisionCard key={card.approval.id} approval={card.approval} request={criteriaRequests.find(item => item.id === card.approval.id)} working={working || !onDecideCriteria} onDecide={(decisions, stop, repair) => { if (onDecideCriteria) void guarded(() => onDecideCriteria(card.approval.id, decisions, stop, repair)).then(scrollDown); }} />;
     if (card.criteria) return <div className="gc-plan is-closed" key={card.approval.id}><strong>{planCardLabel(card)}</strong>{decidedLine(criteriaRequests.find(item => item.id === card.approval.id)) && <span> · {decidedLine(criteriaRequests.find(item => item.id === card.approval.id))}</span>}<details><summary>멈춘 기준 보기</summary><ContentPreview><pre className="report">{card.approval.reason}</pre></ContentPreview></details></div>;
     // ADR-0053: a repair that needs new files asks once on the same goal; 거절 stops the goal (no cancel).
     if (card.scope && card.current) return <section className="gc-plan is-scope" key={card.approval.id} aria-label="파일 추가 확인">
@@ -259,6 +261,7 @@ export function GoalChat(props: Props) {
 
   const body = <section className={layout === 'dialog' ? 'goal-conversation chat-workspace gc' : 'chat-workspace gc gc-panel'} role={layout === 'dialog' ? 'dialog' : 'region'} aria-modal={layout === 'dialog' ? true : undefined} aria-labelledby="goal-chat-title" onClick={event => event.stopPropagation()}>
     <header className="chat-workspace-header"><div><span className="card-kicker">{goalStageLabel(goal.status)}{earlier.length > 0 && ` · 계획 v${versions.length}`}</span><h2 id="goal-chat-title" title={versions[0].intent}>{goalTitle(versions[0], 105)}</h2></div><div className="button-row"><ReferenceButton references={props.references ?? []} tasks={tasks.filter(task => task.goalId === goal.id)} /><button type="button" className="secondary" onClick={onOpenOffice}>Office ↗</button>{onArchive && <ArchiveGoalButton goal={goal} tasks={tasks} onArchive={onArchive} />}{layout === 'dialog' && <button type="button" className="secondary" onClick={onClose} aria-label="목표 대화 닫기">닫기</button>}</div></header>
+    {onSetPermissionMode && <PermissionModeControl scope="conversation" mode={permissionMode} override={permissionModeOverride} busy={working} onChange={onSetPermissionMode} />}
     <div className="chat-workspace-feed" ref={feedRef}>
       <ListDisclosure label="이전 기록" total={history.total} hidden={history.hidden} expanded={history.expanded} onToggle={history.toggle} />
       {(history.hidden === 0 || history.expanded) && <div className="chat-bubble ceo gc-goal"><div className="chat-bubble-meta"><strong>CEO · 목표</strong><time>{new Date(versions[0].createdAt).toLocaleString()}</time></div><ContentPreview><p>{versions[0].intent}</p></ContentPreview></div>}

@@ -31,6 +31,7 @@ export function parseArgs(argv) {
 
 /** Which engine stage sent this request, from the fixed wording of the engine's prompts. */
 export function stageOf(prompt) {
+  if (prompt.includes('reviewing a Dev permission request')) return 'permission_pm_review';
   if (prompt.includes('Judge whether the ORIGINAL CEO objective of this goal conversation is achieved')) return 'objective';
   if (prompt.includes('Propose how the CEO could change acceptance criteria the team cannot meet')) return 'criteria_proposal';
   if (prompt.includes('Return ONLY JSON: {"kind":"discuss')) return 'conversation_decision';
@@ -106,13 +107,24 @@ export function respondWithDenials(prompt, cwd, options, scenario, allowed = [])
   const text = respond(prompt, cwd, options, scenario, allowed);
   const denials = [];
   if (stage === 'implement' && options.modes.has('needs-permission-once') && !mayRunTests(allowed) && listAfter(prompt, 'change ONLY these declared files: ', '. The engine').some(file => /test/i.test(file))) denials.push(TEST_DENIAL);
+  if (stage === 'implement' && options.modes.has('pm-extra-denial') && listAfter(prompt, 'change ONLY these declared files: ', '. The engine').some(file => /test/i.test(file))) denials.push({ tool: 'Bash', command: "node <<'EOF'\nconst fs=require('fs')\nif(s==='-0')s='0'\nEOF" });
+  if (stage === 'implement' && options.modes.has('needs-auto-read-once') && listAfter(prompt, 'change ONLY these declared files: ', '. The engine').includes('todo.js')) denials.push({ tool: 'Bash', command: 'grep -n TODO todo.js' });
+  if (stage === 'implement' && options.modes.has('needs-auto-remove-once') && listAfter(prompt, 'change ONLY these declared files: ', '. The engine').includes('todo.js')) denials.push({ tool: 'Bash', command: 'rm todo.js' });
+  if (stage === 'resume' && options.modes.has('pm-retry-existing') && !mayRunTests(allowed)) denials.push(TEST_DENIAL);
   if (stage === 'review_deliverables' && options.modes.has('qa-needs-permission-once') && !mayRunTests(allowed)) denials.push({ tool: 'Bash', command: 'node --test' });
+  if (stage === 'review_deliverables' && options.modes.has('qa-needs-auto-read-once') && !allowed.includes('Bash(grep -n TODO todo.js)')) denials.push({ tool: 'Bash', command: 'grep -n TODO todo.js' });
   return { text, denials };
 }
 
 export function respond(prompt, cwd, options, scenario, allowed = []) {
   const stage = stageOf(prompt);
   switch (stage) {
+    case 'permission_pm_review':
+      return options.modes.has('pm-malformed') ? 'PM 판단 형식 오류' : JSON.stringify(options.modes.has('pm-retry-existing')
+        ? { action: 'retry_with_existing_grants', reason: '거절된 명령 대신 승인된 파일을 직접 확인해 주세요' }
+        : options.modes.has('pm-continue-without')
+          ? { action: 'continue_without', reason: '추가 명령 없이 현재 산출물을 QA에 전달해 주세요' }
+          : { action: 'request_approval', reason: '작업에 필요한 명령만 CEO 승인을 요청합니다', rule_keys: [prompt.includes('Bash(rm todo.js)') ? 'Bash(rm todo.js)' : prompt.includes('Bash(grep -n)') ? 'Bash(grep -n)' : 'Bash(node --test)'] });
     case 'conversation_decision':
       return JSON.stringify({ kind: 'discuss', reply: '모의 AI예요. 이 대화는 시험용이라 목표를 바꾸지 않고 답만 해요.' });
     case 'conversation':

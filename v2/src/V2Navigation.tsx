@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Project } from '../../src/types';
 
 export type V2Tab = 'dashboard' | 'board' | 'office' | 'usage' | 'settings';
-export type SettingsSection = 'projects' | 'connections' | 'team' | 'spec' | 'notifications' | 'backup';
+export type SettingsSection = 'projects' | 'tech' | 'connections' | 'team' | 'permissions' | 'spec' | 'notifications' | 'backup';
 export const labels: Record<V2Tab, string> = { dashboard: '홈', board: '업무', office: 'Office', usage: '토큰', settings: '설정' };
 const navigation: V2Tab[] = ['dashboard', 'board', 'office', 'usage', 'settings'];
 const icons: Record<V2Tab, string> = { dashboard: '◫', board: '▤', office: '▦', usage: '◉', settings: '⚙' };
@@ -47,7 +47,28 @@ export function V2Sidebar({ tab, project, projects, onTab, onProject, onAddProje
     <nav aria-label="주 메뉴">{navigation.map(key => <button type="button" key={key} className={tab === key ? 'nav active' : 'nav'} onClick={() => { setOpen(false); onTab(key); }}><span className="nav-icon">{icons[key]}</span>{labels[key]}</button>)}</nav><div className="sidebar-spacer"/><div className="sidebar-foot"><span className="online-dot"/> LOCAL FIRST <span className="version">{version}</span></div></aside>;
 }
 
-export function V2SettingsTabs({ section, onSection }: { section: SettingsSection; onSection: (section: SettingsSection) => void }) {
-  const sections: { id: SettingsSection; label: string }[] = [{ id: 'projects', label: '프로젝트' }, { id: 'connections', label: 'AI 연결' }, { id: 'team', label: '팀' }, { id: 'spec', label: '프로젝트 명세' }, { id: 'notifications', label: '알림' }, { id: 'backup', label: '백업 삭제' }];
-  return <div className="v2-settings-tabs" role="tablist" aria-label="설정 항목">{sections.map(item => <button type="button" role="tab" aria-selected={section === item.id} className="secondary" key={item.id} onClick={() => onSection(item.id)}>{item.label}</button>)}</div>;
+/** Index a tablist moves to for an arrow, Home or End key (wrapping); null for any other key. */
+export function tabKeyTarget(index: number, key: string, count: number): number | null {
+  if (key === 'ArrowRight' || key === 'ArrowDown') return (index + 1) % count;
+  if (key === 'ArrowLeft' || key === 'ArrowUp') return (index - 1 + count) % count;
+  if (key === 'Home') return 0;
+  if (key === 'End') return count - 1;
+  return null;
+}
+
+export const baseSettingsSections: { id: SettingsSection; label: string }[] = [{ id: 'projects', label: '프로젝트' }, { id: 'connections', label: 'AI 연결' }, { id: 'team', label: '팀' }, { id: 'permissions', label: 'AI 실행 권한' }, { id: 'spec', label: '프로젝트 명세' }, { id: 'notifications', label: '알림' }, { id: 'backup', label: '백업 삭제' }];
+
+/** `extra` tabs (v4 `앱 기술·구조`) sit right after 프로젝트. Arrow keys move focus and open the tab; nothing else runs. */
+export function V2SettingsTabs({ section, onSection, extra = [] }: { section: SettingsSection; onSection: (section: SettingsSection) => void; extra?: { id: SettingsSection; label: string }[] }) {
+  const sections = [baseSettingsSections[0], ...extra, ...baseSettingsSections.slice(1)];
+  return <div className="v2-settings-tabs" role="tablist" aria-label="설정 항목" onKeyDown={event => {
+    const tabs = event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+    const focusedIndex = Array.from(tabs).findIndex(tab => tab === event.target);
+    const index = focusedIndex >= 0 ? focusedIndex : sections.findIndex(item => item.id === section);
+    const next = tabKeyTarget(Math.max(index, 0), event.key, sections.length);
+    if (next === null) return;
+    event.preventDefault();
+    onSection(sections[next].id);
+    tabs[next]?.focus();
+  }}>{sections.map(item => <button type="button" role="tab" id={`settings-tab-${item.id}`} aria-selected={section === item.id} tabIndex={section === item.id ? 0 : -1} className="secondary" key={item.id} onClick={() => onSection(item.id)}>{item.label}</button>)}</div>;
 }
