@@ -1923,6 +1923,8 @@ mod tests {
     fn reuse_replacement_needs_the_saved_approval_integration_and_current_hash_after_restart() {
         use crate::model::{Approval, FileDigest, GoalGuidance, ReuseFileTransition, TaskIntegrationProof};
         use crate::storage::NewEvent;
+        // The id of the `task_integrated` event, as `integrate_task` records it in a transition.
+        let integrated_event_id = |store: &Store, task_id: &str| store.snapshot().unwrap().events.iter().rev().find(|item| item.kind == "task_integrated" && item.task_id.as_deref() == Some(task_id)).map(|item| item.id.to_string()).unwrap();
         let dir = std::env::temp_dir().join(format!("utopia-reuse-transition-{}", crate::model::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let root = dir.join("project");
@@ -1948,7 +1950,7 @@ mod tests {
             store.put("approval", &approval.id, &approval, None).unwrap();
             store.put("repair_scope", &approval.id, &vec![file.to_string()], None).unwrap();
             store.put("repair_task_scope", &changed.id, &crate::model::RepairTaskScope { task_id: changed.id.clone(), goal_id: changed.goal_id.clone(), approval_id: approval.id.clone(), files: vec![file.into()] }, None).unwrap();
-            let transition = ReuseFileTransition { source_task_id: source.id.clone(), task_id: changed.id.clone(), goal_id: changed.goal_id.clone(), approval_id: approval.id.clone(), path: file.into(), before_sha256: old, after_sha256: after, integrated_at: "later".into(), approved_files: vec![file.into()], integration_event: String::new(), previous_transition_key: None };
+            let transition = ReuseFileTransition { source_task_id: source.id.clone(), task_id: changed.id.clone(), goal_id: changed.goal_id.clone(), approval_id: approval.id.clone(), path: file.into(), before_sha256: old, after_sha256: after, integrated_at: "later".into(), approved_files: vec![file.into()], integration_event: integrated_event_id(&store, &changed.id), previous_transition_key: None };
             store.put("reuse_file_transition_history", &super::transition_history_key("new-goal", "new-task", file), &transition, None).unwrap();
             store.put("reuse_file_transition", &super::transition_key("new-goal", file), &transition, None).unwrap();
             assert!(super::verify_reused_file(&store, &root, &source, file, "new-goal").is_err());
@@ -1966,7 +1968,7 @@ mod tests {
         store.put("task", &repair.id, &repair, Some(NewEvent::task("task_integrated", &repair, "integrated"))).unwrap();
         store.put("repair_task_scope", &repair.id, &crate::model::RepairTaskScope { task_id: repair.id.clone(), goal_id: repair.goal_id.clone(), approval_id: "approval".into(), files: vec![file.into()] }, None).unwrap();
         store.put("task_proof", &repair.id, &TaskIntegrationProof { task_id: repair.id.clone(), goal_id: repair.goal_id.clone(), files: vec![FileDigest { path: file.into(), sha256: repair_hash.clone() }], integrated_at: "latest".into() }, None).unwrap();
-        let repaired = ReuseFileTransition { source_task_id: source.id.clone(), task_id: repair.id.clone(), goal_id: repair.goal_id.clone(), approval_id: "approval".into(), path: file.into(), before_sha256: prior.after_sha256.clone(), after_sha256: repair_hash, integrated_at: "latest".into(), approved_files: vec![file.into()], integration_event: String::new(), previous_transition_key: Some(super::transition_history_key("new-goal", "new-task", file)) };
+        let repaired = ReuseFileTransition { source_task_id: source.id.clone(), task_id: repair.id.clone(), goal_id: repair.goal_id.clone(), approval_id: "approval".into(), path: file.into(), before_sha256: prior.after_sha256.clone(), after_sha256: repair_hash, integrated_at: "latest".into(), approved_files: vec![file.into()], integration_event: integrated_event_id(&store, &repair.id), previous_transition_key: Some(super::transition_history_key("new-goal", "new-task", file)) };
         store.put("reuse_file_transition_history", &super::transition_history_key("new-goal", "repair-task", file), &repaired, None).unwrap();
         store.put("reuse_file_transition", &super::transition_key("new-goal", file), &repaired, None).unwrap();
         super::verify_reused_file(&store, &root, &source, file, "new-goal").unwrap();
@@ -2384,7 +2386,7 @@ mod tests {
         let plan_snapshot = serde_json::json!({ "projectId": "project", "goalId": "goal", "planRevision": 1, "approvalId": "plan-approval", "applicable": false, "choices": [], "resolved": {}, "validation": { "status": "pass", "issues": [] }, "qaChecklist": [], "impact": [], "selectionFingerprint": "test", "tasks": [{ "id": "task", "files": ["good.txt"] }], "capturedAt": "test", "fingerprint": "test" });
         store.transact(|tx| { tx.execute("INSERT INTO tech_plan_snapshot(project_id,goal_id,plan_revision,approval_id,fingerprint,payload,captured_at) VALUES(?1,?2,?3,?4,?5,?6,?7)", rusqlite::params!["project", "goal", 1, "plan-approval", "test", plan_snapshot.to_string(), "test"]).map_err(|e| e.to_string())?; Ok(()) }).unwrap();
         std::fs::write(worktree.join("wrong.txt"), "outside declaration\n").unwrap();
-        assert!(integrate_task(&store, &root, &task.id, "git").unwrap_err().contains("undeclared file"));
+        assert!(integrate_task(&store, &root, &task.id, "git").unwrap_err().contains("승인 범위 밖 변경"));
         assert_eq!(store.get::<Task>("task", &task.id).unwrap().unwrap().status, "awaiting_integration");
         assert!(verify_task_reuse(&store, &root, &task).is_err());
         std::fs::remove_file(worktree.join("wrong.txt")).unwrap();

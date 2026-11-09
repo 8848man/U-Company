@@ -208,7 +208,10 @@ pub fn settle_task_denials<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id
             if auto.is_empty() { continue; }
             add_task_auto_grants(&store, &task, &auto)?;
             let active = task_auto_grants(&store, &task)?;
-            record.denials.retain(|denial| !permissions::covered(&active, &denial.tool, &denial.command));
+            // ADR-0066: an exact auto grant settles its own refused call. `covered` alone is not enough
+            // because ADR-0063 never counts a read-only line (the `오토` case) as covered.
+            let exact = |denial: &Denial| crate::permission_mode::eligible(&mode, denial, Some(&task)).is_some_and(|rule| active.iter().any(|item| item.key() == rule.key()));
+            record.denials.retain(|denial| !exact(denial) && !permissions::covered(&active, &denial.tool, &denial.command));
             record.auto_attempted.extend(auto.iter().map(Rule::key));
             store.put("task_denial", &record.task_id, &record, None)?;
             if record.denials.is_empty() {
