@@ -3,4 +3,4 @@
 
 - Windows 데스크톱에서 QA-39(합성 자료 출시 준비 파일럿: 계획 카드 → 승인 → 병렬 문서 작업 → 산출물별 QA → 인수)와 중단 복구 각 분기. 실제 Claude/Codex 호출은 이 세션에서 실행하지 않았다.
 - QA-36/37/38 기존 열린 항목.
-- 다음: Windows에서 `v2/start-windows.ps1 -DataDir .run-data\v3-pilot`로 QA-39를 수행하고 결과를 기록한다. PM/QA JSON 준수율이 낮으면 프롬프트를 조정하고 MAM-013/ADR-0037의 형식 수정 요청 방식을 실행 목표에도 적용할지 결정한다.
+- 다음: Windows에서 `v4/start-windows.ps1 -DataDir .run-data\v4-pilot`로 QA-39를 수행하고(2026-11-10 정정: 옛 안내의 `v2` 스크립트는 QA 문서의 기준과 어긋났다. v2·v3 QA는 v4 앱에서 실행한다) 결과를 기록한다. PM/QA JSON 준수율이 낮으면 프롬프트를 조정하고 MAM-013/ADR-0037의 형식 수정 요청 방식을 실행 목표에도 적용할지 결정한다.
