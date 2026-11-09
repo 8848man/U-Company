@@ -1876,6 +1876,7 @@ mod tests {
         let root = dir.join("project");
         std::fs::create_dir_all(&root).unwrap();
         git_output_bytes(&root, &["init"]).unwrap();
+        git_output_bytes(&root, &["config", "core.autocrlf", "false"]).unwrap(); // Git for Windows defaults to CRLF checkout
         std::fs::write(root.join("product.md"), "old\n").unwrap();
         git_output_bytes(&root, &["add", "product.md"]).unwrap();
         git_output_bytes(&root, &["-c", "user.name=Test", "-c", "user.email=test@local.invalid", "commit", "-m", "base"]).unwrap();
@@ -2237,6 +2238,7 @@ mod tests {
             std::fs::write(root.join("app.py"), "print(1)\n").unwrap();
             let base = if kind == "git" {
                 git_output_bytes(&root, &["init"]).unwrap();
+                git_output_bytes(&root, &["config", "core.autocrlf", "false"]).unwrap(); // Git for Windows defaults to CRLF checkout
                 git_output_bytes(&root, &["add", "."]).unwrap();
                 git_output_bytes(&root, &["-c", "user.name=Test", "-c", "user.email=test@local.invalid", "commit", "-m", "base"]).unwrap();
                 git_output(&root, &["rev-parse", "HEAD"]).unwrap()
@@ -2271,6 +2273,7 @@ mod tests {
         let root = dir.join("project");
         std::fs::create_dir_all(root.join("work-references/g/text")).unwrap();
         git_output_bytes(&root, &["init"]).unwrap();
+        git_output_bytes(&root, &["config", "core.autocrlf", "false"]).unwrap(); // Git for Windows defaults to CRLF checkout
         std::fs::write(root.join("base.txt"), "base\n").unwrap();
         git_output_bytes(&root, &["add", "base.txt"]).unwrap();
         git_output_bytes(&root, &["-c", "user.name=Test", "-c", "user.email=test@local.invalid", "commit", "-m", "base"]).unwrap();
@@ -2295,6 +2298,7 @@ mod tests {
         let root = dir.join("project");
         std::fs::create_dir_all(&root).unwrap();
         git_output_bytes(&root, &["init"]).unwrap();
+        git_output_bytes(&root, &["config", "core.autocrlf", "false"]).unwrap(); // Git for Windows defaults to CRLF checkout
         std::fs::write(root.join("base.txt"), "base\n").unwrap();
         git_output_bytes(&root, &["add", "."]).unwrap();
         git_output_bytes(&root, &["-c", "user.name=Test", "-c", "user.email=test@local.invalid", "commit", "-m", "base"]).unwrap();
@@ -2328,6 +2332,7 @@ mod tests {
         let root = dir.join("project");
         std::fs::create_dir_all(&root).unwrap();
         git_output_bytes(&root, &["init"]).unwrap();
+        git_output_bytes(&root, &["config", "core.autocrlf", "false"]).unwrap(); // Git for Windows defaults to CRLF checkout
         std::fs::write(root.join("README.md"), "base\n").unwrap();
         git_output_bytes(&root, &["add", "README.md"]).unwrap();
         git_output_bytes(&root, &["-c", "user.name=Test", "-c", "user.email=test@local.invalid", "commit", "-m", "base"]).unwrap();
@@ -2358,6 +2363,7 @@ mod tests {
         let root = dir.join("project");
         std::fs::create_dir_all(&root).unwrap();
         git_output_bytes(&root, &["init"]).unwrap();
+        git_output_bytes(&root, &["config", "core.autocrlf", "false"]).unwrap(); // Git for Windows defaults to CRLF checkout
         std::fs::write(root.join("README.md"), "base\n").unwrap();
         git_output_bytes(&root, &["add", "README.md"]).unwrap();
         git_output_bytes(&root, &["-c", "user.name=Test", "-c", "user.email=test@local.invalid", "commit", "-m", "base"]).unwrap();
@@ -2435,6 +2441,7 @@ mod tests {
         std::fs::create_dir_all(&project).unwrap();
         eprintln!("Real Codex fixture: {}", run_root.display());
         git_output_bytes(&project, &["init"]).unwrap();
+        git_output_bytes(&project, &["config", "core.autocrlf", "false"]).unwrap(); // Git for Windows defaults to CRLF checkout
         std::fs::write(project.join("README.md"), "# Local acceptance fixture\n").unwrap();
         git_output_bytes(&project, &["add", "README.md"]).unwrap();
         git_output_bytes(&project, &[

@@ -41,6 +41,7 @@ pub(crate) fn harness(modes: &[&str]) -> Option<Harness> {
     std::fs::create_dir_all(&root).unwrap();
     std::fs::create_dir_all(&data).unwrap();
     git(&root, &["init", "-q", "-b", "main"]);
+    git(&root, &["config", "core.autocrlf", "false"]); // Git for Windows defaults to CRLF checkout
     git(&root, &["config", "user.email", "e2e@example.invalid"]);
     git(&root, &["config", "user.name", "e2e"]);
     git(&root, &["config", "core.autocrlf", "false"]);

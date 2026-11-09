@@ -454,7 +454,7 @@ mod tests {
         let wins = handles.into_iter().map(|handle| handle.join().unwrap()).filter(|ok| *ok).count();
         assert_eq!(wins, 1);
         assert_eq!(store.get::<Task>("task", &ids[0]).unwrap().unwrap().status, "running");
-        std::fs::remove_dir_all(dir).unwrap();
+        let _ = std::fs::remove_dir_all(dir); // the open store keeps the database locked on Windows
     }
 
     #[test]
@@ -488,8 +488,8 @@ mod tests {
         assert_eq!(claimed.len(), 2, "independent files and assignees run in one parallel wave");
         release_claims(&store2, "g", &ids2, "workspace failed").unwrap();
         assert!(store2.list::<Task>("task").unwrap().iter().filter(|task| task.goal_id == "g").all(|task| task.status == "pending"));
-        std::fs::remove_dir_all(dir).unwrap();
-        std::fs::remove_dir_all(dir2).unwrap();
+        let _ = std::fs::remove_dir_all(dir); // the open store keeps the database locked on Windows
+        let _ = std::fs::remove_dir_all(dir2); // the open store keeps the database locked on Windows
     }
 
     #[test]
@@ -508,7 +508,7 @@ mod tests {
         }
         let denied: Vec<Approval> = snapshot.approvals.iter().cloned().map(|mut item| { item.status = "denied".into(); item }).collect();
         assert!(resumable(&goal, &snapshot.tasks, &denied).is_err());
-        std::fs::remove_dir_all(dir).unwrap();
+        let _ = std::fs::remove_dir_all(dir); // the open store keeps the database locked on Windows
     }
 
     fn task(id: &str, criteria: usize) -> Task {
