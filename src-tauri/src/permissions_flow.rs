@@ -2,7 +2,7 @@
 //! call stops the work at a `command_permission` card, and approval resumes the same provider session.
 
 use crate::engine::{check_goal_guidance, connection, execute_tracked, execute_tracked_with, record_progress, transition_goal};
-use crate::model::{Agent, AiConnection, Approval, Goal, GoalGuidance, Project, Task};
+use crate::model::{Agent, AiConnection, Approval, Goal, GoalGuidance, Project, Squad, Task};
 use crate::permissions::{self, CommandGrants, CommandRequest, Denial, Rule};
 use crate::provider::CallOptions;
 use crate::storage::{NewEvent, Store};
@@ -14,7 +14,23 @@ use tauri::{Emitter, Manager};
 /// Calls a task's provider refused and that no grant covers yet.
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct TaskDenials { pub task_id: String, pub goal_id: String, pub denials: Vec<Denial>, pub resumes: u32 }
+pub struct TaskDenials { pub task_id: String, pub goal_id: String, pub denials: Vec<Denial>, pub resumes: u32, #[serde(default)] pub pm_reviewed: bool, #[serde(default)] pub pm_reason: String, #[serde(default)] pub selected_rule_keys: Vec<String>, #[serde(default)] pub auto_attempted: Vec<String> }
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct TaskAutoGrants { task_id: String, rules: Vec<Rule> }
+
+#[derive(Deserialize)]
+struct PmDecision { action: String, reason: String, #[serde(default)] rule_keys: Vec<String> }
+
+fn parse_pm_decision(text: &str) -> Result<PmDecision, String> {
+    let trimmed = text.trim().trim_start_matches("```json").trim_start_matches("```").trim_end_matches("```").trim();
+    let decision: PmDecision = serde_json::from_str(trimmed).map_err(|_| "PM 권한 검토 응답이 JSON 형식이 아닙니다".to_string())?;
+    if !["request_approval", "retry_with_existing_grants", "continue_without"].contains(&decision.action.as_str()) || decision.reason.trim().is_empty() || decision.reason.chars().count() > 300 || (decision.action == "request_approval" && decision.rule_keys.is_empty()) {
+        return Err("PM 권한 검토 응답의 결정이나 이유가 유효하지 않습니다".into());
+    }
+    Ok(decision)
+}
 
 pub fn conversation(store: &Store, goal_id: &str) -> Result<String, String> {
     Ok(permissions::conversation_id(goal_id, &store.list::<Goal>("goal")?, &store.list::<GoalGuidance>("goal_guidance")?))
@@ -39,6 +55,18 @@ pub fn grants(store: &Store, goal_id: &str) -> Result<Vec<Rule>, String> {
     Ok(rules)
 }
 
+fn task_auto_grants(store: &Store, task: &Task) -> Result<Vec<Rule>, String> {
+    let mode = crate::permission_mode::effective(store, &task.goal_id)?;
+    let saved = store.get::<TaskAutoGrants>("task_auto_grant", &task.id)?.unwrap_or_default();
+    Ok(saved.rules.into_iter().filter(|rule| crate::permission_mode::eligible(&mode, &Denial { tool: rule.tool.clone(), command: rule.prefix.clone() }, Some(task)).is_some()).collect())
+}
+
+fn add_task_auto_grants(store: &Store, task: &Task, rules: &[Rule]) -> Result<(), String> {
+    let mut saved = store.get::<TaskAutoGrants>("task_auto_grant", &task.id)?.unwrap_or(TaskAutoGrants { task_id: task.id.clone(), rules: Vec::new() });
+    for rule in rules { if !saved.rules.iter().any(|item| item.key() == rule.key()) { saved.rules.push(rule.clone()); } }
+    store.put("task_auto_grant", &task.id, &saved, Some(NewEvent::task("command_auto_granted", task, &format!("Exact task commands: {}", rules.iter().map(Rule::key).collect::<Vec<_>>().join(", ")))))
+}
+
 fn add_grants(store: &Store, goal_id: &str, rules: &[Rule]) -> Result<(), String> {
     let id = conversation(store, goal_id)?;
     let mut saved = store.get::<CommandGrants>("command_grant", &id)?.unwrap_or(CommandGrants { conversation_id: id.clone(), rules: Vec::new() });
@@ -54,58 +82,20 @@ fn add_grants(store: &Store, goal_id: &str, rules: &[Rule]) -> Result<(), String
     Ok(())
 }
 
-/// ADR-0063: the opt-in allow-all mode of one goal conversation.
-#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct CommandMode { pub conversation_id: String, pub allow_all: bool, pub changed_at: String, #[serde(default)] pub approval_id: Option<String> }
-
-pub fn mode(store: &Store, goal_id: &str) -> Result<CommandMode, String> {
-    let id = conversation(store, goal_id)?;
-    Ok(store.get::<CommandMode>("command_mode", &id)?.unwrap_or(CommandMode { conversation_id: id, ..CommandMode::default() }))
-}
-
-pub fn allow_all(store: &Store, goal_id: &str) -> Result<bool, String> { Ok(mode(store, goal_id)?.allow_all) }
-
-/// `set_command_mode`: only the CEO's confirmed button turns allow-all on, and only while a plan
-/// card of this execution conversation waits for approval. Turning it off is always possible.
-pub fn set_mode(store: &Store, goal_id: &str, allow: bool, confirmed: bool) -> Result<CommandMode, String> {
-    let goal: Goal = store.get("goal", goal_id)?.ok_or("목표를 찾을 수 없습니다")?;
-    if goal.kind != "execution" { return Err("회의에는 명령 전부 허용을 켤 수 없어요".into()); }
-    let id = conversation(store, goal_id)?;
-    let mut current = mode(store, goal_id)?;
-    if current.allow_all == allow { return Ok(current); }
-    let mut approval_id = None;
-    if allow {
-        if !confirmed { return Err("위험 안내를 확인한 뒤에만 켤 수 있어요".into()); }
-        let goals = store.list::<Goal>("goal")?;
-        let guidance = store.list::<GoalGuidance>("goal_guidance")?;
-        let pending = store.list::<Approval>("approval")?.into_iter().find(|approval| approval.status == "pending" && approval.operation == "project_write" && approval.goal_id.as_deref().is_some_and(|owner| permissions::conversation_id(owner, &goals, &guidance) == id));
-        let Some(pending) = pending else { return Err("명령 전부 허용은 승인을 기다리는 계획 카드에서만 켤 수 있어요".into()) };
-        approval_id = Some(pending.id);
-    }
-    current = CommandMode { conversation_id: id, allow_all: allow, changed_at: crate::model::now(), approval_id };
-    let message = if allow { "명령 전부 허용을 켰어요 (push·PR·배포는 계속 막혀요)" } else { "명령 전부 허용을 껐어요" };
-    store.put("command_mode", &current.conversation_id.clone(), &current, Some(NewEvent { kind: "command_mode_changed".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: None, message: message.into() }))?;
-    Ok(current)
-}
-
 pub fn options_for(store: &Store, goal_id: &str, resume: Option<String>, read_only_commands: bool) -> Result<CallOptions, String> {
-    let allow_all = !read_only_commands && allow_all(store, goal_id)?;
-    Ok(CallOptions { allowed: permissions::cli_allowed(&grants(store, goal_id)?), resume, read_only_commands, allow_all, gh_config_dir: if allow_all { Some(empty_gh_config()?) } else { None } })
+    Ok(CallOptions { allowed: permissions::cli_allowed(&grants(store, goal_id)?), resume, read_only_commands })
 }
 
-/// ADR-0063: an empty app-owned GitHub CLI config folder, so `gh` is signed out in allow-all mode.
-fn empty_gh_config() -> Result<std::path::PathBuf, String> {
-    let dir = std::env::temp_dir().join("ucompany-gh-signed-out");
-    std::fs::create_dir_all(&dir).map_err(|error| format!("GitHub CLI 격리 폴더를 만들지 못했습니다: {error}"))?;
-    Ok(dir)
+pub fn options_for_task(store: &Store, task: &Task, resume: Option<String>) -> Result<CallOptions, String> {
+    let mut allowed = grants(store, &task.goal_id)?;
+    allowed.extend(task_auto_grants(store, task)?);
+    Ok(CallOptions { allowed: permissions::cli_allowed(&allowed), resume, read_only_commands: false })
 }
 
 /// A line for the teammate's prompt naming what it may run (also useful to providers without grants).
 pub fn approved_note(store: &Store, goal_id: &str) -> Result<String, String> {
     let rules = grants(store, goal_id)?;
     let mut note = String::from("\nRun commands from the root of this folder; do not change directory outside it. Run project tools through package scripts (`npm test`, `npm run <script>`) rather than `npx`, which may download packages.");
-    if allow_all(store, goal_id)? { note.push_str(" In this goal conversation the CEO allowed you to run commands without asking. Still never push, open pull requests, publish, deploy, or touch files outside this folder."); }
     if !rules.is_empty() { note.push_str(&format!("\nCommands the CEO approved (run these when the task needs them; other commands may be refused): {}", rules.iter().map(|rule| format!("`{}`", rule.prefix)).collect::<Vec<_>>().join(", "))); }
     Ok(note)
 }
@@ -148,7 +138,8 @@ pub fn grant_plan_commands(store: &Store, goal_id: &str, approval_id: &str) -> R
 pub fn record_task_denials(store: &Store, task: &Task, denials: &[Denial], resumes: u32) -> Result<(), String> {
     let granted = grants(store, &task.goal_id)?;
     let open: Vec<Denial> = denials.iter().filter(|denial| !permissions::covered(&granted, &denial.tool, &denial.command)).cloned().collect();
-    let record = TaskDenials { task_id: task.id.clone(), goal_id: task.goal_id.clone(), denials: open.clone(), resumes };
+    let prior = store.get::<TaskDenials>("task_denial", &task.id)?;
+    let record = TaskDenials { task_id: task.id.clone(), goal_id: task.goal_id.clone(), denials: open.clone(), resumes, pm_reviewed: false, pm_reason: prior.as_ref().map(|item| item.pm_reason.clone()).unwrap_or_default(), selected_rule_keys: Vec::new(), auto_attempted: prior.map(|item| item.auto_attempted).unwrap_or_default() };
     let event = (!open.is_empty()).then(|| NewEvent::task("permission_denied", task, &format!("{} refused: {}", task.title, open.iter().map(|item| item.command.clone()).collect::<Vec<_>>().join(" / ").chars().take(300).collect::<String>())));
     store.put("task_denial", &task.id, &record, event)
 }
@@ -157,14 +148,33 @@ fn clear(store: &Store, record: &TaskDenials) -> Result<(), String> {
     store.put("task_denial", &record.task_id, &TaskDenials { denials: Vec::new(), ..record.clone() }, None)
 }
 
+/// PM recommends the next branch. Its text never becomes a command rule or file scope.
+fn pm_review<R: tauri::Runtime>(app: &tauri::AppHandle<R>, project: &Project, goal: &Goal, record: &TaskDenials) -> Result<PmDecision, String> {
+    let store = app.state::<Store>();
+    let snapshot = store.snapshot()?;
+    let task = snapshot.tasks.iter().find(|task| task.id == record.task_id).ok_or("검토할 업무가 없습니다")?;
+    let squad: Option<Squad> = store.get("squad", &goal.id)?;
+    let pm_id = squad.as_ref().and_then(|squad| squad.members.iter().find(|member| member.slot == "lead" && member.duty == "planning").map(|member| member.agent_id.as_str())).unwrap_or("pm");
+    let pm = snapshot.agents.iter().find(|agent| agent.id == pm_id).ok_or("계획 PM을 찾을 수 없습니다")?;
+    let selected = connection(&snapshot.connections, pm)?;
+    let approved = grants(&store, &goal.id)?.iter().map(Rule::key).collect::<Vec<_>>().join(", ");
+    let denied = record.denials.iter().enumerate().map(|(index, item)| format!("[{index}] {}: {}", item.tool, item.command)).collect::<Vec<_>>().join("\n");
+    let candidates = permissions::rules_for_denials(&record.denials).iter().map(Rule::key).collect::<Vec<_>>().join("\n");
+    let prompt = format!("You are the planning PM reviewing a Dev permission request. READ ONLY: do not edit files or run commands. Return ONLY JSON {{\"action\":\"request_approval|retry_with_existing_grants|continue_without\",\"reason\":\"short Korean reason\",\"rule_keys\":[\"Bash(node --test)\"]}}. Select ONLY candidate rule keys strictly necessary to complete the approved task; omit routine checks and unnecessary commands even when they were chained in the same refused call. For request_approval, rule_keys must be a nonempty subset of Candidate rules. A multiline script or heredoc cannot be approved as fragments: choose retry_with_existing_grants and ask Dev to issue minimal separate commands instead. Choose continue_without when the current result is sufficient for QA. You cannot grant any new command, network access, or file path.\nCEO goal: {}\nTask: {}\nTask instructions: {}\nApproved files: {}\nExisting command grants: {}\nRefused calls:\n{}\nCandidate rules:\n{}\nDev result: {}", goal.intent, task.title, task.instructions, task.files.join(", "), approved, denied, candidates, task.result.chars().take(2000).collect::<String>());
+    if prompt.chars().count() > 12_000 { return Err("PM 검토 입력이 너무 길어 자동 검토를 건너뜁니다".into()); }
+    record_progress(app, &goal.id, Some(&task.id), &pm.id, "PM이 Dev의 권한 요청을 검토하고 있습니다");
+    let result = execute_tracked(app, &project.id, &goal.id, Some(&task.id), &pm.id, &selected, &prompt, Path::new(&project.path), false)?;
+    parse_pm_decision(&result.text)
+}
+
 /// Shows a `command_permission` card and waits for the CEO. `true` when anything was approved.
-fn ask<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, rules: Vec<Rule>, task_ids: Vec<String>, who: &str, back_to: &str) -> Result<bool, String> {
+fn ask<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, rules: Vec<Rule>, task_ids: Vec<String>, who: &str, back_to: &str, pm_reason: &str) -> Result<bool, String> {
     let store = app.state::<Store>();
     let id = crate::model::id();
     let request = CommandRequest { id: id.clone(), goal_id: goal_id.into(), conversation_id: conversation(&store, goal_id)?, source: "blocked".into(), rules: rules.clone(), granted: Vec::new(), task_ids, created_at: crate::model::now() };
     store.put("command_request", &id, &request, None)?;
     let lines = rules.iter().map(|rule| format!("- {}{}", label(rule), match rule.class.as_str() { "safe" => String::new(), "individual" => format!(" (따로 확인: {})", rule.reason), _ => format!(" (허용 불가: {})", rule.reason) })).collect::<Vec<_>>().join("\n");
-    let approval = Approval { id: id.clone(), goal_id: Some(goal_id.into()), operation: permissions::OPERATION.into(), reason: format!("{who}이(가) 이 명령을 실행하려다 막혔어요. 승인하면 이 목표 대화에서만 허용하고, 같은 작업을 이어서 실행해요.\n{lines}"), status: "pending".into(), created_at: crate::model::now() };
+    let approval = Approval { id: id.clone(), goal_id: Some(goal_id.into()), operation: permissions::OPERATION.into(), reason: format!("{who}이(가) 이 명령을 실행하려다 막혔어요. 승인하면 이 목표 대화에서만 허용하고, 같은 작업을 이어서 실행해요.{}\n{lines}", if pm_reason.is_empty() { String::new() } else { format!("\nPM 검토: {pm_reason}") }), status: "pending".into(), created_at: crate::model::now() };
     store.put("approval", &id, &approval, Some(NewEvent { kind: "approval_requested".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: None, message: approval.reason.clone() }))?;
     transition_goal(app, goal_id, "awaiting_approval", "CEO approval requested for refused commands")?;
     let deadline = Instant::now() + Duration::from_secs(24 * 60 * 60);
@@ -189,9 +199,59 @@ pub fn settle_task_denials<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id
     loop {
         let pending: Vec<TaskDenials> = wave_ids.iter().filter_map(|id| store.get::<TaskDenials>("task_denial", id).ok().flatten()).filter(|item| !item.denials.is_empty()).collect();
         if pending.is_empty() { return Ok(()); }
+        let mode = crate::permission_mode::effective(&store, goal_id)?;
+        let mut auto_retried = false;
+        for mut record in pending {
+            if record.resumes >= permissions::MAX_RESUMES { continue; }
+            let task: Task = store.get("task", &record.task_id)?.ok_or("권한을 요청한 업무가 없습니다")?;
+            let auto: Vec<Rule> = record.denials.iter().filter_map(|denial| crate::permission_mode::eligible(&mode, denial, Some(&task))).filter(|rule| !record.auto_attempted.contains(&rule.key())).take(12).collect();
+            if auto.is_empty() { continue; }
+            add_task_auto_grants(&store, &task, &auto)?;
+            let active = task_auto_grants(&store, &task)?;
+            record.denials.retain(|denial| !permissions::covered(&active, &denial.tool, &denial.command));
+            record.auto_attempted.extend(auto.iter().map(Rule::key));
+            store.put("task_denial", &record.task_id, &record, None)?;
+            if record.denials.is_empty() {
+                resume_task(app, project, goal, &record, None, true)?;
+                auto_retried = true;
+            }
+        }
+        if auto_retried { continue; }
+        let pending: Vec<TaskDenials> = wave_ids.iter().filter_map(|id| store.get::<TaskDenials>("task_denial", id).ok().flatten()).filter(|item| !item.denials.is_empty()).collect();
+        if pending.is_empty() { return Ok(()); }
+        let mut retried = false;
+        for mut record in pending.iter().filter(|item| !item.pm_reviewed).cloned() {
+            let decision = pm_review(app, project, goal, &record);
+            let (action, reason) = match decision {
+                Ok(decision) if decision.action != "request_approval" || decision.rule_keys.iter().all(|key| permissions::rules_for_denials(&record.denials).iter().any(|rule| rule.key() == *key && rule.class != "blocked")) => {
+                    if decision.action == "request_approval" {
+                        record.selected_rule_keys = decision.rule_keys;
+                    }
+                    (decision.action, decision.reason)
+                }
+                Ok(_) => ("retry_with_existing_grants".into(), "PM이 유효하지 않은 명령 규칙을 골라 승인 없이 다시 시도합니다".into()),
+                Err(error) => ("retry_with_existing_grants".into(), format!("PM 검토 실패: {error}; 승인 없이 명령을 나눠 다시 시도합니다")),
+            };
+            record.pm_reviewed = true;
+            record.pm_reason = reason.chars().take(300).collect();
+            store.put("task_denial", &record.task_id, &record, Some(NewEvent { kind: "permission_pm_reviewed".into(), goal_id: Some(goal_id.into()), task_id: Some(record.task_id.clone()), agent_id: None, message: format!("{action}: {}", record.pm_reason) }))?;
+            match action.as_str() {
+                "continue_without" => clear(&store, &record)?,
+                "retry_with_existing_grants" if record.resumes < permissions::MAX_RESUMES => {
+                    resume_task(app, project, goal, &record, Some(&reason), false)?;
+                    retried = true;
+                }
+                "retry_with_existing_grants" => clear(&store, &record)?,
+                _ => {},
+            }
+        }
+        if retried { continue; }
+        let pending: Vec<TaskDenials> = wave_ids.iter().filter_map(|id| store.get::<TaskDenials>("task_denial", id).ok().flatten()).filter(|item| !item.denials.is_empty()).collect();
+        if pending.is_empty() { return Ok(()); }
         let granted = grants(&store, goal_id)?;
         let denials: Vec<Denial> = pending.iter().flat_map(|item| item.denials.clone()).collect();
-        let rules: Vec<Rule> = permissions::rules_for_denials(&denials).into_iter().filter(|rule| !granted.iter().any(|item| item.key() == rule.key())).collect();
+        let selected: Vec<String> = pending.iter().flat_map(|item| item.selected_rule_keys.clone()).collect();
+        let rules: Vec<Rule> = permissions::rules_for_denials(&denials).into_iter().filter(|rule| selected.contains(&rule.key()) && !granted.iter().any(|item| item.key() == rule.key())).collect();
         let approved = if rules.iter().all(|rule| rule.class == "blocked") && !rules.is_empty() { false }
             // ADR-0063: nothing to ask; resume only when grants now cover every refused line
             // (a line of only read-only commands is never covered and is not retried).
@@ -201,32 +261,36 @@ pub fn settle_task_denials<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id
                 let mut names: Vec<String> = pending.iter().filter_map(|item| snapshot.tasks.iter().find(|task| task.id == item.task_id)).filter_map(|task| snapshot.agents.iter().find(|agent| agent.id == task.assignee_id).map(|agent| agent.name.clone())).collect();
                 names.dedup();
                 let who = if names.is_empty() { "팀원".to_string() } else { names.join(", ") };
-                ask(app, goal_id, rules, pending.iter().map(|item| item.task_id.clone()).collect(), &who, "executing")?
+                let pm_reasons = pending.iter().map(|item| item.pm_reason.as_str()).filter(|reason| !reason.is_empty()).collect::<Vec<_>>().join(" / ");
+                ask(app, goal_id, rules, pending.iter().map(|item| item.task_id.clone()).collect(), &who, "executing", &pm_reasons)?
             };
         if !approved { for record in &pending { clear(&store, record)?; } return Ok(()); }
         for record in pending {
             if record.resumes >= permissions::MAX_RESUMES { clear(&store, &record)?; continue; }
-            resume_task(app, project, goal, &record)?;
+            resume_task(app, project, goal, &record, None, false)?;
         }
     }
 }
 
-fn resume_task<R: tauri::Runtime>(app: &tauri::AppHandle<R>, project: &Project, goal: &Goal, record: &TaskDenials) -> Result<(), String> {
+fn resume_task<R: tauri::Runtime>(app: &tauri::AppHandle<R>, project: &Project, goal: &Goal, record: &TaskDenials, pm_guidance: Option<&str>, automatic: bool) -> Result<(), String> {
     let store = app.state::<Store>();
     let mut task: Task = store.get("task", &record.task_id)?.ok_or("업무 기록이 사라졌습니다")?;
     let snapshot = store.snapshot()?;
     let agent: Agent = snapshot.agents.iter().find(|agent| agent.id == task.assignee_id).cloned().ok_or("담당 팀원을 찾을 수 없습니다")?;
     let selected: AiConnection = connection(&snapshot.connections, &agent)?;
     let worktree = task.worktree.clone().ok_or("Missing worktree")?;
-    let approved = grants(&store, &goal.id)?.iter().map(label).collect::<Vec<_>>().join(", ");
-    let prompt = format!("You are {} ({}). The CEO approved these commands for this goal conversation: {approved}. Continue your task in this isolated folder: run the commands that were refused before and finish the work, changing ONLY these declared files: {}. Do not redo finished edits without reason. Task: {}\nInstructions: {}\nCEO goal: {}\nReturn a concise summary with the command output as evidence.", agent.name, agent.role, task.files.join(", "), task.title, task.instructions, goal.intent);
-    let options = options_for(&store, &goal.id, task.session_id.clone(), false)?;
-    record_progress(app, &goal.id, Some(&task.id), &agent.id, "승인된 명령으로 작업을 이어서 하고 있습니다");
+    let mut approved_rules = grants(&store, &goal.id)?;
+    approved_rules.extend(task_auto_grants(&store, &task)?);
+    let approved = approved_rules.iter().map(label).collect::<Vec<_>>().join(", ");
+    let direction = match pm_guidance { Some(reason) => format!("The PM suggests a way to continue within EXISTING grants: {reason}. Do not retry refused commands without a CEO grant. Use only already approved commands and declared files."), None => "Run only the newly approved commands needed for this task as separate invocations; do not retry other refused commands. Finish the work.".into() };
+    let prompt = format!("You are {} ({}). These commands are allowed for this task: {approved}. Continue your task in this isolated folder: {direction} Change ONLY these declared files: {}. Do not redo finished edits without reason. Task: {}\nInstructions: {}\nCEO goal: {}\nReturn a concise summary with command output as evidence.", agent.name, agent.role, task.files.join(", "), task.title, task.instructions, goal.intent);
+    let options = options_for_task(&store, &task, task.session_id.clone())?;
+    record_progress(app, &goal.id, Some(&task.id), &agent.id, if automatic { "자동 실행 모드에서 허용한 명령으로 이어서 하고 있습니다" } else if pm_guidance.is_some() { "PM 지시에 따라 기존 권한으로 작업을 이어서 하고 있습니다" } else { "승인된 명령으로 작업을 이어서 하고 있습니다" });
     match execute_tracked_with(app, &project.id, &goal.id, Some(&task.id), &agent.id, &selected, &prompt, Path::new(&worktree), true, &options) {
         Ok(result) => {
-            task.result = format!("{}\n\n[명령 승인 후 이어서 실행]\n{}", task.result, result.text).chars().rev().take(10_000).collect::<Vec<_>>().into_iter().rev().collect();
+            task.result = format!("{}\n\n[{}]\n{}", task.result, if automatic { "자동 실행 모드로 이어서 실행" } else if pm_guidance.is_some() { "PM 검토 후 기존 권한으로 이어서 실행" } else { "명령 승인 후 이어서 실행" }, result.text).chars().rev().take(10_000).collect::<Vec<_>>().into_iter().rev().collect();
             if result.session_id.is_some() { task.session_id = result.session_id.clone(); }
-            store.put("task", &task.id, &task, Some(NewEvent::task("task_resumed_with_commands", &task, "Teammate continued with approved commands")))?;
+            store.put("task", &task.id, &task, Some(NewEvent::task(if automatic { "task_resumed_auto" } else if pm_guidance.is_some() { "task_resumed_after_pm_review" } else { "task_resumed_with_commands" }, &task, if automatic { "Teammate continued with exact task-local command" } else if pm_guidance.is_some() { "Teammate continued within existing grants after PM review" } else { "Teammate continued with approved commands" })))?;
             record_task_denials(&store, &task, &result.permission_denials, record.resumes + 1)?;
             record_commands_run(&store, &task, &result.commands_run)?;
             let _ = app.emit("state-changed", ());
@@ -261,13 +325,27 @@ pub fn review_with_commands<R: tauri::Runtime>(app: &tauri::AppHandle<R>, projec
     let result = (|| -> Result<String, String> {
         let prompt = format!("{prompt}\nYou review a disposable copy of the integrated project; you may run the approved commands to check criteria, but your file tools cannot write.{}", approved_note(&store, goal_id)?);
         let mut response = execute_tracked_with(app, &project.id, goal_id, None, &reviewer.id, selected, &prompt, &copy, false, &options_for(&store, goal_id, None, true)?)?;
+        let mut qa_auto = Vec::<Rule>::new();
+        let mut qa_auto_attempted = false;
         for _ in 0..permissions::MAX_RESUMES {
             let granted = grants(&store, goal_id)?;
             let open: Vec<Denial> = response.permission_denials.iter().filter(|denial| !permissions::covered(&granted, &denial.tool, &denial.command)).cloned().collect();
             if open.is_empty() { break; }
             let _ = store.append_event(NewEvent { kind: "permission_denied".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: Some(reviewer.id.clone()), message: format!("QA refused: {}", open.iter().map(|item| item.command.clone()).collect::<Vec<_>>().join(" / ").chars().take(300).collect::<String>()) });
+            let mode = crate::permission_mode::effective(&store, goal_id)?;
+            let eligible: Vec<Rule> = open.iter().filter_map(|denial| crate::permission_mode::eligible(&mode, denial, None)).collect();
+            if !qa_auto_attempted && eligible.len() == open.len() && !eligible.is_empty() {
+                qa_auto_attempted = true;
+                qa_auto.extend(eligible);
+                let _ = store.append_event(NewEvent { kind: "command_auto_granted".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: Some(reviewer.id.clone()), message: "QA exact read commands in disposable copy".into() });
+                let mut options = options_for(&store, goal_id, response.session_id.clone(), true)?;
+                options.allowed.extend(permissions::cli_allowed(&qa_auto));
+                let follow = format!("The app allowed these exact checks in this disposable review copy: {}. Run them and provide the complete review again.\nOriginal request:\n{prompt}", qa_auto.iter().map(label).collect::<Vec<_>>().join(", "));
+                response = execute_tracked_with(app, &project.id, goal_id, None, &reviewer.id, selected, &follow, &copy, false, &options)?;
+                continue;
+            }
             let rules: Vec<Rule> = permissions::rules_for_denials(&open).into_iter().filter(|rule| !granted.iter().any(|item| item.key() == rule.key())).collect();
-            if rules.is_empty() || rules.iter().all(|rule| rule.class == "blocked") || !ask(app, goal_id, rules, Vec::new(), &format!("QA({})", reviewer.name), "validating")? { break; }
+            if rules.is_empty() || rules.iter().all(|rule| rule.class == "blocked") || !ask(app, goal_id, rules, Vec::new(), &format!("QA({})", reviewer.name), "validating", "")? { break; }
             let approved = grants(&store, goal_id)?.iter().map(label).collect::<Vec<_>>().join(", ");
             let follow = format!("The CEO approved these commands for this goal conversation: {approved}. Run the checks that were refused before, then give your complete review again in exactly the format requested earlier.\n\nThe original request, for reference:\n{prompt}");
             record_progress(app, goal_id, None, &reviewer.id, "QA가 승인된 명령으로 검토를 이어서 하고 있습니다");
@@ -296,6 +374,20 @@ pub fn decide(store: &Store, approval_id: &str, keys: &[String]) -> Result<(), S
 }
 
 #[cfg(test)]
+mod pm_tests {
+    use super::parse_pm_decision;
+
+    #[test]
+    fn pm_permission_review_accepts_only_bounded_decisions() {
+        assert_eq!(parse_pm_decision(r#"{"action":"retry_with_existing_grants","reason":"승인된 파일만 다시 확인"}"#).unwrap().action, "retry_with_existing_grants");
+        assert!(parse_pm_decision(r#"{"action":"grant_network","reason":"필요함"}"#).is_err());
+        assert!(parse_pm_decision(r#"{"action":"request_approval","reason":""}"#).is_err());
+        assert!(parse_pm_decision(r#"{"action":"request_approval","reason":"필요함"}"#).is_err());
+        assert_eq!(parse_pm_decision(r#"{"action":"request_approval","reason":"필요함","rule_keys":["Bash(node --test)"]}"#).unwrap().rule_keys, vec!["Bash(node --test)"]);
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -308,10 +400,6 @@ mod tests {
     fn goal(store: &Store, id: &str, project: &str, kind: &str) {
         let goal: Goal = serde_json::from_value(serde_json::json!({ "id": id, "kind": kind, "projectId": project, "intent": "x", "status": "awaiting_approval", "report": "", "createdAt": "t" })).unwrap();
         store.put("goal", id, &goal, None).unwrap();
-    }
-
-    fn plan_card(store: &Store, id: &str, goal_id: &str, status: &str) {
-        store.put("approval", id, &Approval { id: id.into(), goal_id: Some(goal_id.into()), operation: "project_write".into(), reason: "plan".into(), status: status.into(), created_at: "t".into() }, None).unwrap();
     }
 
     #[test]
@@ -330,27 +418,11 @@ mod tests {
     }
 
     #[test]
-    fn allow_all_needs_confirmation_on_a_pending_plan_card_and_can_always_be_turned_off() {
+    fn approved_note_keeps_teammates_in_the_task_folder() {
         let (store, root) = store();
         goal(&store, "g", "p1", "execution");
-        goal(&store, "m", "p1", "deliberation");
-        assert!(set_mode(&store, "g", true, true).unwrap_err().contains("계획 카드"), "no pending plan card");
-        plan_card(&store, "old", "g", "approved");
-        assert!(set_mode(&store, "g", true, true).is_err(), "a decided plan card does not count");
-        plan_card(&store, "plan", "g", "pending");
-        assert!(set_mode(&store, "g", true, false).unwrap_err().contains("확인"), "the confirmation flag is required");
-        assert!(set_mode(&store, "m", true, true).is_err(), "never for a meeting");
-        let on = set_mode(&store, "g", true, true).unwrap();
-        assert!(on.allow_all && on.approval_id.as_deref() == Some("plan"));
-        assert!(options_for(&store, "g", None, false).unwrap().allow_all, "writing calls run in allow-all");
-        assert!(!options_for(&store, "g", None, true).unwrap().allow_all, "QA keeps its read-only profile");
-        assert!(approved_note(&store, "g").unwrap().contains("never push"));
-        assert!(approved_note(&store, "g").unwrap().contains("rather than `npx`"));
-        plan_card(&store, "plan", "g", "approved");
-        assert!(!set_mode(&store, "g", false, false).unwrap().allow_all, "turning it off needs nothing");
-        assert!(!options_for(&store, "g", None, false).unwrap().allow_all);
-        goal(&store, "other", "p1", "execution");
-        assert!(!allow_all(&store, "other").unwrap(), "another conversation of the project is not affected");
+        let note = approved_note(&store, "g").unwrap();
+        assert!(note.contains("do not change directory outside it") && note.contains("rather than `npx`"));
         let _ = std::fs::remove_dir_all(root);
     }
 }

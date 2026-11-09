@@ -43,3 +43,25 @@ A goal requiring CEO confirmation offers a visible `확인하기` action that op
 The application runs locally on Windows x64 and Ubuntu 24.04 LTS x86_64. Ubuntu development build and app execution are required; distributing Linux packages and supporting other distributions are later work. No cloud backend, team accounts, billing, or custom foundation model is part of the MVP.
 
 The first end-to-end scenario is one real Git project with two independent implementation tasks, integration, QA, and a CEO report. Execution must be based on actual agent/runtime events, not a visual simulation.
+
+## v4 optional application technology and structure presets
+
+`설정 > 앱 기술·구조`는 `프로젝트`와 나란한 독립 설정 탭이다. 프로젝트가 없어도 탭과 기본 프리셋 설명은 보인다. 이때 첫 깊이에 `프로젝트를 먼저 선택하세요`와 `프로젝트 선택` 동작을 표시하고 AI 초안 전송·선택 저장·계획 반영을 비활성으로 둔다. 프로젝트 탭에서 선택한 뒤 같은 설정 화면의 `앱 기술·구조` 탭으로 돌아오면 해당 프로젝트의 선택만 읽는다. 프로젝트를 바꾸면 이전 프로젝트의 미완료 미리보기와 전송 승인 대기는 폐기한다. 현재 v4 화면은 독립 탭 경로를 연결했으며 실제 데스크톱 동작 검증은 별도로 남아 있다.
+
+For application deliverables, `설정 > 앱 기술·구조` lets the CEO choose up to one preset per stage, or `선택 안 함`. The stages mean depth of direct control, never quality, skill, or authority. The ordinary goal path does not require opening this setting. Non-application deliverables and deliberation Goals do not consume it. Selections stay within one project. Unselected decisions remain visible in the ordinary plan for CEO review. All stages retain the same QA and security rules. [ADR-0062](architecture/decisions/ADR-0062.md) decides the storage and approval boundary; [DM-02](domain/DM-02-goal.md) owns plan binding.
+
+| Stage | Built-in ID/version | Suitable situation and recommended decisions | Constraint and cross-stage condition |
+| --- | --- | --- | --- |
+| 초급: 어떤 기술로 만들까요? | `B-WEB/1.0.0` | Browser workflow; TypeScript, React, Node.js, HTTP JSON | Browser target; `I-SERVICES` needs explicit server/API boundaries; advanced goals need measurement context |
+| 초급 | `B-API/1.0.0` | Client-facing server; TypeScript, Node.js HTTP, OpenAPI, no UI | Request/response default; `I-SERVICES` needs service contracts; advanced goals need measurement context |
+| 초급 | `B-XPLAT/1.0.0` | iOS/Android shared UI; TypeScript, React Native, optional API | SDK and accounts are not provisioned; `I-SERVICES` needs separate backend/API; advanced goals name app versus server target |
+| 중급: 코드를 어떻게 나눌까요? | `I-SINGLE/1.0.0` | Small single team; one deployable, `src/`, no external service by default | Independent deployment conflicts; `A-AVAILABILITY` needs replication/recovery, not one instance |
+| 중급 | `I-MODULAR/1.0.0` | One deployment with domain boundaries; `modules/<domain>/`, public interfaces | Mobile means app modules; availability needs state separation and recovery |
+| 중급 | `I-SERVICES/1.0.0` | Needed independent deploy/scale; service folders/owners/OpenAPI, synchronous default | Web/mobile need backend contract; latency needs hop budgets, throughput queue contract, availability failure isolation |
+| 고급: 어떤 운영 목표에 맞출까요? | `A-LATENCY/1.0.0` | Interactive response; example p95 300 ms at 100 concurrent users, named test environment | Split mobile UI and remote response; service calls need hop budgets; measure or mark `미검증` |
+| 고급 | `A-THROUGHPUT/1.0.0` | Sustained events; example 1,000/min for 30 min, error rate ≤0.1% | Define input size, duplicate policy and server processor; queue/worker contract by intermediate choice |
+| 고급 | `A-AVAILABILITY/1.0.0` | Costly outages; example monthly 99.9%, RTO 60 min, RPO 15 min | Name operating environment, backups and failover; a lone single instance conflicts; mobile offline behavior is separate |
+
+These numbers are editable example targets, never achieved SLAs. Catalog versions are immutable definitions and supported framework versions require a maintained release catalog. A missing lower decision prompts the CEO; no hidden choice is made. A custom preset may combine advanced goals only after conflict validation. The settings first depth shows project, active selections, frozen plan versions, unresolved questions, `선택 바꾸기`, and `AI와 만들기`. Stage detail shows fit, choices and constraints; full detail exposes ID/version, dependencies, conflicts and evidence. At most five immediate choices appear, with a recommended option when justified. A difference and artifact impact preview precede explicit save. [Validation](validation.md) owns acceptance checks.
+
+ADR-0062에 따라 정의·초안·프로젝트별 활성 선택은 앱 로컬 SQLite에 저장한다. 선택 저장은 이후 계획의 기본값만 바꾼다. 실행 계획의 각 개정은 프로젝트·Goal·계획 개정에 결부된 불변 선택 스냅샷과 지문을 가지며, 계획 승인과 프로젝트 쓰기 승인은 해당 개정·지문·선언 파일 범위에 묶인다. 대기 중인 계획에 새 선택을 적용하려면 같은 Goal의 새 계획과 승인이 필요하고, 승인 후에는 안전 체크포인트에서 연결된 새 Goal로 재계획한다. 선택·AI 초안·차이 미리보기·로컬 저장은 프로젝트 파일 쓰기나 외부 전송 승인으로 간주하지 않는다. `AI와 만들기`는 프로젝트 자료의 포함 여부와 관계없이 백엔드가 덧붙일 문맥까지 포함한 최종 전송 내용과 실제 제공자·목적지를 먼저 보여 주고, CEO가 해당 단일 호출을 승인한 뒤에만 전송한다([Security](security.md)).

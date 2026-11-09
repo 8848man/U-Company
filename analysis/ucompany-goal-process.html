@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>U컴퍼니 목표 달성 흐름</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;color:#eff4f6;background:#0b1824;line-height:1.55}*{box-sizing:border-box}body{margin:0}button{font:inherit}button:focus-visible,a:focus-visible{outline:3px solid #82e8c4;outline-offset:4px}a{color:#9fe4e7}header,main,footer{max-width:1280px;margin:auto;padding:0 28px}header{padding-top:56px;padding-bottom:35px}.eyebrow{color:#80dbc6;font-size:.82rem;font-weight:800;letter-spacing:.13em;text-transform:uppercase}h1{font-size:clamp(2.2rem,5vw,4.4rem);line-height:1.12;letter-spacing:-.055em;margin:.45rem 0 1rem;max-width:900px}header p{max-width:790px;color:#b8c7d1;font-size:1.08rem}.topline{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}.pill{border:1px solid #385565;border-radius:99px;padding:6px 12px;color:#cadde3;font-size:.85rem}.pill strong{color:#a8f2d6}.surface{background:#102432;border:1px solid #2b4554;border-radius:24px;padding:26px;margin-bottom:26px;box-shadow:0 20px 55px #07111b55}h2{font-size:1.55rem;letter-spacing:-.03em;margin:0 0 4px}h3{margin:0}.hint,.sub{color:#a9bdc8;margin:0 0 22px}.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:30px 12px;position:relative}.step-wrap{position:relative;min-width:0}.step-wrap:not(:nth-child(5)):not(:last-child)::after{content:"";position:absolute;right:-13px;top:50%;width:13px;height:2px;background:#639b9e}.step-wrap:not(:nth-child(5)):not(:last-child)::before{content:"";position:absolute;right:-14px;top:calc(50% - 4px);border:5px solid transparent;border-left-color:#639b9e;transform:translateX(5px)}.step{width:100%;height:100%;min-height:132px;text-align:left;border:1px solid #3b6170;border-radius:16px;background:#163141;color:#eff8f7;padding:15px;cursor:pointer;transition:background .15s,transform .15s,border-color .15s}.step:hover,.branch:hover{background:#214957;transform:translateY(-2px)}.step[aria-pressed="true"],.branch[aria-pressed="true"]{border:2px solid #89edca;background:#215445;box-shadow:0 0 0 3px #60d8ab22}.number{display:block;color:#86dcc4;font-weight:800;font-size:.82rem;margin-bottom:8px}.step strong{display:block;line-height:1.27;font-size:1.05rem}.step small{display:block;color:#a8c6cb;margin-top:8px}.step[aria-pressed="true"] small{color:#d1eee6}.turn{grid-column:1/-1;color:#89b6b6;text-align:center;line-height:0;margin:-14px 0}.turn svg{width:100%;height:28px}.branch-heading{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:28px 0 12px}.branch-heading h3{font-size:1.08rem}.branch-heading span{color:#a9bdc8;font-size:.86rem}.branches{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.branch{cursor:pointer;text-align:left;border:1px dashed #bb9560;border-radius:14px;color:#f9e5c6;background:#332d2b;padding:14px;min-height:95px;transition:.15s}.branch strong,.branch span{display:block}.branch span{font-size:.82rem;color:#d9c6ab;margin-top:5px}.branch[aria-pressed="true"]{background:#5b4935;border-color:#ffd18c}.detail{background:#0c1d29;border:1px solid #3b5b68;border-radius:18px;padding:24px;min-height:280px}.detail-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.tag{font-size:.78rem;font-weight:800;border-radius:99px;padding:4px 10px;background:#244c4a;color:#b6f4db}.tag.branch-tag{background:#62452e;color:#ffdda8}.detail h3{font-size:1.5rem;line-height:1.25}.lede{font-size:1.05rem;color:#c8dadc;max-width:900px}.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:20px 0 0}.facts>div{background:#132a39;border-radius:12px;padding:15px 17px}.facts dt{color:#8fe3cb;font-size:.84rem;font-weight:800;margin-bottom:5px}.facts dd{margin:0}.route{border-left:3px solid #f4bd78;padding-left:14px;color:#f5ddba;margin-top:20px}.skills{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.skill{background:#142d3a;border:1px solid #345364;border-radius:15px;padding:17px}.skill .k{color:#8fe3cb;font-weight:800;font-size:.8rem}.skill h3{font-size:1rem;margin:6px 0}.skill p{color:#c3d5db;font-size:.91rem;margin:0}.notice{border-left:4px solid #8de3c8;background:#17353a;border-radius:0 12px 12px 0;padding:14px 18px;margin-top:18px;color:#d8eeee}.status{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.status article{border:1px solid #345364;border-radius:14px;padding:17px;background:#142d3a}.status h3{font-size:1rem;margin-bottom:8px}.status p{margin:0;color:#c3d5db;font-size:.91rem}footer{color:#9eb4c0;font-size:.84rem;padding-bottom:38px}footer p{margin:8px 0}@media(max-width:900px){.flow{grid-template-columns:1fr;gap:15px}.step{min-height:auto}.step-wrap::after,.step-wrap::before{display:none!important}.step-wrap{margin-bottom:13px}.step-wrap:not(:last-child) .step::after{content:"↓";position:absolute;bottom:-29px;left:50%;color:#86dcc4}.turn{display:none}.branches,.skills{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){header,main,footer{padding-left:16px;padding-right:16px}.surface{padding:18px}.branches,.skills,.facts,.status{grid-template-columns:1fr}}@media(prefers-reduced-motion:reduce){.step,.branch{transition:none}.step:hover,.branch:hover{transform:none}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Ucompany / goal operating map</div>
+    <h1>하나의 목표가<br>팀의 결과가 되기까지</h1>
+    <p>프로젝트와 AI 팀을 준비한 뒤 CEO의 목표를 분석·계획·승인·실행·검증합니다. 단계를 선택하면 누가 어떤 근거와 도구로 다음 단계로 넘기는지 볼 수 있습니다.</p>
+    <div class="topline" aria-label="이 문서의 성격"><span class="pill"><strong>설명용 지도</strong> · 실제 목표를 실행하지 않음</span><span class="pill">파일 쓰기 · 외부 전송은 범위별 승인</span><span class="pill">현재 계약과 v3 제안 구분</span></div>
+  </header>
+  <main>
+    <section class="surface" aria-labelledby="flow-title">
+      <h2 id="flow-title">목표 실행 순서</h2>
+      <p class="hint">번호 순으로 진행합니다. 카드를 클릭하거나 Tab으로 이동해 Enter / Space로 선택하세요.</p>
+      <div class="flow" id="flow" aria-label="아홉 단계 목표 흐름">
+        <div class="step-wrap"><button class="step" type="button" data-key="prepare" aria-controls="detail" aria-pressed="true"><span class="number">01 / 시작 조건</span><strong>프로젝트·AI 팀 준비</strong><small>선택·연결·역할</small></button></div>
+        <div class="step-wrap"><button class="step" type="button" data-key="goal" aria-controls="detail" aria-pressed="false"><span class="number">02 / 지시</span><strong>CEO 목표</strong><small>목표·제약·자료</small></button></div>
+        <div class="step-wrap"><button class="step" type="button" data-key="cto" aria-controls="detail" aria-pressed="false"><span class="number">03 / 분석</span><strong>CTO 분석</strong><small>요구와 위험 파악</small></button></div>
+        <div class="step-wrap"><button class="step" type="button" data-key="pm" aria-controls="detail" aria-pressed="false"><span class="number">04 / 설계</span><strong>PM 계획</strong><small>작업·근거·담당</small></button></div>
+        <div class="step-wrap"><button class="step" type="button" data-key="approve" aria-controls="detail" aria-pressed="false"><span class="number">05 / 결정</span><strong>CEO 승인</strong><small>정확한 범위 확인</small></button></div>
+        <div class="turn" aria-hidden="true"><svg viewBox="0 0 1000 28" preserveAspectRatio="none"><path d="M 950 1 V 14 H 50 V 27" fill="none" stroke="#639b9e" stroke-width="2"/><path d="M 44 20 L 50 27 L 56 20" fill="none" stroke="#639b9e" stroke-width="2"/></svg></div>
+        <div class="step-wrap"><button class="step" type="button" data-key="execute" aria-controls="detail" aria-pressed="false"><span class="number">06 / 제작</span><strong>담당자 실행</strong><small>격리 작업공간</small></button></div>
+        <div class="step-wrap"><button class="step" type="button" data-key="integrate" aria-controls="detail" aria-pressed="false"><span class="number">07 / 적용</span><strong>통합</strong><small>선언 파일만 반영</small></button></div>
+        <div class="step-wrap"><button class="step" type="button" data-key="qa" aria-controls="detail" aria-pressed="false"><span class="number">08 / 확인</span><strong>독립 QA</strong><small>산출물별 기준 검사</small></button></div>
+        <div class="step-wrap"><button class="step" type="button" data-key="report" aria-controls="detail" aria-pressed="false"><span class="number">09 / 인수</span><strong>보고</strong><small>결과·근거·다음 결정</small></button></div>
+      </div>
+      <div class="branch-heading"><h3>다른 길도 있습니다</h3><span>분기를 선택하면 돌아가는 지점과 승인 조건이 표시됩니다.</span></div>
+      <div class="branches" aria-label="예외와 되돌림 경로">
+        <button class="branch" type="button" data-key="reject" aria-controls="detail" aria-pressed="false"><strong>승인 거절</strong><span>05 → 취소 / 새 목표</span></button>
+        <button class="branch" type="button" data-key="blocked" aria-controls="detail" aria-pressed="false"><strong>막힘·복구</strong><span>진행 단계 → 확인 후 재시도</span></button>
+        <button class="branch" type="button" data-key="rework" aria-controls="detail" aria-pressed="false"><strong>QA 재작업</strong><span>08 → 04 → 06 → 07 → 08</span></button>
+        <button class="branch" type="button" data-key="revision" aria-controls="detail" aria-pressed="false"><strong>목표 수정</strong><span>진행 중 → 새 버전의 03·04·05</span></button>
+      </div>
+    </section>
+    <section class="surface" aria-labelledby="detail-title">
+      <h2 id="detail-title">선택한 단계</h2>
+      <div class="detail" id="detail" role="region" aria-live="polite" aria-atomic="true" aria-label="선택한 단계의 원리, 개입 주체, 도구, 결과"></div>
+    </section>
+    <section class="surface" aria-labelledby="skills-title">
+      <h2 id="skills-title">외부 Skills 적용 방법론 <span class="tag">제안</span></h2>
+      <p class="sub">Skill은 역할별 일하는 방법을 담은 외부 지침 후보로 다룹니다. 가져온 텍스트가 엔진의 단계나 승인 규칙을 바꾸지는 않습니다.</p>
+      <div class="skills">
+        <article class="skill"><div class="k">01 · 준비·계획</div><h3>후보 검토</h3><p>출처, 라이선스, 버전, 목적, 입력 자료, 요구 도구와 위험 명령을 확인합니다. PM은 산출물·수용 기준과 맞는 후보만 계획에 제안합니다.</p></article>
+        <article class="skill"><div class="k">02 · CEO 승인</div><h3>사용 범위 결정</h3><p>어떤 역할이 어떤 자료·파일·명령·전송 대상에 Skill을 쓸지 승인 카드에서 확인합니다. 추가 파일이나 위험 명령은 별도 범위 판단을 거칩니다.</p></article>
+        <article class="skill"><div class="k">03 · 실행</div><h3>역할·런타임 연결</h3><p>기존 팀원에 역할 지침을 연결하고, 저장된 AI 연결과 실제 어댑터 능력을 검사합니다. 텍스트 모델만 있으면 파일 작업을 맡기지 않습니다.</p></article>
+        <article class="skill"><div class="k">04 · QA</div><h3>결과·권한 검증</h3><p>독립 QA가 산출물별 기준·근거와 선언 파일만 바뀌었는지 확인합니다. Skill의 설명이나 모델의 성공 선언은 완료 증거가 아닙니다.</p></article>
+      </div>
+      <p class="notice"><strong>현재 경계:</strong> 외부 SDD·역할 파일·하네스 지침을 검토해 프로젝트별 로컬 프로필에 저장하는 경로는 명세에 있습니다. 가져온 Skill을 실행 가능한 도구로 자동 등록하거나 현재 진행 중인 목표의 프롬프트에 자동 적용하는 기능은 별개이며, 여기서는 구현된 것으로 표시하지 않습니다.</p>
+    </section>
+    <section class="surface" aria-labelledby="status-title">
+      <h2 id="status-title">무엇이 확인되었나요?</h2>
+      <p class="sub">이 페이지는 실제 실행 상태를 읽지 않는 오프라인 설명 자료입니다.</p>
+      <div class="status">
+        <article><h3>현재 계약·구현 근거</h3><p>선택 프로젝트에 목표를 묶고, CTO·PM·담당자·QA가 단계별로 참여합니다. 승인된 파일만 격리 작업 후 통합하며 저장된 근거로 완료를 판정합니다.</p></article>
+        <article><h3>v3 제안·확장</h3><p>고객 목표를 출시 준비 같은 비코드 업무까지 넓혀 산출물별 인수 묶음을 만드는 방향입니다. 외부 Skills 적용 방법론도 이 페이지의 제안입니다.</p></article>
+        <article><h3>아직 확인 필요</h3><p>완전한 Windows 앱의 승인부터 보고까지의 실제 흐름, 외부 Skill의 런타임 연결·효과, v3 고객 파일럿의 실사용 성과는 이 HTML만으로 검증되지 않습니다.</p></article>
+      </div>
+    </section>
+  </main>
+  <footer><p>근거: README, UF-03, DM-04, Security, AI-01, AI-03, SI-01, v3 개선안, ADR-0038·0046 및 현재 엔진 단계. 이 페이지의 버튼은 설명 선택만 하며 실제 승인·파일 쓰기·외부 전송을 하지 않습니다.</p></footer>
+  <script>
+    const entries = {
+      prepare:{tag:'현재 계약',title:'01 · 프로젝트·AI 팀 준비',lead:'목표가 속할 폴더와 실제로 일할 수 있는 팀을 먼저 정합니다.',principle:'프로젝트 경계를 고정하고 역할·연결 상태를 확인합니다. 연결 이름만으로 파일 편집 능력을 추정하지 않습니다.',who:'CEO가 프로젝트를 선택하고 AI 연결과 팀원을 준비합니다. 엔진은 저장된 연결 상태와 역할을 확인합니다.',tools:'프로젝트 선택, AI 연결, Office/팀 설정, 모델·런타임 능력 확인.',result:'목표를 받을 프로젝트와 사용 가능한 CTO·PM·담당자·QA가 정해집니다. 준비가 부족하면 시작 전에 이유가 표시됩니다.'},
+      goal:{tag:'현재 계약 · v3 화면',title:'02 · CEO 목표',lead:'CEO가 원하는 결과와 제약, 근거 자료, 완료 조건을 전달합니다.',principle:'목표는 선택 프로젝트에 묶여 저장됩니다. v3 화면에서는 전송 즉시 분석을 시작하며, v1·v2는 별도 팀 실행 버튼을 사용합니다.',who:'CEO가 목표와 우선순위를 정하고, 엔진이 목표 기록을 만듭니다.',tools:'CEO 데스크 또는 v3 목표 대화, 프로젝트 자료, 목표별 QA 재작업 한도.',result:'분석할 목표가 생성됩니다. 목표 대화의 말 자체가 파일 쓰기나 전송 승인은 아닙니다.'},
+      cto:{tag:'현재 계약',title:'03 · CTO 분석',lead:'목표의 요구, 범위, 불명확한 점과 작업 종류를 읽어 계획의 출발점을 만듭니다.',principle:'선택한 프로젝트 맥락을 읽되 모델의 해석은 계획 입력 자료로 취급합니다. 불확실하거나 필요한 역할이 없으면 차단 이유를 남깁니다.',who:'CTO 역할의 AI가 분석하고, 엔진이 연결·상태를 기록합니다.',tools:'저장된 AI 연결, 모델 호출, 읽기 전용 프로젝트 근거, 목표 이벤트.',result:'분석 요약과 계획에 필요한 조건. AI 분석문은 승인 권한이 아닙니다.'},
+      pm:{tag:'현재 계약',title:'04 · PM 계획',lead:'산출물을 실제 담당자가 처리할 수 있는 작업으로 나눕니다.',principle:'각 작업에 선언 출력 파일, 수용 기준, 읽기 전용 근거, 필요한 능력, 의존 관계를 넣습니다. 엔진이 경로·중복 소유·능력·사용 중 상태를 검사하고 담당자를 확정합니다.',who:'PM이 계획을 제안하고 엔진이 유효성과 배정을 검사합니다.',tools:'작업 그래프, 프로젝트 파일 목록, 팀원 연결·어댑터 능력, 계획 검증.',result:'담당과 파일 범위가 명시된 승인 요청. 누락 기준이나 적합한 담당자 부재는 승인 전 차단됩니다.'},
+      approve:{tag:'현재 계약',title:'05 · CEO 승인',lead:'파일 변경이 필요한 계획의 정확한 범위를 CEO가 보고 결정합니다.',principle:'현재 계획 버전의 산출물·담당·배정 이유·파일·수용 기준·근거를 확인합니다. 승인 버튼만 실행을 시작하며 대기 시간, 채팅, AI 출력은 승인이 아닙니다.',who:'CEO가 승인·개선·거부 중 직접 결정하고 엔진이 해당 기록을 고정합니다.',tools:'목표 계획 카드와 프로젝트 쓰기 범위 승인. 위험 명령·추가 파일·외부 전송은 각각 해당 범위의 별도 판단.',result:'승인하면 선언된 범위의 실행으로 이동합니다. 개선은 PM 재계획으로, 거부는 취소로 이동합니다.'},
+      execute:{tag:'현재 계약',title:'06 · 담당자 실행',lead:'승인된 작업을 담당자별 격리 공간에서 진행합니다.',principle:'의존 작업이 끝난 경우에만 시작하고, 실행 직전 연결·권한·담당자의 사용 중 상태를 다시 확인합니다. 독립 파일 작업만 병렬로 진행합니다.',who:'배정된 작성자 AI, 호출과 상태를 관리하는 엔진.',tools:'기존 CLI 또는 파일 능력이 확인된 외부 어댑터, 격리 Git 작업공간 또는 폴더 복사본, 선언 파일 목록.',result:'선언 파일의 작업 결과와 세션 기록. 실행 텍스트만으로 완료 처리하지 않습니다.'},
+      integrate:{tag:'현재 계약',title:'07 · 통합',lead:'격리 공간에서 생긴 변경을 선택 프로젝트에 반영합니다.',principle:'실제 변경 파일을 선언 목록과 대조하고 원본 상태와 충돌을 확인합니다. 범위 밖 변경이나 충돌이면 원본을 덮어쓰지 않고 멈춥니다.',who:'엔진이 변경 집합과 기준 상태를 검사하고 적용합니다.',tools:'파일 차이, 선언 경로, 기준 스냅샷, 통합 증거.',result:'승인 파일에 한정된 적용 기록. 충돌 시 막힘·복구 분기로 이동합니다.'},
+      qa:{tag:'현재 계약',title:'08 · 독립 QA',lead:'작성자와 분리된 QA가 실제 통합 결과를 검토합니다.',principle:'산출물마다 수용 기준 충족 여부와 구체적 근거를 확인합니다. 전체와 각 산출물이 모두 통과해야 완료하며, 형식 오류도 통과로 간주하지 않습니다.',who:'QA 역할의 AI와 판정 조건을 검사하는 엔진.',tools:'통합된 파일, 수용 기준, 읽기 전용 QA 호출, QA 기록과 재작업 한도.',result:'기준별 판정·근거·미확인 항목. 실패는 한도 안에서 PM 계획으로 돌아갑니다.'},
+      report:{tag:'현재 계약 · v3 인수 제안',title:'09 · 보고',lead:'CEO가 무엇이 만들어졌고 무엇이 남았는지 한곳에서 받습니다.',principle:'저장된 통합 증거와 QA 결과가 있어야 완료로 표시합니다. 근거·가정·미확인을 구분해 다음 CEO 결정을 돕습니다.',who:'엔진이 기록을 모으고 CEO가 인수 및 후속 방향을 결정합니다.',tools:'목표 작업공간, 산출물별 QA 결과, 이벤트·통합 증거, 진행 정보.',result:'산출물·근거·미확인 항목·다음 결정. 후속 새 파일 작업은 새 범위 승인으로 이어집니다.'},
+      reject:{tag:'분기 · 현재 계약',title:'승인 거절',lead:'05 CEO 승인 → 취소. 이 계획은 파일을 쓰지 않습니다.',principle:'거부는 목표를 terminal 취소 상태로 만듭니다. 개선을 누른 경우에는 취소가 아니라 같은 목표의 04 PM 재계획으로 돌아가 새 승인 카드가 생성됩니다.',who:'CEO가 거부 또는 개선을 직접 선택합니다.',tools:'계획 카드의 거부·개선 버튼, 저장된 승인 기록.',result:'거부 후 자동 재시도는 없습니다. 같은 목표 문장으로 다시 시작하려면 새 목표를 만들고 03→04→05를 거칩니다.',route:'되돌림: 05 개선 → 04 → 05 / 05 거부 → 취소 → 새 목표의 02.'},
+      blocked:{tag:'분기 · 현재 계약',title:'막힘·복구',lead:'03~08 중 연결, 권한, 실행, 통합, QA에서 막힐 수 있습니다.',principle:'마지막으로 확인된 상태와 차단 이유를 남깁니다. 분석·계획 초기 차단은 조건이 맞을 때 03부터 재시도할 수 있고, 후반 차단은 저장 상태·기존 승인·충돌을 먼저 재검사합니다. 결과가 불명확한 호출을 자동 재전송하지 않습니다.',who:'엔진이 원인을 분류하고, CEO가 필요한 연결·범위·재시도를 결정합니다.',tools:'목표 복구 카드, 저장 이벤트·세션·승인 기록, 연결·파일 충돌 검사.',result:'안전한 기존 단계 재개, 새 범위 승인 요청, 또는 계속 차단 중 하나를 명확히 표시합니다.',route:'되돌림: 초기 차단 → 03; 승인된 미시작 작업 → 06; 새 범위가 필요하면 05; 불명 결과는 자동으로 06에 재진입하지 않음.'},
+      rework:{tag:'분기 · 현재 계약',title:'QA 재작업',lead:'08 QA 실패 → 04 PM 수리 계획 → 06 실행 → 07 통합 → 08 QA.',principle:'실패 근거와 회차를 저장하고 목표별 재작업 한도 안에서 수리합니다. 원래 승인된 파일만 고칠 수 있고 새 파일이 필요하면 같은 목표에서 별도 범위 승인을 요청합니다.',who:'QA가 실패를 기록하고 PM·담당자가 수리하며 CEO가 추가 범위나 한도 이후의 결정을 합니다.',tools:'산출물별 QA 기록, 재작업 한도, 수리 계획, 격리 공간, 추가 범위 승인 카드.',result:'재검증 통과 또는 이유가 남은 차단. 반복 실패나 한도 소진은 자동 성공으로 바꾸지 않습니다.',route:'되돌림: 08 → 04 → 06 → 07 → 08. 새 파일은 05 성격의 추가 승인 후 06.'},
+      revision:{tag:'분기 · 현재 계약',title:'목표 수정',lead:'CEO가 진행 중 방향을 바꾸면 안전한 중단 지점에서 새 목표 버전으로 이어집니다.',principle:'기존 산출물·QA·승인 기록을 보존합니다. 목표 대화의 수정 지시는 읽기 전용 해석과 확인 지점을 거치며, 이전 계획의 승인을 새 범위에 재사용하지 않습니다.',who:'CEO가 방향을 정하고 CTO·PM이 변경된 목표를 다시 분석·계획합니다.',tools:'목표 대화, 저장된 이전 버전의 근거, 새 계획과 승인 카드.',result:'새 버전의 03 분석 → 04 계획 → 05 승인. 새 파일 작업에는 새 범위 승인이 필요합니다.',route:'되돌림: 진행 중 목표 수정 → 안전한 지점 → 새 버전 03 → 04 → 05. 승인 전 계획만 개선하는 경우는 같은 목표의 04로 복귀.'}
+    };
+    const detail=document.getElementById('detail');
+    const buttons=[...document.querySelectorAll('[data-key]')];
+    function render(key){
+      const item=entries[key];
+      buttons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.key===key)));
+      detail.replaceChildren();
+      const head=document.createElement('div');head.className='detail-head';
+      const tag=document.createElement('span');tag.className='tag'+(item.route?' branch-tag':'');tag.textContent=item.tag;
+      const title=document.createElement('h3');title.textContent=item.title;head.append(tag,title);
+      const lead=document.createElement('p');lead.className='lede';lead.textContent=item.lead;
+      const dl=document.createElement('dl');dl.className='facts';
+      [['원리',item.principle],['개입 주체',item.who],['도구',item.tools],['결과',item.result]].forEach(([label,value])=>{const box=document.createElement('div');const dt=document.createElement('dt');dt.textContent=label;const dd=document.createElement('dd');dd.textContent=value;box.append(dt,dd);dl.append(box)});
+      detail.append(head,lead,dl);
+      if(item.route){const route=document.createElement('p');route.className='route';route.textContent=item.route;detail.append(route)}
+    }
+    buttons.forEach(button=>button.addEventListener('click',()=>render(button.dataset.key)));
+    render('prepare');
+  </script>
+</body>
+</html>

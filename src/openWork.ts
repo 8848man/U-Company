@@ -4,6 +4,11 @@ import { conversationOf, conversationState, inProgress, objectiveFor } from './c
 
 export type OpenWork = { goal: Goal; projectName: string; tasks: Task[]; needsDecision: boolean; meetingLabel?: string };
 
+/** The launcher badge always uses the selected project; the expanded panel may opt into all projects. */
+export function currentProjectWork(items: OpenWork[], projectId: string | null): OpenWork[] {
+  return items.filter(item => item.goal.projectId === projectId && projectId !== null);
+}
+
 export function openWork(snapshot: Snapshot): OpenWork[] {
   const superseded = new Set((snapshot.goalGuidance ?? [])
     .filter(item => item.status === 'revised' && item.replacementGoalId)

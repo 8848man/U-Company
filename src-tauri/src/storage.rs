@@ -10,7 +10,7 @@ pub struct Store(pub Mutex<Connection>);
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SpecAgentBinding { pub key: String, pub agent_id: Option<String> }
-const SCHEMA_VERSION: i64 = 4;
+const SCHEMA_VERSION: i64 = 5;
 
 impl Store {
     pub fn decide_transmission_record(&self, approval_id: &str, revision: u32, digest: &str, approved: bool, eligibility: &str) -> Result<(), String> {
@@ -58,6 +58,8 @@ impl Store {
         store.ensure_curator()?;
         store.repair_saved_cli_paths()?;
         store.fill_missing_goal_limits()?;
+        crate::technology_presets::ensure_builtins(&store)?;
+        crate::technology_presets::recover_ai_draft_requests(&store)?;
         store.recover_interrupted()?;
         Ok(store)
     }
@@ -240,6 +242,7 @@ impl Store {
         let goal_turns = self.list("goal_turn")?;
         let goal_guidance = self.list("goal_guidance")?;
         let tasks = self.list("task")?;
+        let mut reuse_conflicts = self.list::<crate::model::ReuseConflict>("reuse_conflict")?;
         let deliverable_reviews = self.list::<crate::model::DeliverableReview>("deliverable_review")?;
         let mut squads = self.list::<crate::model::Squad>("squad")?;
         for squad in squads.iter_mut() { squad.digest = crate::squad::digest(squad); }
@@ -273,6 +276,7 @@ impl Store {
             goal_turns.retain(|item: &GoalTurn| !hidden.contains(&item.goal_id));
             goal_guidance.retain(|item: &GoalGuidance| !hidden.contains(&item.goal_id) && !item.replacement_goal_id.as_ref().is_some_and(|id| hidden.contains(id)));
             tasks.retain(|item: &Task| !hidden.contains(&item.goal_id));
+            reuse_conflicts.retain(|item| !hidden.contains(&item.goal_id));
             deliverable_reviews.retain(|item| !hidden.contains(&item.goal_id));
             squads.retain(|item| !hidden.contains(&item.goal_id));
             goal_summaries.retain(|item| !hidden.contains(&item.goal_id));
@@ -282,7 +286,7 @@ impl Store {
         }
         let mut references = self.list::<crate::references::Reference>("reference")?;
         references.retain(|item| item.goal_id.as_ref().is_none_or(|id| !hidden.contains(id)));
-        Ok(Snapshot { project, projects, agents, connections, goals, meetings, meeting_packets, transmission_approvals, meeting_contributions, goal_lineage, goal_turns, goal_guidance, tasks, deliverable_reviews, squads, goal_summaries, goal_origins, archived_goals, events, approvals, usage, spec_profiles, spec_drafts, references, curator_enabled: crate::references::curator_enabled(self)?, command_requests: self.list("command_request")?, command_grants: self.list("command_grant")?, conversation_objectives: self.list("conversation_objective")?, criteria_requests: self.list("criteria_request")? })
+        Ok(Snapshot { project, projects, agents, connections, goals, meetings, meeting_packets, transmission_approvals, meeting_contributions, goal_lineage, goal_turns, goal_guidance, tasks, reuse_conflicts, deliverable_reviews, squads, goal_summaries, goal_origins, archived_goals, events, approvals, usage, spec_profiles, spec_drafts, references, curator_enabled: crate::references::curator_enabled(self)?, command_requests: self.list("command_request")?, command_grants: self.list("command_grant")?, permission_modes: self.list("permission_mode")?, conversation_objectives: self.list("conversation_objective")?, criteria_requests: self.list("criteria_request")? })
     }
 
     pub fn stage_spec_import(&self, draft: &SpecDraft) -> Result<(), String> {
@@ -586,6 +590,15 @@ fn migrate(connection: &mut Connection) -> Result<(), String> {
         // Version 4: Office-character meetings (ADR-0036). Earlier-model meetings are closed
         // read-only by `meeting::expire_on_restart`; the bump makes older binaries refuse this file.
         connection.execute_batch("PRAGMA user_version=4;").map_err(|e| e.to_string())?;
+        version = 4;
+    }
+    if version == 4 {
+        // Version 5: application technology/structure presets (ADR-0062). Definitions, drafts,
+        // per-project selections and immutable plan-revision snapshots get their own tables.
+        let tx = connection.transaction().map_err(|e| e.to_string())?;
+        crate::technology_presets::create_schema(&tx)?;
+        tx.execute_batch("PRAGMA user_version=5;").map_err(|e| e.to_string())?;
+        tx.commit().map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -632,6 +645,54 @@ impl NewEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn snapshot_returns_saved_reuse_conflicts_after_restart_and_hides_archived_goals() {
+        let dir = std::env::temp_dir().join(format!("utopia-reuse-snapshot-{}", crate::model::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("state.sqlite");
+        let conflict = crate::model::ReuseConflict {
+            goal_id: "blocked-goal".into(), path: "sdd/product.md".into(),
+            kind: "evidence_hash_mismatch".into(), source_task_id: "source-task".into(),
+            task_id: Some("repair-task".into()), approval_id: Some("approval".into()),
+            approved_files: vec!["sdd/product.md".into()], missing_evidence: vec!["integration event".into()],
+            before_sha256: Some("before".into()), after_sha256: Some("after".into()),
+            current_sha256: Some("current".into()), diff: Some("changed".into()),
+            recovery: "restore or approve".into(), recorded_at: crate::model::now(),
+        };
+        {
+            let store = Store::open(&path).unwrap();
+            let empty = serde_json::to_value(store.snapshot().unwrap()).unwrap();
+            assert_eq!(empty["reuseConflicts"], serde_json::json!([]));
+            for (id, status) in [("blocked-goal", "blocked"), ("archived-goal", "completed")] {
+                let goal: Goal = serde_json::from_value(serde_json::json!({
+                    "id": id, "kind": "execution", "intent": id, "status": status,
+                    "report": "", "createdAt": "t",
+                })).unwrap();
+                store.put("goal", id, &goal, None).unwrap();
+            }
+            store.put("reuse_conflict", "blocked-goal:sdd/product.md", &conflict, None).unwrap();
+            let mut archived = conflict.clone();
+            archived.goal_id = "archived-goal".into();
+            store.put("reuse_conflict", "archived-goal:sdd/product.md", &archived, None).unwrap();
+            store.put("goal_archive", "archived-goal", &crate::archive::GoalArchive {
+                goal_id: "archived-goal".into(), archived_at: crate::model::now(),
+            }, None).unwrap();
+            let snapshot = store.snapshot().unwrap();
+            assert_eq!(snapshot.reuse_conflicts.len(), 1);
+            assert_eq!(snapshot.reuse_conflicts[0].goal_id, conflict.goal_id);
+        }
+        let store = Store::open(&path).unwrap();
+        let snapshot = serde_json::to_value(store.snapshot().unwrap()).unwrap();
+        assert_eq!(snapshot["reuseConflicts"].as_array().unwrap().len(), 1);
+        assert_eq!(snapshot["reuseConflicts"][0]["goalId"], "blocked-goal");
+        assert_eq!(snapshot["reuseConflicts"][0]["sourceTaskId"], "source-task");
+        assert_eq!(snapshot["reuseConflicts"][0]["approvedFiles"], serde_json::json!(["sdd/product.md"]));
+        assert_eq!(snapshot["reuseConflicts"][0]["beforeSha256"], "before");
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn simultaneous_goal_questions_enqueue_only_one_pending_turn() {
         use std::sync::{Arc, Barrier};
@@ -1047,18 +1108,24 @@ mod tests {
             old_payload.as_object_mut().unwrap().remove("kind");
             legacy.execute("INSERT INTO objects(kind,id,payload) VALUES('goal','legacy',?1)", [old_payload.to_string()]).unwrap();
             legacy.execute("INSERT INTO objects(kind,id,payload) VALUES('project','selected',?1)", [r#"{"path":"C:/old-project","name":"old-project"}"#]).unwrap();
+            let old_plan = Approval { id: "old-plan".into(), goal_id: Some("legacy".into()), operation: "project_write".into(), reason: String::new(), status: "approved".into(), created_at: crate::model::now() };
+            legacy.execute("INSERT INTO objects(kind,id,payload) VALUES('approval','old-plan',?1)", [serde_json::to_string(&old_plan).unwrap()]).unwrap();
         }
         let store = Store::open(&path).unwrap();
         assert_eq!(store.get::<Goal>("goal", "legacy").unwrap().unwrap().report, "done");
         let version: i64 = store.0.lock().unwrap().query_row("PRAGMA user_version", [], |row| row.get(0)).unwrap();
-        assert_eq!(version, 4);
+        assert_eq!(version, 5);
+        // ADR-0062: a plan approved before presets existed has no snapshot and still runs.
+        let old_plan: Approval = store.get("approval", "old-plan").unwrap().unwrap();
+        assert!(store.transact(|tx| crate::technology_presets::verify_binding_in_tx(tx, &old_plan, None, "claim")).unwrap().is_none());
+        assert_eq!(crate::technology_presets::builtins().len(), 9);
         assert_eq!(store.get::<Goal>("goal", "legacy").unwrap().unwrap().kind, "execution");
         assert_eq!(store.snapshot().unwrap().projects.len(), 1);
         assert_eq!(store.snapshot().unwrap().project.unwrap().id, store.snapshot().unwrap().projects[0].id);
         assert_eq!(store.get::<Goal>("goal", "legacy").unwrap().unwrap().project_id, None);
         drop(store);
         let newer = Connection::open(&path).unwrap();
-        newer.execute_batch("PRAGMA user_version=5").unwrap();
+        newer.execute_batch("PRAGMA user_version=6").unwrap();
         drop(newer);
         assert!(Store::open(&path).err().unwrap().contains("newer than this app supports"));
         std::fs::remove_dir_all(dir).unwrap();

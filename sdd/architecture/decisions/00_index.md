@@ -1,7 +1,11 @@
 # ADR index
 
+| [ADR-0062](ADR-0062.md) | v4 application technology and structure presets: app-local selections, immutable plan snapshots, approval boundary | Accepted decision; storage/engine and v4 screen partially implemented; exact AI transmission approval, SDD/API owner checks, build and desktop QA unverified; refines ADR-0046 and ADR-0027 |
+| [ADR-0068](ADR-0068.md) | 승인된 재수정 파일의 재사용 소유권 전환 | Accepted specification; engine implementation and plan/rework/QA runtime verification pending; refines ADR-0027 without widening approval |
+
 | ID | Decision | Status |
 | --- | --- | --- |
+| [ADR-0064](ADR-0064.md) | Keep a repairable QA criterion and request a same-goal file fix | Implemented for review; actual provider and Windows app QA pending; refines ADR-0060 and ADR-0053 |
 | [ADR-0001](ADR-0001.md) | Tauri/Rust/SQLite and platform boundary | Accepted |
 | [ADR-0002](ADR-0002.md) | Separate model, runtime, and role through adapters | Accepted |
 | [ADR-0003](ADR-0003.md) | Parallel Git worktrees and persisted recovery | Accepted |
@@ -49,11 +53,14 @@
 | [ADR-0045](ADR-0045.md) | SDD origin in onboarding and planning: folder first, development goals only | Accepted, implemented (protocol 34); refines ADR-0044 |
 | [ADR-0046](ADR-0046.md) | One conversation per goal: plan card, revise, cancel, and an in-app Office window | Accepted (v3); refines ADR-0042, ADR-0045 |
 | [ADR-0054](ADR-0054.md) | Show what approval sets in motion, what a finished goal changed, where goals stop, and how to start | Accepted; refines ADR-0046, ADR-0047 |
-| [ADR-0063](ADR-0063.md) | Fewer command cards (read-only commands, project-wide safe grants) and an opt-in per-conversation allow-all mode without push or pull requests | Accepted; refines ADR-0058 |
+| [ADR-0063](ADR-0063.md) | Fewer command cards (read-only commands, project-wide safe grants) and an opt-in per-conversation allow-all mode without push or pull requests | Accepted; refines ADR-0058; allow-all mode (decisions 4, 5, 7) withdrawn 2026-11-10 in favour of ADR-0066 |
 | [ADR-0061](ADR-0061.md) | `지금 할 일` is the one place for the CEO's next action: original objective, CEO actions and starting Git | Accepted; refines ADR-0047, ADR-0048, ADR-0059, ADR-0060 |
 | [ADR-0060](ADR-0060.md) | Stop the QA loop: criteria the team cannot meet go to the CEO instead of another rework | Accepted; refines ADR-0038, ADR-0048, ADR-0053, ADR-0059 |
 | [ADR-0059](ADR-0059.md) | A conversation keeps its original objective: resume it with the project's changes, and close it when later work achieved it | Accepted; refines ADR-0048, ADR-0051, ADR-0055, ADR-0056 |
 | [ADR-0058](ADR-0058.md) | Ask the CEO for command permissions a teammate needs, inside the goal conversation | Accepted; refines ADR-0002, ADR-0053, ADR-0055 |
+| [ADR-0065](ADR-0065.md) | Dev의 거절된 명령을 PM이 검토하고 기존 권한 재시도 또는 CEO 요청을 선택 | Accepted; refines ADR-0058 |
+| [ADR-0066](ADR-0066.md) | 프로젝트 기본·목표 대화별 수동/오토/풀 오토 명령 승인 모드 | Accepted; refines ADR-0058, ADR-0065 |
+| [ADR-0067](ADR-0067.md) | PM이 필요한 거절 호출만 골라 CEO에게 요청하고 스크립트 본문은 명령 규칙으로 나누지 않음 | Accepted; refines ADR-0058, ADR-0065, ADR-0066 |
 | [ADR-0057](ADR-0057.md) | Keep file-name case, pass earlier results forward, and give the goal conversation the QA record | Accepted; refines ADR-0048, ADR-0053, ADR-0056 |
 | [ADR-0055](ADR-0055.md) | Repeated work in one visible goal conversation | Accepted; refines ADR-0051, ADR-0046 |
 | [ADR-0056](ADR-0056.md) | Structured context at each linked goal work-pass boundary | Accepted; refines ADR-0055, ADR-0051 |

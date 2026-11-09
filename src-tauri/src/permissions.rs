@@ -13,13 +13,14 @@ pub struct Denial { pub tool: String, pub command: String }
 /// `safe`: included in `모두 승인`. `individual`: needs its own button. `blocked`: the app never grants it.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct Rule { pub tool: String, pub prefix: String, pub class: String, pub reason: String }
+pub struct Rule { pub tool: String, pub prefix: String, pub class: String, pub reason: String, #[serde(default)] pub exact: bool }
 
 impl Rule {
     pub fn key(&self) -> String { if self.prefix.is_empty() { self.tool.clone() } else { format!("{}({})", self.tool, self.prefix) } }
     /// What the Claude CLI gets: the bare command and the command with arguments.
     pub fn cli_rules(&self) -> Vec<String> {
         if self.prefix.is_empty() { return vec![self.tool.clone()]; }
+        if self.exact { return vec![format!("{}({})", self.tool, self.prefix)]; }
         vec![format!("{}({})", self.tool, self.prefix), format!("{}({} *)", self.tool, self.prefix)]
     }
 }
@@ -121,7 +122,7 @@ pub fn split_commands(line: &str) -> Vec<String> {
     parts
 }
 
-fn words(command: &str) -> Vec<String> {
+pub(crate) fn words(command: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut current = String::new();
     let mut quote: Option<char> = None;
@@ -201,7 +202,7 @@ fn reason_for(program: &str) -> &'static str {
 
 fn rule(tool: &str, prefix: &str) -> Rule {
     let (class, reason) = classify(tool, prefix);
-    Rule { tool: tool.into(), prefix: prefix.into(), class, reason }
+    Rule { tool: tool.into(), prefix: prefix.into(), class, reason, exact: false }
 }
 
 fn push_unique(rules: &mut Vec<Rule>, candidate: Rule) {
@@ -213,7 +214,18 @@ pub fn rules_for_denials(denials: &[Denial]) -> Vec<Rule> {
     let mut rules = Vec::new();
     for denial in denials {
         if SHELLS.contains(&denial.tool.as_str()) {
-            for command in commands_of(&denial.command).into_iter().filter(|command| !is_read_only(command)) { let prefix = prefix_of(&command); push_unique(&mut rules, rule(&denial.tool, &prefix)); }
+            // ADR-0067: a multiline shell payload may contain a heredoc, JavaScript, or PowerShell body.
+            // Its lines are data, not independently grantable commands.
+            if denial.command.contains(['\n', '\r']) || denial.command.contains("<<") { continue; }
+            // ADR-0063: single-line loop/condition words are dropped and read-only commands make no rule.
+            let commands: Vec<String> = commands_of(&denial.command);
+            if commands.iter().any(|command| {
+                let first = words(command).first().cloned().unwrap_or_default().to_ascii_lowercase();
+                ["function", "eval", "source", "."].contains(&first.as_str())
+                    || first.starts_with('$') || command.contains(['{', '}'])
+                    || (first == "node" && words(command).get(1).is_some_and(|arg| ["-e", "--eval", "-p", "--print"].contains(&arg.as_str())))
+            }) { continue; }
+            for command in commands.into_iter().filter(|command| !is_read_only(command)) { let prefix = prefix_of(&command); push_unique(&mut rules, rule(&denial.tool, &prefix)); }
         } else {
             push_unique(&mut rules, rule(&denial.tool, ""));
         }
@@ -236,7 +248,7 @@ pub fn covered(grants: &[Rule], tool: &str, command: &str) -> bool {
     if commands.is_empty() { return false; }
     commands.iter().all(|part| {
         let prefix = if SHELLS.contains(&tool) { prefix_of(part) } else { String::new() };
-        grants.iter().any(|grant| grant.tool == tool && (grant.prefix.is_empty() && prefix.is_empty() || !grant.prefix.is_empty() && (prefix == grant.prefix || prefix.starts_with(&format!("{} ", grant.prefix)))))
+        grants.iter().any(|grant| grant.tool == tool && if grant.exact { command.trim() == grant.prefix } else { grant.prefix.is_empty() && prefix.is_empty() || !grant.prefix.is_empty() && (prefix == grant.prefix || prefix.starts_with(&format!("{} ", grant.prefix))) })
     })
 }
 
@@ -278,6 +290,14 @@ mod tests {
         assert!(rules.iter().all(|rule| rule.class == "safe"));
         assert_eq!(rules[0].cli_rules(), vec!["Bash(node --test)", "Bash(node --test *)"]);
         assert_eq!(prefix_of("npm test > out.txt 2>&1"), "npm test");
+    }
+
+    #[test]
+    fn script_bodies_never_become_command_rules() {
+        let script = "node <<'EOF'\nconst fs=require('fs')\nif(s==='-0')s='0'\nEOF";
+        assert!(rules_for_denials(&[Denial { tool: "Bash".into(), command: script.into() }]).is_empty());
+        assert!(rules_for_denials(&[Denial { tool: "PowerShell".into(), command: "$c = 1\n$c".into() }]).is_empty());
+        assert!(rules_for_denials(&[Denial { tool: "Bash".into(), command: "for n; do echo $n; done".into() }]).is_empty());
     }
 
     #[test]

@@ -227,3 +227,6 @@ button.danger:disabled{opacity:.5}
 .open-work-trigger{cursor:grab;touch-action:none;user-select:none}.open-work-trigger:active{cursor:grabbing}
 .open-work-launcher.is-left .open-work-panel{right:auto;left:0}
 .open-work-launcher.is-top .open-work-panel{bottom:auto;top:58px}
+.open-work-panel header{flex-wrap:wrap}
+.open-work-header-actions{display:flex;flex:none;gap:6px;margin-left:auto}
+.open-work-header-actions button[aria-pressed="true"]{border-color:#b9e585;background:#294b32;color:#eaffd9}
