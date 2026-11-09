@@ -24,7 +24,7 @@ Exceptions: security or approval scope in its confirmation dialog stays fully in
 | Projects / AI connections | Project cards, confirmed AI, missing presets, saved AI | Five each by default. |
 | Token usage | Goals, teammates, model rows | Five at each repeated level after the selected sort; detail remains available. |
 | Goal conversation workspace | Saved question/answer exchanges, CEO instructions, task rows | Show five newest saved conversation items by default in chronological display order, and five tasks in the single progress disclosure; keep critical action cards visible. |
-| 업무 tab (v2/v3) | Goal and meeting titles, pending decision, task rows | Titles are the display summary (`AI 요약`/`원문 일부`) with `원문 보기`; the pending decision shows a plain sentence and `요청 원문 보기`; task rows show the deliverable and plain status with `AI에게 준 지시 보기` / `결과 원문 보기`. |
+| 업무 tab (v3/v4) | Goal and meeting titles, pending decision, task rows | Titles are the display summary (`AI 요약`/`원문 일부`) with `원문 보기`; the pending decision shows a plain sentence and `요청 원문 보기`; task rows show the deliverable and plain status with `AI에게 준 지시 보기` / `결과 원문 보기`. |
 | 설정 › 백업 삭제 (ADR-0043) | Archived goals and meetings | Settings shows one card with the count; the list opens only in a dialog with five rows (summary title, kind, date, size, actions) and `모두 보기`. No goal content is shown; permanent delete expands an inline confirmation. |
 | Office Meeting dialog | Proposals, stage lines, issues, records | Three depths (ADR-0042): at most five proposals with one recommended; stage lines and grouped issues on 요약; every original under 자세히 / 모든 기록. |
 

@@ -26,8 +26,8 @@
 | --- | --- | --- |
 | 같은 대화의 후속 작업과 차수 요약 | 코드·빌드 확인, Rust 저장소 시험 실행과 v4 앱에서 실제 화면·모의 AI 종단 검증 대기 | [WLG-058](milestones/WLG-058.md), [QA-51](../qa/MANUAL-QA.md#qa-51-완료-후-후속-작업과-차수-경계-요약-adr-0055-adr-0056) |
 | v3 출시 준비 파일럿과 중단 복구 | v4 앱에서 실제 Windows QA-39 대기([WLG-073](milestones/WLG-073.md)) | [v3 검증 범위](programs/v3-first-package/open-verification.md) |
-| v2 화면·알림·회의 | v4 앱에서 QA-38 오프라인 1~7단계 대기; QA-37은 배포 직전, QA-36은 QA-51·39에 포함, 회의 실제 제공자(8~10) 검증은 회의를 계속 쓸 때만([WLG-073](milestones/WLG-073.md)) | [회의 구현 기록](milestones/WLG-012.md), [v3 검증 범위](programs/v3-first-package/open-verification.md) |
-| 런타임 이벤트·취소·세션 재개, 추가 승인, Ubuntu | 초기 체크리스트에서 미완료; 현행 명세·코드를 대조해 별도 마일스톤으로 진행 | [초기 체크리스트](milestones/WLG-054.md), [개선 계획](../sdd/workflow-improvement-plan.md) |
+| v2 화면·알림·회의(v2 앱은 WLG-076에서 정리, 기능은 v4에 있음) | v4 앱에서 QA-38 오프라인 1~7단계 대기; QA-37은 배포 직전, QA-36은 QA-51·39에 포함, 회의 실제 제공자(8~10) 검증은 회의를 계속 쓸 때만([WLG-073](milestones/WLG-073.md)) | [회의 구현 기록](milestones/WLG-012.md), [v3 검증 범위](programs/v3-first-package/open-verification.md) |
+| 런타임 이벤트·취소·세션 재개, 추가 승인, Ubuntu | 외부 어댑터 이벤트·취소·재개 선언은 WLG-079에서 구현(화면 취소 동작 미정); 나머지는 초기 체크리스트에서 미완료; 현행 명세·코드를 대조해 별도 마일스톤으로 진행 | [초기 체크리스트](milestones/WLG-054.md), [개선 계획](../sdd/workflow-improvement-plan.md) |
 
 ## `지금 할 일` 통합 (2026-10-27, Claude)
 
@@ -140,6 +140,7 @@
 | WLG-069 (2026-11-08, Codex) | 열린 작업의 기본 범위를 선택된 프로젝트로 제한하고 펼친 창에 모든 작업 보기 토글 추가 | 데이터 단위 시험·v3 빌드·타입 검사 통과; 데스크톱 수동 QA 미검증 | [WLG-069.md](milestones/WLG-069.md) |
 | WLG-070 (2026-11-08, Codex) | PM이 필요한 거절 호출만 승인 요청하고 셸 스크립트 본문은 명령 규칙에서 제외 | Rust 시험 컴파일·모의 어댑터 구문 통과; Windows Rust 실행 `0xc0000139`, 실제 Claude 미검증 | [WLG-070.md](milestones/WLG-070.md) |
 | WLG-075 (2026-11-10, Claude) | Windows에서 Rust 시험 실행 파일이 `0xc0000139`로 멈추던 원인(앱 매니페스트가 앱 실행 파일에만 들어감)을 고치고, 빠진 모의 AI 방식 7개 추가 | `cargo test` 219 통과·19 실패·3 무시; 실패 19개는 다음 마일스톤 | [WLG-075.md](milestones/WLG-075.md) |
+| WLG-076 (2026-11-10, Claude) | v1·v2 앱을 정리하고 v4를 기본 앱으로 바꿈; v3가 쓰는 v2 부품은 `src/shell/`로 옮김(ADR-0069) | 타입 검사·vitest 160·v4 빌드 통과; 데스크톱 실행·설치 파일 미확인 | [WLG-076.md](milestones/WLG-076.md) |
 | WLG-059 (2026-10-31, Developer A) | v4 기술·구조 프리셋 명세와 ADR-0062 결정 기록; 이번 차수에서 파일·검증 근거 재대조 | 명세 기록, 런타임 미검증 | [WLG-059.md](milestones/WLG-059.md) |
 | WLG-060 (2026-10-31, Developer B) | 프리셋 엔진·저장·계획 승인 결합; Rust 과거 주장과 이번 실행 결과 분리 | 코드 존재, Rust 실행 검증 대기 | [WLG-060.md](milestones/WLG-060.md) |
 | WLG-061 (2026-10-31, Developer A) | v4 설정·AI 전송 승인·계획 카드와 실행 경로; 빌드·화면·데스크톱 확인 추적 | 코드 존재, 빌드·데스크톱 미검증 | [WLG-061.md](milestones/WLG-061.md) |
@@ -148,6 +149,9 @@
 | WLG-071 (2026-11-04, Codex) | 제품·엔진·UX·보안 관점 Self grill 93문항과 답을 가를 증거 정리 | 읽기 전용 교차 검토 및 문서 작성 완료; 고객·실앱·제공자 실행 검증은 수행하지 않음 | [WLG-071.md](milestones/WLG-071.md), [Self grill](../analysis/ucompany-self-grill-2026-11-04.md) |
 | WLG-065 (2026-11-04, Codex) | 세 서브 에이전트의 Self grill 93문항 후속 결정안 통합 | 우선순위·검증·보류 판단 기록; 실제 고객·앱·제공자 검증 및 CEO 전용 결정은 미수행 | [WLG-065.md](milestones/WLG-065.md), [결정안](../analysis/ucompany-self-grill-decisions-2026-11-04.md) |
 | WLG-074 (2026-11-10, Claude) | ADR 색인을 번호순으로 정리하고 모든 ADR에 `Date:` 줄을 맞춤; Self grill U16·E15 기록 정정(E21은 이미 정정됨, U17은 v1·v2 정리 결정 대기) | 문서만 변경, v4 빌드 통과 | [WLG-074.md](milestones/WLG-074.md) |
+| WLG-077 (2026-11-10, Claude) | Windows 엔진 시험 실패 19개 해결: 오토 모드 재개, 승인된 파일 안 재작업의 불필요한 카드, 재사용 충돌 표시 위치·내용 등 제품 결함 4건과 시험 환경·오래된 기대 정리 | `cargo test` 238 통과·0 실패; 실제 앱·제공자 미확인 | [WLG-077.md](milestones/WLG-077.md) |
+| WLG-078 (2026-11-10, Claude) | clippy 설치 후 경고 26개를 0개로 정리하고, 상태만 기다리고 기록을 바로 읽던 종단 시험 2개의 경합을 고침 | clippy 0, `cargo test` 3회 연속 238 통과 | [WLG-078.md](milestones/WLG-078.md) |
+| WLG-079 (2026-11-10, Claude) | 외부 어댑터 프로토콜에 진행 이벤트·취소 요청·재개 선언을 추가(ADR-0070, v1 호환); 화면의 취소 동작은 별도 결정 | 새 시험 7개 포함 `cargo test` 245 통과, clippy 0; 실제 제3자 어댑터 미확인 | [WLG-079.md](milestones/WLG-079.md) |
 | WLG-064 (2026-11-04, Codex) | 미통합 목표·권한·모델 선택 브랜치 통합, 기록 충돌 해결 | 프런트 시험·빌드와 Rust 컴파일 통과, Rust 시험 실행 환경 오류·실앱 QA 대기 | [WLG-064.md](milestones/WLG-064.md) |
 | 작업 차수 경계 구조화 요약과 미완료 기록 점검 (2026-10-25, Codex) | 새 작업 차수마다 저장 기록으로 요약 인계를 만들고 누적 약 8,000토큰부터 대화 발췌를 제외; 실제 Rust 실행·실앱 QA는 미검증 | 구현, 검증 대기 | [WLG-058.md](milestones/WLG-058.md) |
 | 워크로그 폴더와 라운드 인덱스 (2026-10-25, Codex) | 네 프로그램의 36개 라운드와 56개 기존 단독 기록을 파일별로 이관하고 인덱스에서 탐색하도록 연결 | 완료 | [WLG-057.md](milestones/WLG-057.md) |

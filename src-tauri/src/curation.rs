@@ -144,7 +144,7 @@ mod tests {
         apply(&store, &staging, &reference.id, &proposal, &atoms, &[]).unwrap();
         let goal: crate::model::Goal = serde_json::from_value(serde_json::json!({ "id": "goalreq", "kind": "execution", "projectId": "p", "intent": "x", "status": "new", "report": "", "createdAt": "2026-10-14T00:00:00Z", "resumedFrom": null })).unwrap();
         store.put("goal", "goalreq", &goal, None).unwrap();
-        let attached = references::attach_to_goal(&store, &staging, &project, &goal, &[reference.id.clone()]).unwrap();
+        let attached = references::attach_to_goal(&store, &staging, &project, &goal, std::slice::from_ref(&reference.id)).unwrap();
         let marks: Vec<bool> = attached[0].sections.iter().map(|section| section.background).collect();
         assert_eq!(marks, vec![true, false, false, false], "a background mark without a reason is not trusted");
         let targets = references::requirement_targets(&attached);
@@ -193,7 +193,7 @@ mod tests {
         assert!(saved.relations.is_empty() && saved.curation_note.contains("ghost"));
         let goal: crate::model::Goal = serde_json::from_value(serde_json::json!({ "id": "goal01", "kind": "execution", "projectId": "p", "intent": "x", "status": "new", "report": "", "createdAt": "2026-10-14T00:00:00Z", "resumedFrom": null })).unwrap();
         store.put("goal", "goal01", &goal, None).unwrap();
-        let attached = references::attach_to_goal(&store, &staging, &project, &goal, &[reference.id.clone()]).unwrap();
+        let attached = references::attach_to_goal(&store, &staging, &project, &goal, std::slice::from_ref(&reference.id)).unwrap();
         assert_eq!(attached[0].sections.iter().map(|section| section.title.as_str()).collect::<Vec<_>>(), vec!["가격", "일정", "위험"], "the curator's sections are used");
         assert_eq!(attached[0].sections[0].summary, "가격 결정");
         let rebuilt: String = attached[0].sections.iter().map(|section| std::fs::read_to_string(Path::new(&project.path).join(&section.file)).unwrap().split_once("\n\n").unwrap().1.to_string()).collect();

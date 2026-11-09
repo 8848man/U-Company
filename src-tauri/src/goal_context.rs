@@ -143,7 +143,7 @@ pub fn revision_intent(
     sections.push(format!("CEO의 최신 지침 (원문; 충돌하면 이 지침을 우선 적용):\n{}", guidance.text));
     let mut intent = sections.join("\n\n");
     if intent.chars().count() > MAX_INTENT_CHARS {
-        let prefix = format!("[저장된 기록에서 만든 최소 작업 차수 인계; 원문은 이전 차수에 보존]\n원래 CEO 목표 일부:\n");
+        let prefix = "[저장된 기록에서 만든 최소 작업 차수 인계; 원문은 이전 차수에 보존]\n원래 CEO 목표 일부:\n".to_string();
         let suffix = format!("\n\n직전 차수: {} · 상태 {}\n\nCEO의 최신 지침 (원문):\n{}", old.id, old.status, guidance.text);
         let available = MAX_INTENT_CHARS.saturating_sub(prefix.chars().count() + suffix.chars().count() + 30);
         intent = format!("{prefix}{}{suffix}", excerpt(&root.intent, available.min(1_000)));

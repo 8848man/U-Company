@@ -17,8 +17,15 @@ describe('mock AI adapter', () => {
       JSON.stringify({ id: 2, method: 'send_task', params: { prompt: 'You are 민준 (CTO) in an AI company. Analyze the CEO goal and project.', cwd: tmpdir(), writable: false } }),
     ].join('\n') + '\n';
     const run = spawnSync(process.execPath, [join(here, 'mock-adapter.mjs')], { input, encoding: 'utf8' });
-    const [init, reply] = run.stdout.trim().split('\n').map(line => JSON.parse(line));
+    const messages = run.stdout.trim().split('\n').map(line => JSON.parse(line));
+    const init = messages.find(message => message.id === 1);
+    const reply = messages.find(message => message.id === 2);
     expect(init.result.protocolVersion).toBe(1);
+    // ADR-0070: optional capabilities and a progress notification (no id) before the result.
+    expect(init.result.capabilities).toEqual(['events', 'cancel']);
+    const events = messages.filter(message => message.id === undefined && message.method === 'event');
+    expect(events.map(event => event.params.kind)).toEqual(['progress']);
+    expect(messages.indexOf(events[0])).toBeLessThan(messages.indexOf(reply));
     expect(reply.result.text.startsWith('요약: ')).toBe(true);
     expect(reply.result.text).toContain('업무: 개발');
     expect(reply.result.usage.input_tokens).toBeGreaterThan(0);

@@ -136,6 +136,7 @@ fn dependants(tx: &rusqlite::Transaction<'_>, goal_id: &str, archived: &BTreeSet
 }
 
 /// Rows (kind, id, bytes) that belong to an archived goal, and its event count and bytes.
+#[allow(clippy::type_complexity)] // (rows, files, bytes) read in one query pass
 fn owned_rows(tx: &rusqlite::Transaction<'_>, goal_id: &str) -> Result<(Vec<(String, String, usize)>, usize, usize), String> {
     let meeting_ids: BTreeSet<String> = tx_list::<Meeting>(tx, "meeting")?.into_iter().filter(|item| item.goal_id == goal_id).map(|item| item.id).collect();
     let mut rows = Vec::new();

@@ -1,6 +1,6 @@
 # 전체 앱 UX 복잡도 축소 계획
 
-Status: **v2 코드 구현, 실사용 검증 대기**. [v2 소스와 실행 방법](../../v2/README.md)에 다섯 메뉴 구현이 있다. 원래 UI는 비교용으로 유지한다. 현재 제품 규칙은 [제품](../product.md), [목표 작업공간](../goalConversation/GC-03-workspace.md), [정보 밀도 정책](../content-density.md), [보안](../security.md)이 소유한다. 실제 화면·사용성 검증은 [WORKLOG](../../worklog/00_index.md)에 기록한다.
+Status: **v4 앱의 탐색으로 이어짐**. 다섯 메뉴 구현은 v2에서 시작해 지금은 `src/shell/`의 공용 부품으로 v3·v4가 쓴다. v1·v2 앱은 [ADR-0069](../architecture/decisions/ADR-0069.md)로 정리되었고, 실사용 검증은 v4 앱에서 [QA-36](../../qa/MANUAL-QA.md)으로 한다.
 
 ## 문제와 목표
 

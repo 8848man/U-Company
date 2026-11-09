@@ -2105,7 +2105,7 @@ mod tests {
         let planned = start_and_plan(&env, &transport);
         let approved = approve(&env, &planned.id, "plan", &transport);
         let slot = participants(&approved)[0].id.clone();
-        let response = format!("Here is my answer:\n{{\"claims\":[{{\"id\":\"c01\",\"text\":\"Synthetic claim\",\"sources\":[],\"assumptions\":[],\"unknowns\":[]}}],\"alternatives\":[]}}\nDone.");
+        let response = "Here is my answer:\n{\"claims\":[{\"id\":\"c01\",\"text\":\"Synthetic claim\",\"sources\":[],\"assumptions\":[],\"unknowns\":[]}],\"alternatives\":[]}\nDone.".to_string();
         let (content, _) = validate_contribution(&approved, "proposing", &slot, &response, &[]).unwrap();
         assert_eq!(content["claims"][0]["id"], format!("{slot}.C1"));
         assert!(content["normalizations"].as_array().is_some_and(|items| !items.is_empty()));

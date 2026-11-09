@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 // extensionless import there and the app breaks only on those machines. Keep stems unique ignoring case.
 const files = Object.keys({
   ...import.meta.glob('./**/*.{ts,tsx,css}'),
-  ...import.meta.glob('../v2/src/**/*.{ts,tsx,css}'),
   ...import.meta.glob('../v3/src/**/*.{ts,tsx,css}'),
 });
 

@@ -4,7 +4,7 @@ v4 reuses the v3 controller, its five menus, and the existing Tauri engine. The 
 
 ## Commands
 
-All commands run from the repository root after `npm install` (or `npm ci`). `src-tauri/tauri.conf.json` is not changed; the v4 desktop commands override only its `build` section on the command line, so `npm run tauri dev` still opens the default frontend.
+All commands run from the repository root after `npm install` (or `npm ci`). v4 is the default app ([ADR-0069](../sdd/architecture/decisions/ADR-0069.md)): `src-tauri/tauri.conf.json` serves `v4/dist`, so `npm run tauri dev`, `npm run dev` and `npm run build` all use v4. On Windows use `v4/start-windows.ps1` (or `scripts/start-windows.ps1`, which forwards to it); on Ubuntu `bash v4/start-ubuntu.sh`. `scripts/build-installer-windows.ps1` builds the NSIS installer.
 
 | Command | What it does |
 | --- | --- |

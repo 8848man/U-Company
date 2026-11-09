@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, useState, type Dispatch, type KeyboardEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { tabKeyTarget } from '../../v2/src/V2Navigation';
+import { tabKeyTarget } from '../../src/shell/V2Navigation';
 import type { Agent, Approval, Goal, Project, TechAiDraftRequest, TechDraft, TechNumericTarget, TechPick, TechPlanSnapshot, TechPreset, TechPresetState, TechPreview, TechStage } from '../../src/types';
 
 const stages: { id: TechStage; title: string; question: string }[] = [
