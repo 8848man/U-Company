@@ -127,7 +127,7 @@
 | M10 | 업무·회의 화면에 UI/UX 철학 적용 | 완료 | [M10.md](programs/v3-first-package/M10.md) |
 | M11 | 목표 보관과 설정 › 백업 삭제 | 완료 | [M11.md](programs/v3-first-package/M11.md) |
 | M12 | Git 저장소와 PR 워크플로우 명세 | 완료 | [M12.md](programs/v3-first-package/M12.md) |
-| 실제 앱에서 아직 검증하지 못한 범위 | 다음: Windows에서 v2/start-windows.ps1 -DataDir .run-data\v3-pilot로 QA-39를 수행하고 결과를 기록한다. PM/QA JSON 준수율이 낮으면 프롬프트를… | 기록 | [open-verification.md](programs/v3-first-package/open-verification.md) |
+| 실제 앱에서 아직 검증하지 못한 범위 | 다음: Windows에서 v4/start-windows.ps1 -DataDir .run-data\v4-pilot로 QA-39를 수행하고 결과를 기록한다. PM/QA JSON 준수율이 낮으면 프롬프트를… | 기록 | [open-verification.md](programs/v3-first-package/open-verification.md) |
 ## 단독 마일스톤
 
 | 기록 | 작업 요약 | 상태 | 파일 |
@@ -145,6 +145,7 @@
 | WLG-063 (2026-11-01, Developer A) | 재작업 3: 실제 차단 건의 작업·승인·통합·QA 원장과 `sdd/product.md` 현재 해시 대조 및 원인 가설 분리; 엔진 재사용 증거 전환·저장 충돌 스냅샷·v3 충돌 화면 보수 코드 확인; 최초 계획·QA 재작업·외부 변경 집중 시험 | 실제 원장·이전 통합 해시 부재로 변경 주체·시점·승인 여부 미확인. 엔진·화면 동작 미검증: Rust 집중·전체 시험 컴파일 통과, 실행 파일은 `0xc0000139`로 시작 실패; v3 빌드는 로컬 `tsc` 부재로 실패. 시나리오·실제 화면 QA 미검증 | [WLG-063.md](milestones/WLG-063.md), [ADR-0068](../sdd/architecture/decisions/ADR-0068.md), [Validation](../sdd/validation.md) |
 | WLG-071 (2026-11-04, Codex) | 제품·엔진·UX·보안 관점 Self grill 93문항과 답을 가를 증거 정리 | 읽기 전용 교차 검토 및 문서 작성 완료; 고객·실앱·제공자 실행 검증은 수행하지 않음 | [WLG-071.md](milestones/WLG-071.md), [Self grill](../analysis/ucompany-self-grill-2026-11-04.md) |
 | WLG-065 (2026-11-04, Codex) | 세 서브 에이전트의 Self grill 93문항 후속 결정안 통합 | 우선순위·검증·보류 판단 기록; 실제 고객·앱·제공자 검증 및 CEO 전용 결정은 미수행 | [WLG-065.md](milestones/WLG-065.md), [결정안](../analysis/ucompany-self-grill-decisions-2026-11-04.md) |
+| WLG-074 (2026-11-10, Claude) | ADR 색인을 번호순으로 정리하고 모든 ADR에 `Date:` 줄을 맞춤; Self grill U16·E15 기록 정정(E21은 이미 정정됨, U17은 v1·v2 정리 결정 대기) | 문서만 변경, v4 빌드 통과 | [WLG-074.md](milestones/WLG-074.md) |
 | WLG-064 (2026-11-04, Codex) | 미통합 목표·권한·모델 선택 브랜치 통합, 기록 충돌 해결 | 프런트 시험·빌드와 Rust 컴파일 통과, Rust 시험 실행 환경 오류·실앱 QA 대기 | [WLG-064.md](milestones/WLG-064.md) |
 | 작업 차수 경계 구조화 요약과 미완료 기록 점검 (2026-10-25, Codex) | 새 작업 차수마다 저장 기록으로 요약 인계를 만들고 누적 약 8,000토큰부터 대화 발췌를 제외; 실제 Rust 실행·실앱 QA는 미검증 | 구현, 검증 대기 | [WLG-058.md](milestones/WLG-058.md) |
 | 워크로그 폴더와 라운드 인덱스 (2026-10-25, Codex) | 네 프로그램의 36개 라운드와 56개 기존 단독 기록을 파일별로 이관하고 인덱스에서 탐색하도록 연결 | 완료 | [WLG-057.md](milestones/WLG-057.md) |
