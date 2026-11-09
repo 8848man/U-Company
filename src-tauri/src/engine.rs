@@ -1312,6 +1312,7 @@ fn run_task<R: tauri::Runtime>(app: &tauri::AppHandle<R>, mut task: Task, agent:
     match execute_tracked_with(app, project_id, &task.goal_id, Some(&task.id), &agent.id, &connection, &prompt, worktree, true, &options) {
         Ok(result) => {
             crate::permissions_flow::record_task_denials(&store, &task, &result.permission_denials, 0)?;
+            crate::permissions_flow::record_commands_run(&store, &task, &result.commands_run)?;
             task.status = "awaiting_integration".into();
             task.result = result.text.chars().take(10_000).collect();
             task.session_id = result.session_id;

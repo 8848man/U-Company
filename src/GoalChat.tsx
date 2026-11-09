@@ -84,6 +84,7 @@ export function GoalChat(props: Props) {
   const { result = null, onOpenFolder, commandRequests = [], onDecideCommands, permissionMode = 'manual', permissionModeOverride = 'inherit', onSetPermissionMode, criteriaRequests = [], onDecideCriteria, objective = null, onResumeConversation, onReopenConversation } = props;
   const { goal, projectKind, focusTaskId = null, turns: chainTurns, guidance, earlier = [], agents, connections, tasks, approvals, events, usage, reviews, runBlock, squad, squads, summary, goalOrigins, projects, layout = 'dialog', onClose, onSend, onArchive, onRevision, onOpenGoal, onRetry, onResume, onRequestFix, onDecide, onRevise, onCancel, onRestart, onSwapSquad, onAddSquad, onOpenConnections, onOpenOffice, onOpenTeam, onOpenProject, onError, onPreviewGit, onBootstrapGit } = props;
   const turns = chainTurns.filter(turn => turn.goalId === goal.id);
+  // ADR-0063: the conversation's opt-in allow-all mode (red band, banner, plan-card switch).
   // ADR-0051: earlier versions of this goal read as the top of the same conversation.
   const versions = [...earlier, goal];
   const versionIds = new Set(versions.map(item => item.id));
@@ -259,7 +260,7 @@ export function GoalChat(props: Props) {
     </div>;
   }
 
-  const body = <section className={layout === 'dialog' ? 'goal-conversation chat-workspace gc' : 'chat-workspace gc gc-panel'} role={layout === 'dialog' ? 'dialog' : 'region'} aria-modal={layout === 'dialog' ? true : undefined} aria-labelledby="goal-chat-title" onClick={event => event.stopPropagation()}>
+  const body = <section className={`${layout === 'dialog' ? 'goal-conversation chat-workspace gc' : 'chat-workspace gc gc-panel'}`} role={layout === 'dialog' ? 'dialog' : 'region'} aria-modal={layout === 'dialog' ? true : undefined} aria-labelledby="goal-chat-title" onClick={event => event.stopPropagation()}>
     <header className="chat-workspace-header"><div><span className="card-kicker">{goalStageLabel(goal.status)}{earlier.length > 0 && ` · 계획 v${versions.length}`}</span><h2 id="goal-chat-title" title={versions[0].intent}>{goalTitle(versions[0], 105)}</h2></div><div className="button-row"><ReferenceButton references={props.references ?? []} tasks={tasks.filter(task => task.goalId === goal.id)} /><button type="button" className="secondary" onClick={onOpenOffice}>Office ↗</button>{onArchive && <ArchiveGoalButton goal={goal} tasks={tasks} onArchive={onArchive} />}{layout === 'dialog' && <button type="button" className="secondary" onClick={onClose} aria-label="목표 대화 닫기">닫기</button>}</div></header>
     {onSetPermissionMode && <PermissionModeControl scope="conversation" mode={permissionMode} override={permissionModeOverride} busy={working} onChange={onSetPermissionMode} />}
     <div className="chat-workspace-feed" ref={feedRef}>

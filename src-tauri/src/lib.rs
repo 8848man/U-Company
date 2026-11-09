@@ -282,6 +282,7 @@ fn save_agent(mut agent: Agent, store: tauri::State<'_, Store>, app: tauri::AppH
     if agent.external.is_none() && agent.id.starts_with("ext-") { return Err("외부 인력은 캐릭터 파일 가져오기로만 추가할 수 있습니다".into()); }
     if let Some(appearance) = &agent.appearance { appearance.validate()?; }
     if agent.name.trim().is_empty() || agent.role.trim().is_empty() { return Err("Name and role are required".into()); }
+    if agent.model_id.len() > 100 || agent.model_id.chars().any(char::is_control) { return Err("모델 이름이 올바르지 않습니다".into()); }
     if !(0..=100).contains(&agent.x) || !(0..=100).contains(&agent.y) { return Err("Office position must be 0–100".into()); }
     if !agent.enabled && store.get::<Agent>("agent", &agent.id)?.as_ref().is_some_and(|saved| saved.enabled) {
         let unfinished = store.unfinished_task_count(&agent.id)?;

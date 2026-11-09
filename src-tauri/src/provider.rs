@@ -11,6 +11,8 @@ pub struct AiResponse {
     pub usage: Option<(u64, u64)>,
     /// ADR-0058: calls the provider refused because nobody could approve them (Claude, adapters).
     pub permission_denials: Vec<crate::permissions::Denial>,
+    /// ADR-0063: shell commands a Claude call actually ran (from `tool_use` stream events).
+    pub commands_run: Vec<String>,
 }
 
 /// ADR-0058: per-call permission settings. Default: the provider's ordinary profile.
@@ -67,7 +69,7 @@ impl AiProvider for HttpProvider<'_> {
         let result = runtime::send_json(self.0, &url, &body)?;
         let text = result.pointer("/choices/0/message/content").and_then(Value::as_str).ok_or("response: HTTP model returned no message content")?.to_string();
         let usage = runtime::token_usage(&result);
-        Ok(AiResponse { text, session_id: result.get("id").and_then(Value::as_str).map(str::to_string), usage, permission_denials: Vec::new() })
+        Ok(AiResponse { text, session_id: result.get("id").and_then(Value::as_str).map(str::to_string), usage, permission_denials: Vec::new(), commands_run: Vec::new() })
     }
 }
 
@@ -137,7 +139,8 @@ fn run_cli(connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool, 
     let session_id = stdout.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()).find_map(|v| v.get("thread_id").or_else(|| v.get("session_id")).and_then(Value::as_str).map(str::to_string));
     let usage = stdout.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()).filter_map(|value| runtime::token_usage(&value)).last();
     let permission_denials = claude_denials(&stdout);
-    Ok(AiResponse { text, session_id, usage, permission_denials })
+    let commands_run = if stem == "claude" { claude_commands(&stdout) } else { Vec::new() };
+    Ok(AiResponse { text, session_id, usage, permission_denials, commands_run })
 }
 
 /// ADR-0058: Claude's permission profile. Writing tasks edit files and run granted commands; a
@@ -166,6 +169,20 @@ fn claude_denials(stdout: &str) -> Vec<crate::permissions::Denial> {
         if !denial.tool.is_empty() && !denials.contains(&denial) { denials.push(denial); }
     }
     denials
+}
+
+/// ADR-0063: the `Bash`/`PowerShell` commands of Claude's `tool_use` stream events, in order.
+fn claude_commands(stdout: &str) -> Vec<String> {
+    let mut commands = Vec::new();
+    for value in stdout.lines().filter_map(|line| serde_json::from_str::<Value>(line).ok()) {
+        if value.get("type").and_then(Value::as_str) != Some("assistant") { continue; }
+        for part in value.pointer("/message/content").and_then(Value::as_array).into_iter().flatten() {
+            if part.get("type").and_then(Value::as_str) != Some("tool_use") { continue; }
+            if !matches!(part.get("name").and_then(Value::as_str), Some("Bash" | "PowerShell")) { continue; }
+            if let Some(command) = part.pointer("/input/command").and_then(Value::as_str) { commands.push(command.to_string()); }
+        }
+    }
+    commands
 }
 
 /// Harness-only path. The caller must supply synthetic text from a disposable
@@ -198,11 +215,22 @@ mod tests {
         let none = CallOptions::default();
         assert_eq!(claude_permission_args(true, &none), vec!["--permission-mode", "acceptEdits"]);
         assert_eq!(claude_permission_args(false, &none), vec!["--permission-mode", "plan"], "meetings and analysis stay in plan mode");
-        let granted = CallOptions { allowed: vec!["Bash(npm test)".into(), "Bash(npm test *)".into()], resume: Some("s1".into()), read_only_commands: false };
+        let granted = CallOptions { allowed: vec!["Bash(npm test)".into(), "Bash(npm test *)".into()], resume: Some("s1".into()), read_only_commands: false, ..CallOptions::default() };
         assert_eq!(claude_permission_args(true, &granted), vec!["--resume", "s1", "--permission-mode", "acceptEdits", "--allowedTools", "Bash(npm test)", "Bash(npm test *)"]);
         let qa = CallOptions { read_only_commands: true, ..granted.clone() };
         assert_eq!(claude_permission_args(false, &qa), vec!["--resume", "s1", "--permission-mode", "dontAsk", "--disallowedTools", "Write", "Edit", "MultiEdit", "NotebookEdit", "--allowedTools", "Bash(npm test)", "Bash(npm test *)"]);
         assert!(!claude_permission_args(false, &CallOptions { read_only_commands: false, ..granted }).contains(&"--allowedTools".to_string()), "plan mode never takes grants");
+    }
+
+    #[test]
+    fn executed_commands_are_read_from_tool_use_events() {
+        let stdout = [
+            r#"{"type":"assistant","message":{"content":[{"type":"text","text":"x"},{"type":"tool_use","name":"Bash","input":{"command":"npm test"}}]}}"#,
+            r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"a"}}]}}"#,
+            r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"PowerShell","input":{"command":"Get-ChildItem"}}]}}"#,
+            r#"{"type":"result","result":"done"}"#,
+        ].join("\n");
+        assert_eq!(claude_commands(&stdout), vec!["npm test", "Get-ChildItem"]);
     }
 
     #[test]

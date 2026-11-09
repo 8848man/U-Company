@@ -36,9 +36,23 @@ pub fn conversation(store: &Store, goal_id: &str) -> Result<String, String> {
     Ok(permissions::conversation_id(goal_id, &store.list::<Goal>("goal")?, &store.list::<GoalGuidance>("goal_guidance")?))
 }
 
+/// ADR-0063: safe grants are kept per project (`command_grant_project`, keyed by project ID).
+const PROJECT_GRANTS: &str = "command_grant_project";
+
+fn project_of(store: &Store, goal_id: &str) -> Result<Option<String>, String> {
+    Ok(store.get::<Goal>("goal", goal_id)?.and_then(|goal| goal.project_id))
+}
+
+/// The conversation's grants plus the safe grants of the goal's project (ADR-0063).
 pub fn grants(store: &Store, goal_id: &str) -> Result<Vec<Rule>, String> {
     let id = conversation(store, goal_id)?;
-    Ok(store.get::<CommandGrants>("command_grant", &id)?.map(|item| item.rules).unwrap_or_default())
+    let mut rules = store.get::<CommandGrants>("command_grant", &id)?.map(|item| item.rules).unwrap_or_default();
+    if let Some(project_id) = project_of(store, goal_id)? {
+        for rule in store.get::<CommandGrants>(PROJECT_GRANTS, &project_id)?.map(|item| item.rules).unwrap_or_default() {
+            if rule.class == "safe" && !rules.iter().any(|existing| existing.key() == rule.key()) { rules.push(rule); }
+        }
+    }
+    Ok(rules)
 }
 
 fn task_auto_grants(store: &Store, task: &Task) -> Result<Vec<Rule>, String> {
@@ -57,7 +71,15 @@ fn add_grants(store: &Store, goal_id: &str, rules: &[Rule]) -> Result<(), String
     let id = conversation(store, goal_id)?;
     let mut saved = store.get::<CommandGrants>("command_grant", &id)?.unwrap_or(CommandGrants { conversation_id: id.clone(), rules: Vec::new() });
     for rule in rules { if !saved.rules.iter().any(|existing| existing.key() == rule.key()) { saved.rules.push(rule.clone()); } }
-    store.put("command_grant", &id, &saved, None)
+    store.put("command_grant", &id, &saved, None)?;
+    // ADR-0063: safe rules the CEO approved also apply to later goals of the same project.
+    let safe: Vec<&Rule> = rules.iter().filter(|rule| rule.class == "safe").collect();
+    if let (Some(project_id), false) = (project_of(store, goal_id)?, safe.is_empty()) {
+        let mut project = store.get::<CommandGrants>(PROJECT_GRANTS, &project_id)?.unwrap_or(CommandGrants { conversation_id: project_id.clone(), rules: Vec::new() });
+        for rule in safe { if !project.rules.iter().any(|existing| existing.key() == rule.key()) { project.rules.push(rule.clone()); } }
+        store.put(PROJECT_GRANTS, &project_id, &project, None)?;
+    }
+    Ok(())
 }
 
 pub fn options_for(store: &Store, goal_id: &str, resume: Option<String>, read_only_commands: bool) -> Result<CallOptions, String> {
@@ -73,8 +95,16 @@ pub fn options_for_task(store: &Store, task: &Task, resume: Option<String>) -> R
 /// A line for the teammate's prompt naming what it may run (also useful to providers without grants).
 pub fn approved_note(store: &Store, goal_id: &str) -> Result<String, String> {
     let rules = grants(store, goal_id)?;
-    if rules.is_empty() { return Ok(String::new()); }
-    Ok(format!("\nCommands the CEO approved in this goal conversation (run these when the task needs them; other commands may be refused): {}", rules.iter().map(|rule| format!("`{}`", rule.prefix)).collect::<Vec<_>>().join(", ")))
+    let mut note = String::from("\nRun commands from the root of this folder; do not change directory outside it. Run project tools through package scripts (`npm test`, `npm run <script>`) rather than `npx`, which may download packages.");
+    if !rules.is_empty() { note.push_str(&format!("\nCommands the CEO approved (run these when the task needs them; other commands may be refused): {}", rules.iter().map(|rule| format!("`{}`", rule.prefix)).collect::<Vec<_>>().join(", "))); }
+    Ok(note)
+}
+
+/// ADR-0063: the commands a teammate's call actually ran, as a third-depth task event.
+pub fn record_commands_run(store: &Store, task: &Task, commands: &[String]) -> Result<(), String> {
+    if commands.is_empty() { return Ok(()); }
+    let text = commands.join(" / ").chars().take(2000).collect::<String>();
+    store.append_event(NewEvent::task("commands_run", task, &format!("{} ran: {text}", task.title)))
 }
 
 fn label(rule: &Rule) -> String { if rule.prefix.is_empty() { rule.tool.clone() } else { rule.prefix.clone() } }
@@ -223,7 +253,9 @@ pub fn settle_task_denials<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id
         let selected: Vec<String> = pending.iter().flat_map(|item| item.selected_rule_keys.clone()).collect();
         let rules: Vec<Rule> = permissions::rules_for_denials(&denials).into_iter().filter(|rule| selected.contains(&rule.key()) && !granted.iter().any(|item| item.key() == rule.key())).collect();
         let approved = if rules.iter().all(|rule| rule.class == "blocked") && !rules.is_empty() { false }
-            else if rules.is_empty() { true }
+            // ADR-0063: nothing to ask; resume only when grants now cover every refused line
+            // (a line of only read-only commands is never covered and is not retried).
+            else if rules.is_empty() { pending.iter().all(|item| item.denials.iter().all(|denial| permissions::covered(&granted, &denial.tool, &denial.command))) }
             else {
                 let snapshot = store.snapshot()?;
                 let mut names: Vec<String> = pending.iter().filter_map(|item| snapshot.tasks.iter().find(|task| task.id == item.task_id)).filter_map(|task| snapshot.agents.iter().find(|agent| agent.id == task.assignee_id).map(|agent| agent.name.clone())).collect();
@@ -260,6 +292,7 @@ fn resume_task<R: tauri::Runtime>(app: &tauri::AppHandle<R>, project: &Project, 
             if result.session_id.is_some() { task.session_id = result.session_id.clone(); }
             store.put("task", &task.id, &task, Some(NewEvent::task(if automatic { "task_resumed_auto" } else if pm_guidance.is_some() { "task_resumed_after_pm_review" } else { "task_resumed_with_commands" }, &task, if automatic { "Teammate continued with exact task-local command" } else if pm_guidance.is_some() { "Teammate continued within existing grants after PM review" } else { "Teammate continued with approved commands" })))?;
             record_task_denials(&store, &task, &result.permission_denials, record.resumes + 1)?;
+            record_commands_run(&store, &task, &result.commands_run)?;
             let _ = app.emit("state-changed", ());
             Ok(())
         }
@@ -351,5 +384,45 @@ mod pm_tests {
         assert!(parse_pm_decision(r#"{"action":"request_approval","reason":""}"#).is_err());
         assert!(parse_pm_decision(r#"{"action":"request_approval","reason":"필요함"}"#).is_err());
         assert_eq!(parse_pm_decision(r#"{"action":"request_approval","reason":"필요함","rule_keys":["Bash(node --test)"]}"#).unwrap().rule_keys, vec!["Bash(node --test)"]);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn store() -> (Store, std::path::PathBuf) {
+        let root = std::env::temp_dir().join(format!("ucompany-modes-{}", crate::model::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        (Store::open(&root.join("db.sqlite")).unwrap(), root)
+    }
+
+    fn goal(store: &Store, id: &str, project: &str, kind: &str) {
+        let goal: Goal = serde_json::from_value(serde_json::json!({ "id": id, "kind": kind, "projectId": project, "intent": "x", "status": "awaiting_approval", "report": "", "createdAt": "t" })).unwrap();
+        store.put("goal", id, &goal, None).unwrap();
+    }
+
+    #[test]
+    fn safe_grants_reach_later_goals_of_the_same_project_only() {
+        let (store, root) = store();
+        goal(&store, "a", "p1", "execution");
+        goal(&store, "b", "p1", "execution");
+        goal(&store, "c", "p2", "execution");
+        let rules = permissions::rules_for_denials(&[Denial { tool: "Bash".into(), command: "npm test && rm -rf dist".into() }]);
+        add_grants(&store, "a", &rules).unwrap();
+        let keys = |goal_id: &str| grants(&store, goal_id).unwrap().iter().map(Rule::key).collect::<Vec<_>>();
+        assert_eq!(keys("a"), vec!["Bash(npm test)", "Bash(rm -rf)"], "the conversation keeps every rule it granted");
+        assert_eq!(keys("b"), vec!["Bash(npm test)"], "only the safe rule reaches a later goal of the project");
+        assert!(keys("c").is_empty(), "nothing reaches another project");
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn approved_note_keeps_teammates_in_the_task_folder() {
+        let (store, root) = store();
+        goal(&store, "g", "p1", "execution");
+        let note = approved_note(&store, "g").unwrap();
+        assert!(note.contains("do not change directory outside it") && note.contains("rather than `npx`"));
+        let _ = std::fs::remove_dir_all(root);
     }
 }

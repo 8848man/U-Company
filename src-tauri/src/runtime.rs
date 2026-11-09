@@ -201,7 +201,7 @@ pub(crate) fn run_plugin(connection: &AiConnection, prompt: &str, cwd: &Path, wr
     let text = result.pointer("/result/text").and_then(Value::as_str).ok_or_else(|| format!("Plugin returned no result: {result}"))?.to_string();
     let usage = token_usage(&result);
     let permission_denials = result.pointer("/result/permissionDenials").and_then(Value::as_array).map(|items| items.iter().filter_map(|item| Some(crate::permissions::Denial { tool: item.get("tool")?.as_str()?.to_string(), command: item.get("command").and_then(Value::as_str).unwrap_or("").to_string() })).collect()).unwrap_or_default();
-    Ok(RuntimeResult { text, session_id: result.pointer("/result/sessionId").and_then(Value::as_str).map(str::to_string), usage, permission_denials })
+    Ok(RuntimeResult { text, session_id: result.pointer("/result/sessionId").and_then(Value::as_str).map(str::to_string), usage, permission_denials, commands_run: Vec::new() })
 }
 
 fn read_json_line(reader: &mut impl std::io::BufRead) -> Result<Value, String> {
