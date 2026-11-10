@@ -27,6 +27,7 @@ This index is the entry point for a new contributor or AI agent. Read the affect
 | Privileges, approvals, trust boundaries | [Security](security.md) |
 | Acceptance and regression checks | [Validation](validation.md) |
 | Implementation lifecycle | [Workflow](workflow.md) |
+| Rust development build storage and capacity gate | [Build storage](build-storage.md) |
 | Branches, pull request titles and summaries | [PR workflow](pr-workflow.md) |
 | Architecture rationale | [ADR index](architecture/decisions/00_index.md) |
 | Current implementation progress | [Worklog index](../worklog/00_index.md) |

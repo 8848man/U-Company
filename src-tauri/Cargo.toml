@@ -34,3 +34,18 @@ windows = { version = "=0.61.3", features = ["Win32_Foundation", "Win32_System_C
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
+
+# ADR-0071: keep useful line-number backtraces without full dependency symbols.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+# Opt in when stepping through dependency internals with a debugger.
+[profile.debugging]
+inherits = "dev"
+debug = true
+
+[profile.debugging.package."*"]
+debug = true
