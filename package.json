@@ -12,7 +12,12 @@
     "preview": "vite preview --config v4/vite.config.ts",
     "tauri": "tauri",
     "tauri:v4": "tauri dev",
+    "pretauri:v4": "node scripts/clean-rust-incremental.mjs && node scripts/report-rust-debug-size.mjs --record=tauri-start",
+    "posttauri:v4": "node scripts/clean-rust-incremental.mjs && node scripts/report-rust-debug-size.mjs --record=tauri-dev",
     "tauri:v4:build": "tauri build --no-bundle",
+    "pretauri:v4:build": "node scripts/clean-rust-incremental.mjs && node scripts/report-rust-debug-size.mjs --record=tauri-build-start",
+    "posttauri:v4:build": "node scripts/clean-rust-incremental.mjs && node scripts/report-rust-debug-size.mjs --record=tauri-build",
+    "rust:storage": "node scripts/report-rust-debug-size.mjs --record=manual",
     "test": "vitest run",
     "provider:test": "cargo run --locked --manifest-path src-tauri/Cargo.toml --bin provider-harness --"
   },

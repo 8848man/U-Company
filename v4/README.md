@@ -11,8 +11,9 @@ All commands run from the repository root after `npm install` (or `npm ci`). v4 
 | `npm run build:v4` | Type checks `v4/tsconfig.json`, then builds the `v4/index.html` → `v4/src/main.tsx` entry into `v4/dist`. |
 | `npm test -- v4/src/PresetSettings.test.tsx` | Runs the focused v4 screen flow tests. |
 | `npm run dev:v4` | Serves v4 with Vite at `http://127.0.0.1:1420` (browser only; engine commands need the desktop app). |
-| `npm run tauri:v4` | Opens the desktop app in development mode. Tauri runs `npm run dev:v4` and loads `http://127.0.0.1:1420`. |
-| `npm run tauri:v4:build` | Runs `npm run build:v4`, then compiles a release desktop binary that loads `../v4/dist` (relative to `src-tauri`). `--no-bundle` skips installers; the binary is in `src-tauri/target/release`. |
+| `npm run tauri:v4` | Opens the desktop app in development mode. Tauri runs `npm run dev:v4` and loads `http://127.0.0.1:1420`. Checks old Rust incremental caches and reports `debug` size before launch and after exit. |
+| `npm run tauri:v4:build` | Runs `npm run build:v4`, then compiles a release desktop binary that loads `../v4/dist` (relative to `src-tauri`). `--no-bundle` skips installers; the binary is in `src-tauri/target/release`. Checks old Rust incremental caches and reports `debug` size before and after the build. |
+| `npm run rust:storage` | Measures the current Rust `debug` output after a direct Cargo build or test. See the [build storage gate](../sdd/build-storage.md). |
 
 Port 1420 is strict, so stop any other `npm run dev`, `dev:v4` or Tauri dev session first. These commands only build and run locally; they do not deploy or publish anything.
 
