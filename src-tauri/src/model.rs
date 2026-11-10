@@ -169,6 +169,8 @@ pub struct Goal {
     /// integration_conflict, qa_failed, qa_form, provider or other. Never derived from model text.
     #[serde(default)]
     pub block_kind: String,
+    #[serde(default)]
+    pub repeat_block: bool,
 }
 
 pub fn default_goal_kind() -> String { "execution".into() }
@@ -658,6 +660,38 @@ pub struct TaskIntegrationProof {
     pub goal_id: String,
     pub files: Vec<FileDigest>,
     pub integrated_at: String,
+}
+
+/// Engine observations for an unchanged task. This is never an integration event.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskNoChangeProof {
+    pub task_id: String,
+    pub goal_id: String,
+    pub files: Vec<FileDigest>,
+    pub evidence: Vec<NoChangeObservation>,
+    pub checked_at: String,
+    #[serde(default)]
+    pub qa_round: Option<u32>,
+    #[serde(default)]
+    pub qa_passed: bool,
+    #[serde(default)]
+    pub qa_review_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockSignatureRecord {
+    pub goal_id: String,
+    pub signature: String,
+    pub at: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "kind")]
+pub enum NoChangeObservation {
+    Quote { file: String, quote: String },
+    Absence { pattern: String, files: Vec<String>, matches: usize },
 }
 
 /// A later approved task replaces one file's reuse verdict after integration.

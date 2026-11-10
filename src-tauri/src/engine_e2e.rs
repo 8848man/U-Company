@@ -55,6 +55,9 @@ pub(crate) fn harness(modes: &[&str]) -> Option<Harness> {
     let node = crate::discovery::find_executable("node").unwrap();
     let mut connection = crate::mock_ai::connection(&node, &crate::mock_ai::script_path(), &modes.iter().map(|m| m.to_string()).collect::<Vec<_>>()).unwrap();
     connection.args.extend(["--state".to_string(), dir.0.join("mock-state").to_string_lossy().into_owned()]);
+    if modes.iter().any(|mode| mode.starts_with("task-no-change-") || *mode == "task-mixed-failures") {
+        connection.args.extend(["--scenario".to_string(), crate::mock_ai::script_path().parent().unwrap().join("scenarios/no-change-workflow.json").to_string_lossy().into_owned()]);
+    }
     store.register_connection_and_assign_unassigned(&connection).unwrap();
     let app = tauri::test::mock_app();
     app.manage(store);
@@ -68,7 +71,7 @@ impl Harness {
     pub fn submit(&self, intent: &str) -> String {
         let store = self.store();
         let project: crate::model::Project = store.get("project", "selected").unwrap().unwrap();
-        let goal = Goal { id: crate::model::id(), kind: "execution".into(), project_id: Some(project.id), intent: intent.into(), status: "new".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(project.review_loop_limit), work_group: None, block_kind: String::new() };
+        let goal = Goal { id: crate::model::id(), kind: "execution".into(), project_id: Some(project.id), intent: intent.into(), status: "new".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(project.review_loop_limit), work_group: None, block_kind: String::new(), repeat_block: false };
         store.put("goal", &goal.id, &goal, None).unwrap();
         crate::engine::start(self.app.handle().clone(), goal.id.clone()).unwrap();
         goal.id
@@ -129,6 +132,87 @@ impl Harness {
 }
 
 const GOAL: &str = "할 일을 적고 완료 표시와 삭제를 할 수 있는 작은 웹앱을 만들어 주세요. 테스트도 함께요.";
+
+fn seed_unchanged_workflow(h: &Harness) {
+    let scenario: serde_json::Value = serde_json::from_slice(&std::fs::read(crate::mock_ai::script_path().parent().unwrap().join("scenarios/no-change-workflow.json")).unwrap()).unwrap();
+    std::fs::write(h.root.join("workflow.js"), scenario["files"]["workflow.js"].as_str().unwrap()).unwrap();
+    git(&h.root, &["add", "workflow.js"]);
+    git(&h.root, &["commit", "-q", "-m", "existing workflow"]);
+}
+
+#[test]
+fn unchanged_workflow_uses_engine_evidence_then_qa_and_runs_dependent_work() {
+    let Some(h) = harness(&["task-no-change-with-evidence"]) else { return };
+    seed_unchanged_workflow(&h);
+    let id = h.submit("없는 감사 코드를 확인하고 독립 업무와 후속 업무를 끝내 주세요");
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    h.wait(&id, &["completed"]);
+    let task = h.tasks(&id).into_iter().find(|task| task.files == ["workflow.js"]).unwrap();
+    let proof: crate::model::TaskNoChangeProof = h.store().get("task_no_change_proof", &task.id).unwrap().unwrap();
+    assert!(proof.qa_passed && proof.qa_round.is_some());
+    assert!(h.store().get::<crate::model::TaskIntegrationProof>("task_proof", &task.id).unwrap().is_none());
+    assert!(!h.store().snapshot().unwrap().events.iter().any(|event| event.task_id.as_deref() == Some(&task.id) && event.kind == "task_integrated"));
+    assert!(h.root.join("note.txt").exists() && h.root.join("done.txt").exists());
+}
+
+#[test]
+fn bare_no_change_keeps_other_independent_integration_and_can_resume_with_ceo_evidence() {
+    let Some(h) = harness(&["task-no-change-bare"]) else { return };
+    seed_unchanged_workflow(&h);
+    let id = h.submit("없는 감사 코드를 확인하고 독립 업무와 후속 업무를 끝내 주세요");
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    let blocked = h.wait(&id, &["blocked"]);
+    assert_eq!(blocked.block_kind, "no_changes");
+    assert!(h.root.join("note.txt").exists(), "independent work integrated despite the block");
+    assert!(!h.root.join("done.txt").exists(), "dependent work waits");
+    let task = h.tasks(&id).into_iter().find(|task| task.files == ["workflow.js"]).unwrap();
+    assert!(crate::engine::accept_no_change(h.app.handle().clone(), id.clone(), task.id.clone(), "function".into()).is_err(), "matching pattern is rejected");
+    crate::engine::accept_no_change(h.app.handle().clone(), id.clone(), task.id, "audit(".into()).unwrap();
+    h.wait(&id, &["completed"]);
+    assert!(h.root.join("done.txt").exists());
+}
+
+#[test]
+fn bad_no_change_evidence_stops_as_no_changes() {
+    let Some(h) = harness(&["task-no-change-bad-evidence"]) else { return };
+    seed_unchanged_workflow(&h);
+    let id = h.submit("없는 감사 코드를 확인해 주세요");
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    assert_eq!(h.wait(&id, &["blocked"]).block_kind, "no_changes");
+}
+
+#[test]
+fn mixed_integration_failures_keep_each_kind_and_choose_scope_priority() {
+    let Some(h) = harness(&["task-mixed-failures"]) else { return };
+    seed_unchanged_workflow(&h);
+    let id = h.submit("없는 감사 코드와 독립 파일을 확인해 주세요");
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    let blocked = h.wait(&id, &["blocked"]);
+    assert_eq!(blocked.block_kind, "needs_scope");
+    let records: Vec<crate::model::BlockSignatureRecord> = h.store().list("block_signature").unwrap();
+    let kinds = records.iter().filter(|record| record.goal_id == id).map(|record| serde_json::from_str::<serde_json::Value>(&record.signature).unwrap()["kind"].as_str().unwrap().to_string()).collect::<Vec<_>>();
+    assert!(kinds.contains(&"NoChanges".into()) && kinds.contains(&"ScopeViolation".into()), "{kinds:?}");
+    assert!(!h.root.join("outside.txt").exists());
+    assert_eq!(h.event_kinds(&id).iter().filter(|kind| *kind == "task_integration_failed").count(), 2);
+}
+
+#[test]
+fn a_second_saved_failure_signature_blocks_the_one_click_new_version() {
+    let Some(h) = harness(&["task-no-change-bare"]) else { return };
+    seed_unchanged_workflow(&h);
+    let id = h.submit("없는 감사 코드를 확인해 주세요");
+    h.wait(&id, &["awaiting_approval"]);
+    h.approve(&id);
+    assert_eq!(h.wait(&id, &["blocked"]).block_kind, "no_changes");
+    let first: crate::model::BlockSignatureRecord = h.store().list::<crate::model::BlockSignatureRecord>("block_signature").unwrap().into_iter().find(|record| record.goal_id == id && record.signature.contains("NoChanges")).unwrap();
+    h.store().put("block_signature", "second-saved-occurrence", &first, None).unwrap();
+    assert!(crate::engine::request_team_fix(h.app.handle().clone(), id.clone()).unwrap_err().contains("두 번"));
+    assert!(h.store().list::<crate::model::GoalGuidance>("goal_guidance").unwrap().into_iter().all(|guidance| guidance.goal_id != id));
+}
 
 #[test]
 fn a_sample_app_goal_runs_from_analysis_to_a_qa_passed_report() {

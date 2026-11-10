@@ -1,0 +1,42 @@
+{
+  "name": "no-change-workflow",
+  "summary": "없는 감사 코드를 확인하고 독립 작업을 끝내요",
+  "analysis": "workflow.js의 감사·알림 중복 여부를 확인하고 독립된 note.txt 작업을 마무리한다.",
+  "tasks": [
+    {
+      "title": "workflow.js에서 중복 감사 코드 제거",
+      "deliverable": "감사·알림 중복이 없는 workflow.js",
+      "instructions": "감사·알림 중복을 찾고 있으면 제거한다. 이미 없으면 관찰 근거를 낸다.",
+      "files": ["workflow.js"],
+      "acceptance": ["workflow.js에 audit 호출이 없다"],
+      "evidence": [],
+      "capability": "code",
+      "dependsOn": []
+    },
+    {
+      "title": "독립 안내 파일 작성",
+      "deliverable": "note.txt 안내 파일",
+      "instructions": "note.txt를 작성한다.",
+      "files": ["note.txt"],
+      "acceptance": ["note.txt가 존재한다"],
+      "evidence": [],
+      "capability": "document",
+      "dependsOn": []
+    },
+    {
+      "title": "확인 뒤 마무리 파일 작성",
+      "deliverable": "done.txt 마무리 파일",
+      "instructions": "workflow.js 확인이 끝난 뒤 done.txt를 작성한다.",
+      "files": ["done.txt"],
+      "acceptance": ["done.txt가 존재한다"],
+      "evidence": [],
+      "capability": "document",
+      "dependsOn": [0]
+    }
+  ],
+  "files": {
+    "workflow.js": "export function run(input) {\n  const value = String(input);\n  if (!value) return null;\n  const ready = value.trim();\n  if (!ready) return null;\n  const result = { ready };\n  result.ok = true;\n  return result;\n}\nexport const version = 1;\n",
+    "note.txt": "독립 안내 파일입니다.\n",
+    "done.txt": "확인 뒤 마무리했습니다.\n"
+  }
+}

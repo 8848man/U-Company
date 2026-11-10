@@ -164,6 +164,14 @@ export function respond(prompt, cwd, options, scenario, allowed = []) {
     }
     case 'implement': {
       const files = listAfter(prompt, 'change ONLY these declared files: ', '. The engine');
+      if (files.includes('workflow.js') && ([...options.modes].some(mode => mode.startsWith('task-no-change-')) || options.modes.has('task-mixed-failures'))) {
+        if (options.modes.has('task-no-change-bare') || options.modes.has('task-mixed-failures')) return 'workflow.js에서 바꿀 것이 없다고 생각합니다.';
+        return JSON.stringify({ outcome: 'no_change_needed', evidence: [{ pattern: options.modes.has('task-no-change-bad-evidence') ? 'function' : 'audit(', files: ['workflow.js'] }] });
+      }
+      if (files.includes('note.txt') && options.modes.has('task-mixed-failures')) {
+        writeFileSync(insideFolder(cwd, 'outside.txt'), '승인되지 않은 파일\n');
+        return '선언 범위 밖 파일을 썼습니다.';
+      }
       const written = [];
       const repair = prompt.includes(`\nTask: ${REPAIR_PREFIX}`);
       for (const file of files) {

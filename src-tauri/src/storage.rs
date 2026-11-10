@@ -199,7 +199,7 @@ impl Store {
         let project_id = old.project_id.clone().ok_or("기존 프로젝트를 확인할 수 없습니다")?;
         let registered: Option<String> = tx.query_row("SELECT payload FROM objects WHERE kind='project_entry' AND id=?1", [&project_id], |r| r.get(0)).optional().map_err(|e| e.to_string())?;
         if registered.is_none() { return Err("기존 프로젝트가 등록되어 있지 않습니다".into()); }
-        let revised = Goal { id: crate::model::id(), kind: "execution".into(), project_id: Some(project_id), intent: structured_intent, status: "new".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: old.review_loop_limit, work_group: old.work_group.clone(), block_kind: String::new() };
+        let revised = Goal { id: crate::model::id(), kind: "execution".into(), project_id: Some(project_id), intent: structured_intent, status: "new".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: old.review_loop_limit, work_group: old.work_group.clone(), block_kind: String::new(), repeat_block: false };
         tx.execute("INSERT INTO objects(kind,id,payload) VALUES('goal',?1,?2)", params![revised.id, serde_json::to_string(&revised).map_err(|e| e.to_string())?]).map_err(|e| e.to_string())?;
         guidance.status = "revised".into();
         guidance.replacement_goal_id = Some(revised.id.clone());
@@ -699,7 +699,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("utopia-turn-race-{}", crate::model::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let store = Arc::new(Store::open(&dir.join("state.sqlite")).unwrap());
-        let goal = Goal { id: "goal".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Ask the team".into(), status: "new".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(2), work_group: None, block_kind: String::new() };
+        let goal = Goal { id: "goal".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Ask the team".into(), status: "new".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(2), work_group: None, block_kind: String::new(), repeat_block: false };
         store.put("goal", &goal.id, &goal, None).unwrap();
         let mut meeting_goal = goal.clone();
         meeting_goal.id = "meeting-goal".into();
@@ -732,7 +732,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("utopia-guidance-race-{}", crate::model::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let store = Arc::new(Store::open(&dir.join("state.sqlite")).unwrap());
-        let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Original goal".into(), status: "validating".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(2), work_group: None, block_kind: String::new() };
+        let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Original goal".into(), status: "validating".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(2), work_group: None, block_kind: String::new(), repeat_block: false };
         store.put("goal", &goal.id, &goal, None).unwrap();
         let barrier = Arc::new(Barrier::new(3));
         let proposing = { let store = store.clone(); let barrier = barrier.clone(); std::thread::spawn(move || { barrier.wait(); store.propose_goal_guidance("g", "Change direction now", None, false).is_ok() }) };
@@ -755,7 +755,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("utopia-guidance-approval-{}", crate::model::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let store = Store::open(&dir.join("state.sqlite")).unwrap();
-        let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Original goal".into(), status: "awaiting_approval".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(2), work_group: None, block_kind: String::new() };
+        let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Original goal".into(), status: "awaiting_approval".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(2), work_group: None, block_kind: String::new(), repeat_block: false };
         store.put("goal", &goal.id, &goal, None).unwrap();
         let approval = Approval { id: "a".into(), goal_id: Some(goal.id), operation: "project_write".into(), reason: "Old files".into(), status: "pending".into(), created_at: crate::model::now() };
         store.put("approval", &approval.id, &approval, None).unwrap();
@@ -782,7 +782,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let store = Arc::new(Store::open(&dir.join("state.sqlite")).unwrap());
         store.select_project(&Project { id: "p".into(), path: "C:/test".into(), name: "Test".into(), kind: "git".into(), review_loop_limit: 3 }).unwrap();
-        let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Original goal".into(), status: "blocked".into(), report: String::new(), created_at: crate::model::now(), resumed_from: Some("executing".into()), review_loops_used: 1, review_loop_limit: Some(3), work_group: Some("Group".into()), block_kind: String::new() };
+        let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Original goal".into(), status: "blocked".into(), report: String::new(), created_at: crate::model::now(), resumed_from: Some("executing".into()), review_loops_used: 1, review_loop_limit: Some(3), work_group: Some("Group".into()), block_kind: String::new(), repeat_block: false };
         store.put("goal", &goal.id, &goal, None).unwrap();
         let guidance = GoalGuidance { id: "pivot".into(), goal_id: goal.id.clone(), text: "Change target".into(), status: "review_required".into(), created_at: crate::model::now(), checkpoint: Some("task wave".into()), replacement_goal_id: None, addressed_agent_id: None, worker_handoff: None, continuation: None, auto_continue: false };
         store.put("goal_guidance", &guidance.id, &guidance, None).unwrap();
@@ -811,7 +811,7 @@ mod tests {
         store.select_project(&Project { id: "p".into(), path: "C:/test".into(), name: "Test".into(), kind: "git".into(), review_loop_limit: 2 }).unwrap();
         let agent = Agent { id: "cto".into(), name: "CTO".into(), role: "CTO".into(), instructions: String::new(), reports_to: None, connection_id: String::new(), model_id: String::new(), x: 0, y: 0, enabled: true, external: None, appearance: None };
         store.put("agent", &agent.id, &agent, None).unwrap();
-        let done = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Original outcome".into(), status: "completed".into(), report: "QA passed".into(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 1, review_loop_limit: Some(2), work_group: None, block_kind: String::new() };
+        let done = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Original outcome".into(), status: "completed".into(), report: "QA passed".into(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 1, review_loop_limit: Some(2), work_group: None, block_kind: String::new(), repeat_block: false };
         store.put("goal", &done.id, &done, None).unwrap();
         let prior = Approval { id: "old".into(), goal_id: Some(done.id.clone()), operation: "project_write".into(), reason: "Original files".into(), status: "approved".into(), created_at: crate::model::now() };
         store.put("approval", &prior.id, &prior, None).unwrap();
@@ -879,7 +879,7 @@ mod tests {
         let path = dir.join("state.sqlite");
         {
             let store = Store::open(&path).unwrap();
-            let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Original approved scope".into(), status: "awaiting_approval".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(2), work_group: None, block_kind: String::new() };
+            let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Original approved scope".into(), status: "awaiting_approval".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(2), work_group: None, block_kind: String::new(), repeat_block: false };
             store.put("goal", &goal.id, &goal, None).unwrap();
             let guidance = GoalGuidance { id: "change".into(), goal_id: goal.id.clone(), text: "Change the deliverable".into(), status: "pending".into(), created_at: crate::model::now(), checkpoint: None, replacement_goal_id: None, addressed_agent_id: None, worker_handoff: None, continuation: None, auto_continue: false };
             store.put("goal_guidance", &guidance.id, &guidance, None).unwrap();
@@ -973,7 +973,7 @@ mod tests {
         {
             let store = Store::open(&path).unwrap();
             store.select_project(&first).unwrap();
-            let goal = Goal { id: "goal-a".into(), kind: "execution".into(), project_id: Some(first.id.clone()), intent: "Keep this goal in project one".into(), status: "new".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: Some("Release".into()), block_kind: String::new() };
+            let goal = Goal { id: "goal-a".into(), kind: "execution".into(), project_id: Some(first.id.clone()), intent: "Keep this goal in project one".into(), status: "new".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: Some("Release".into()), block_kind: String::new(), repeat_block: false };
             store.put("goal", &goal.id, &goal, None).unwrap();
             store.select_project(&second).unwrap();
         }
@@ -1014,7 +1014,7 @@ mod tests {
             let store = Store::open(&path).unwrap();
             let project = Project { id: "p".into(), path: "C:/project".into(), name: "Project".into(), kind: "git".into(), review_loop_limit: 4 };
             store.select_project(&project).unwrap();
-            let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "legacy goal".into(), status: "new".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new() };
+            let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "legacy goal".into(), status: "new".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new(), repeat_block: false };
             store.put("goal", "g", &goal, None).unwrap();
         }
         let store = Store::open(&path).unwrap();
@@ -1050,7 +1050,7 @@ mod tests {
         let path = dir.join("state.sqlite");
         {
             let store = Store::open(&path).unwrap();
-            let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: None, intent: "Implement a small feature".into(), status: "executing".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new() };
+            let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: None, intent: "Implement a small feature".into(), status: "executing".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new(), repeat_block: false };
             store.put("goal", "g", &goal, None).unwrap();
             let task = Task { id: "t".into(), goal_id: "g".into(), title: "Change a file".into(), instructions: String::new(), files: vec!["example.txt".into()], assignee_id: "developer-a".into(), status: "running".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
             store.put("task", "t", &task, None).unwrap();
@@ -1075,7 +1075,7 @@ mod tests {
         let path = dir.join("state.sqlite");
         {
             let store = Store::open(&path).unwrap();
-            let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: None, intent: "Two parallel tasks".into(), status: "awaiting_approval".into(), report: "CTO analysis".into(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new() };
+            let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: None, intent: "Two parallel tasks".into(), status: "awaiting_approval".into(), report: "CTO analysis".into(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new(), repeat_block: false };
             store.put("goal", "g", &goal, None).unwrap();
             let approval = Approval { id: "a".into(), goal_id: Some("g".into()), operation: "project_write".into(), reason: "Apply planned files".into(), status: "pending".into(), created_at: crate::model::now() };
             store.put("approval", "a", &approval, None).unwrap();
@@ -1103,7 +1103,7 @@ mod tests {
                 "CREATE TABLE objects (kind TEXT NOT NULL, id TEXT NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(kind,id));
                  CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, kind TEXT NOT NULL, goal_id TEXT, task_id TEXT, agent_id TEXT, message TEXT NOT NULL);"
             ).unwrap();
-            let goal = Goal { id: "legacy".into(), kind: "execution".into(), project_id: None, intent: "Preserve me".into(), status: "completed".into(), report: "done".into(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new() };
+            let goal = Goal { id: "legacy".into(), kind: "execution".into(), project_id: None, intent: "Preserve me".into(), status: "completed".into(), report: "done".into(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new(), repeat_block: false };
             let mut old_payload = serde_json::to_value(&goal).unwrap();
             old_payload.as_object_mut().unwrap().remove("kind");
             legacy.execute("INSERT INTO objects(kind,id,payload) VALUES('goal','legacy',?1)", [old_payload.to_string()]).unwrap();

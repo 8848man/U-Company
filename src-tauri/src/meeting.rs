@@ -240,7 +240,7 @@ pub fn start_from_home(store: &Store, topic: &str, transport: &dyn MeetingTransp
         let chair_info = ready.chair.clone().ok_or(ready.chair_reason.clone())?;
         let chair_agent = agents.iter().find(|agent| agent.id == chair_info.agent_id).ok_or("의장 팀원을 찾을 수 없습니다")?;
         let chair = snapshot_slot(chair_agent, &connections, "chair", "회의 의장", transport)?;
-        let goal = Goal { id: model::id(), kind: "deliberation".into(), project_id: Some(project.id.clone()), intent: topic.clone(), status: "deliberating".into(), report: String::new(), created_at: model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new() };
+        let goal = Goal { id: model::id(), kind: "deliberation".into(), project_id: Some(project.id.clone()), intent: topic.clone(), status: "deliberating".into(), report: String::new(), created_at: model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new(), repeat_block: false };
         let meeting = Meeting { id: model::id(), goal_id: goal.id.clone(), project_id: project.id.clone(), topic: topic.clone(), stage: "planning".into(), slots: vec![chair.clone()], sources: vec![], calls_used: 0, max_calls: HARD_CALL_CAP, package: None, decision: None, created_at: model::now(), updated_at: model::now(), active_stage: "planning".into(), block_reason: String::new(), blocked_at: String::new(), block_build: String::new(), use_source_snapshot: false, source_change_noted: false, scoped_grant: None, model_version: MODEL_VERSION, chair_agent_id: chair.id.clone(), plan: None, plan_approval: None, topic_summary: String::new() };
         let (packet, approval) = planning_packet(&meeting, &chair, &ready, 1)?;
         tx_put(tx, "goal", &goal.id, &goal)?;
@@ -1852,7 +1852,7 @@ mod tests {
         assert!(draft.contains("첫 권고"));
         assert_eq!(env.store.list::<Goal>("goal").unwrap().len(), goals);
         assert!(env.store.list::<Task>("task").unwrap().is_empty());
-        let submitted = Goal { id: model::id(), kind: "execution".into(), project_id: Some("project".into()), intent: "CEO edited draft".into(), status: "new".into(), report: String::new(), created_at: model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(2), work_group: None, block_kind: String::new() };
+        let submitted = Goal { id: model::id(), kind: "execution".into(), project_id: Some("project".into()), intent: "CEO edited draft".into(), status: "new".into(), report: String::new(), created_at: model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(2), work_group: None, block_kind: String::new(), repeat_block: false };
         assert!(submit_with_lineage(&env.store, &submitted, &planned.id, "wrong").is_err());
         submit_with_lineage(&env.store, &submitted, &planned.id, &package.sha256).unwrap();
         run(&env, &planned.id, &rebutting);
@@ -1960,7 +1960,7 @@ mod tests {
         for id in ["pm", "cto", "developer-a", "developer-b"] { assert!(busy.contains_key(id), "{id} reserved"); }
         let error = start_from_home(&env.store, "Second meeting while the first is running", &transport).unwrap_err();
         assert!(error.contains("의장"), "{error}");
-        let execution = Goal { id: "exec".into(), kind: "execution".into(), project_id: Some("project".into()), intent: "Build".into(), status: "validating".into(), report: String::new(), created_at: model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(2), work_group: None, block_kind: String::new() };
+        let execution = Goal { id: "exec".into(), kind: "execution".into(), project_id: Some("project".into()), intent: "Build".into(), status: "validating".into(), report: String::new(), created_at: model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(2), work_group: None, block_kind: String::new(), repeat_block: false };
         env.store.put("goal", "exec", &execution, None).unwrap();
         let ready = readiness(&env.store, &transport).unwrap();
         assert!(ready.members.iter().any(|member| member.agent_id == "qa" && member.reason.contains("실행 목표")));
@@ -2048,7 +2048,7 @@ mod tests {
     #[test]
     fn earlier_model_meetings_close_read_only_on_upgrade() {
         let env = setup();
-        let goal = Goal { id: "legacy-goal".into(), kind: "deliberation".into(), project_id: Some("project".into()), intent: "Legacy".into(), status: "deliberating".into(), report: String::new(), created_at: model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new() };
+        let goal = Goal { id: "legacy-goal".into(), kind: "deliberation".into(), project_id: Some("project".into()), intent: "Legacy".into(), status: "deliberating".into(), report: String::new(), created_at: model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new(), repeat_block: false };
         env.store.put("goal", &goal.id, &goal, None).unwrap();
         let legacy = json!({ "id": "legacy", "goalId": "legacy-goal", "projectId": "project", "topic": "Legacy meeting", "stage": "awaiting_transfer_approval", "slots": [], "sources": [], "callsUsed": 0, "maxCalls": 10, "package": null, "decision": null, "createdAt": model::now(), "updatedAt": model::now(), "activeStage": "proposing" });
         env.store.put("meeting", "legacy", &legacy, None).unwrap();

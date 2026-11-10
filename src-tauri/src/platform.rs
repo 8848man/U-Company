@@ -116,7 +116,53 @@ fn case_renames(before: &BTreeMap<LocalPathBuf, u64>, after: &BTreeMap<LocalPath
     pairs
 }
 
-pub fn integrate_folder_copy(root: &Path, workspace: &Path, allowed_files: &[String]) -> Result<Vec<String>, String> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IntegrationError {
+    NoChanges,
+    PatchConflict(String),
+    ScopeViolation(String),
+    ReuseMismatch(String),
+    Other(String),
+}
+
+impl std::fmt::Display for IntegrationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NoChanges => write!(f, "Task produced no file changes"),
+            Self::PatchConflict(message) | Self::ScopeViolation(message) | Self::ReuseMismatch(message) | Self::Other(message) => write!(f, "{message}"),
+        }
+    }
+}
+
+impl IntegrationError {
+    pub fn code(&self) -> &'static str {
+        match self { Self::NoChanges => "NoChanges", Self::PatchConflict(_) => "PatchConflict", Self::ScopeViolation(_) => "ScopeViolation", Self::ReuseMismatch(_) => "ReuseMismatch", Self::Other(_) => "Other" }
+    }
+
+    pub fn block_kind(&self) -> &'static str {
+        match self {
+            Self::NoChanges => "no_changes",
+            Self::PatchConflict(_) => "integration_conflict",
+            Self::ScopeViolation(_) => "needs_scope",
+            Self::ReuseMismatch(_) => "other",
+            Self::Other(_) => "other",
+        }
+    }
+
+    pub fn priority(&self) -> u8 {
+        match self { Self::ScopeViolation(_) => 0, Self::ReuseMismatch(_) => 1, Self::PatchConflict(_) => 2, Self::NoChanges => 3, Self::Other(_) => 4 }
+    }
+}
+
+impl From<String> for IntegrationError {
+    fn from(message: String) -> Self { Self::Other(message) }
+}
+
+impl From<&str> for IntegrationError {
+    fn from(message: &str) -> Self { Self::Other(message.into()) }
+}
+
+pub fn integrate_folder_copy(root: &Path, workspace: &Path, allowed_files: &[String]) -> Result<Vec<String>, IntegrationError> {
     let baseline = workspace.with_extension("baseline");
     let before = folder_files(&baseline)?;
     let after = folder_files(workspace)?;
@@ -133,19 +179,19 @@ pub fn integrate_folder_copy(root: &Path, workspace: &Path, allowed_files: &[Str
         let new = match after_name(&relative) { Some(name) => Some(std::fs::read(workspace.join(&name)).map_err(|e| e.to_string())?), None => None };
         if old == new { continue; }
         let label = relative.to_string_lossy().replace('\\', "/");
-        if !allowed_files.iter().any(|allowed| allowed.eq_ignore_ascii_case(&label)) { return Err(format!("Agent changed undeclared file: {label}")); }
+        if !allowed_files.iter().any(|allowed| allowed.eq_ignore_ascii_case(&label)) { return Err(IntegrationError::ScopeViolation(format!("Agent changed undeclared file: {label}"))); }
         check_target_parent(root, &relative)?;
         let destination = root.join(&relative);
         let current = match std::fs::symlink_metadata(&destination) {
-            Ok(meta) if meta.file_type().is_symlink() || !meta.is_file() => return Err(format!("대상 파일 형식이 바뀌었습니다: {label}")),
+            Ok(meta) if meta.file_type().is_symlink() || !meta.is_file() => return Err(IntegrationError::PatchConflict(format!("대상 파일 형식이 바뀌었습니다: {label}"))),
             Ok(_) => Some(std::fs::read(&destination).map_err(|e| e.to_string())?),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-            Err(e) => return Err(e.to_string()),
+            Err(e) => return Err(IntegrationError::Other(e.to_string())),
         };
-        if current != old { return Err(format!("프로젝트 파일이 작업 중 변경되어 통합을 중단했습니다: {label}")); }
+        if current != old { return Err(IntegrationError::PatchConflict(format!("프로젝트 파일이 작업 중 변경되어 통합을 중단했습니다: {label}"))); }
         changes.push((relative, new));
     }
-    if changes.is_empty() { return Err("Task produced no file changes".into()); }
+    if changes.is_empty() { return Err(IntegrationError::NoChanges); }
     let labels = changes.iter().map(|(path, _)| path.to_string_lossy().replace('\\', "/")).collect();
     for (relative, content) in changes {
         check_target_parent(root, &relative)?;
@@ -404,12 +450,12 @@ mod tests {
         prepare_folder_copy(&root, &a).unwrap();
         prepare_folder_copy(&root, &b).unwrap();
         std::fs::write(a.join("wrong.txt"), "bad").unwrap();
-        assert!(integrate_folder_copy(&root, &a, &["keep.txt".into()]).unwrap_err().contains("undeclared"));
+        assert!(integrate_folder_copy(&root, &a, &["keep.txt".into()]).unwrap_err().to_string().contains("undeclared"));
         assert!(!root.join("wrong.txt").exists());
         std::fs::remove_file(a.join("wrong.txt")).unwrap();
         std::fs::write(a.join("keep.txt"), "task a").unwrap();
         std::fs::write(root.join("keep.txt"), "user edit").unwrap();
-        assert!(integrate_folder_copy(&root, &a, &["keep.txt".into()]).unwrap_err().contains("변경"));
+        assert!(integrate_folder_copy(&root, &a, &["keep.txt".into()]).unwrap_err().to_string().contains("변경"));
         assert_eq!(std::fs::read_to_string(root.join("keep.txt")).unwrap(), "user edit");
         std::fs::write(b.join("new.txt"), "task b").unwrap();
         assert_eq!(integrate_folder_copy(&root, &b, &["new.txt".into()]).unwrap(), vec!["new.txt"]);

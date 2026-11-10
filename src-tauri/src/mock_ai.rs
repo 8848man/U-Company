@@ -5,7 +5,7 @@ use crate::model::AiConnection;
 use std::path::PathBuf;
 
 pub const CONNECTION_ID: &str = "mock-ai";
-pub const MODES: [&str; 20] = ["objective-achieved", "objective-bad", "objective-ceo", "qa-precondition", "qa-fail-always", "repair-criteria", "qa-fail-once", "plan-form-once", "needs-scope-once", "repair-no-change", "needs-permission-once", "qa-needs-permission-once", "plan-commands", "needs-auto-read-once", "needs-auto-remove-once", "qa-needs-auto-read-once", "pm-continue-without", "pm-extra-denial", "pm-malformed", "pm-retry-existing"];
+pub const MODES: [&str; 24] = ["objective-achieved", "objective-bad", "objective-ceo", "qa-precondition", "qa-fail-always", "repair-criteria", "qa-fail-once", "plan-form-once", "needs-scope-once", "repair-no-change", "needs-permission-once", "qa-needs-permission-once", "plan-commands", "needs-auto-read-once", "needs-auto-remove-once", "qa-needs-auto-read-once", "pm-continue-without", "pm-extra-denial", "pm-malformed", "pm-retry-existing", "task-no-change-with-evidence", "task-no-change-bad-evidence", "task-no-change-bare", "task-mixed-failures"];
 
 /// The adapter script shipped in this repository (development and test builds run from the checkout).
 pub fn script_path() -> PathBuf {

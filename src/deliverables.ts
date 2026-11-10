@@ -27,6 +27,7 @@ export const blockKindLabels: Record<BlockKind, string> = {
   approval_denied: 'CEO가 변경 범위를 거절함',
   interrupted: '앱 종료로 실행 결과를 알 수 없음',
   integration_conflict: '파일 통합 충돌 · 원본 보존',
+  no_changes: '변경할 파일 없음 · 확인 필요',
   qa_failed: 'QA 실패 · 다시 고치기 횟수를 다 씀',
   needs_scope: '재작업에 새 파일 필요 · 범위 승인 필요',
   qa_form: 'QA 판정 형식 오류 · 완료 처리 안 함',
