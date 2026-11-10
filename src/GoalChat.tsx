@@ -48,6 +48,7 @@ type Props = {
   onRetry: () => Promise<boolean>; onResume: () => Promise<boolean>;
   /** ADR-0048: one-click `해결 요청` on a blocked goal (`request_team_fix`). */
   onRequestFix?: () => Promise<boolean>;
+  onAcceptNoChange?: (taskId: string, pattern: string) => Promise<boolean>;
   onDecide: (approvalId: string, approved: boolean, squadDigest: string | null) => Promise<boolean>;
   /** ADR-0054: optional result summary of a finished goal and a way to open its folder (v3). */
   result?: GoalResult | null; onOpenFolder?: () => void;
@@ -82,7 +83,7 @@ type StreamItem =
 /** v3 goal conversation (ADR-0046): the goal, stage lines, plan cards and recovery in one stream, with a progress line. */
 export function GoalChat(props: Props) {
   const { result = null, onOpenFolder, commandRequests = [], onDecideCommands, permissionMode = 'manual', permissionModeOverride = 'inherit', onSetPermissionMode, criteriaRequests = [], onDecideCriteria, objective = null, onResumeConversation, onReopenConversation } = props;
-  const { goal, projectKind, focusTaskId = null, turns: chainTurns, guidance, earlier = [], agents, connections, tasks, approvals, events, usage, reviews, runBlock, squad, squads, summary, goalOrigins, projects, layout = 'dialog', onClose, onSend, onArchive, onRevision, onOpenGoal, onRetry, onResume, onRequestFix, onDecide, onRevise, onCancel, onRestart, onSwapSquad, onAddSquad, onOpenConnections, onOpenOffice, onOpenTeam, onOpenProject, onError, onPreviewGit, onBootstrapGit } = props;
+  const { goal, projectKind, focusTaskId = null, turns: chainTurns, guidance, earlier = [], agents, connections, tasks, approvals, events, usage, reviews, runBlock, squad, squads, summary, goalOrigins, projects, layout = 'dialog', onClose, onSend, onArchive, onRevision, onOpenGoal, onRetry, onResume, onRequestFix, onAcceptNoChange, onDecide, onRevise, onCancel, onRestart, onSwapSquad, onAddSquad, onOpenConnections, onOpenOffice, onOpenTeam, onOpenProject, onError, onPreviewGit, onBootstrapGit } = props;
   const turns = chainTurns.filter(turn => turn.goalId === goal.id);
   // ADR-0063: the conversation's opt-in allow-all mode (red band, banner, plan-card switch).
   // ADR-0051: earlier versions of this goal read as the top of the same conversation.
@@ -93,6 +94,7 @@ export function GoalChat(props: Props) {
   const [improving, setImproving] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [working, setWorking] = useState(false);
+  const [absencePattern, setAbsencePattern] = useState('');
   // '지금 할 일' shows only its title above the composer; the full card opens as a dialog so the chat stays usable.
   const [todoOpen, setTodoOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -125,6 +127,7 @@ export function GoalChat(props: Props) {
   // The decision that needs the CEO now, outside the plan card: start, recovery or a guidance review.
   const decision = recovery && recovery.kind !== 'approval' ? recovery : null;
   const fix = decision?.kind === 'revision' ? teamFixRoute(goal, tasks, approvals, guidance) : null;
+  const noChangeTask = goal.blockKind === 'no_changes' ? tasks.find(task => task.goalId === goal.id && task.status === 'awaiting_integration') : undefined;
   const fixReceiverName = fixReceiver(goal.id, squads, agents);
   const coverage = requirementCoverage(props.references ?? [], tasks.filter(task => task.goalId === goal.id));
   const convState = conversationState(versions, objective);
@@ -287,10 +290,12 @@ export function GoalChat(props: Props) {
         {providerHint && <p className="chat-decision-hint">AI 연결: {providerHint}</p>}
         {runBlock && (decision.kind === 'retry' || decision.kind === 'resume') && <p className="chat-decision-hint">실행 전 확인: {runBlock.title} · {runBlock.reason} {runBlock.next}</p>}
         {fix && <p className="chat-decision-hint gc-fix-note">{fix.note}</p>}
+        {noChangeTask && onAcceptNoChange && <div className="gc-no-change-check"><label>없어야 하는 코드나 문구 <input value={absencePattern} maxLength={200} onChange={event => setAbsencePattern(event.target.value)} placeholder="예: audit(" /></label><small>앱이 선언 파일 {noChangeTask.files.join(', ')}에서 직접 다시 찾습니다. 검색 결과는 QA 판정의 자료로만 씁니다.</small></div>}
         <div className="chat-decision-actions">
           {decision.kind === 'retry' && <button type="button" className="primary" disabled={working || Boolean(runBlock)} onClick={() => void guarded(onRetry)}>분석 다시 실행 →</button>}
           {decision.kind === 'resume' && <button type="button" className="primary" disabled={working || Boolean(runBlock)} onClick={() => void guarded(onResume)}>승인된 계획 실행 →</button>}
-          {fix && onRequestFix && (fix.route === 'repair' || fix.route === 'revision') && <button type="button" className="primary" disabled={working} onClick={() => void guarded(async () => { const ok = await onRequestFix(); if (ok) { setTodoOpen(false); scrollDown(); } return ok; })}>{working ? '요청하는 중…' : `${fixReceiverName}에게 해결 요청 →`}</button>}
+          {noChangeTask && onAcceptNoChange && <button type="button" className="primary" disabled={working || !absencePattern.trim()} onClick={() => void guarded(async () => { const ok = await onAcceptNoChange(noChangeTask.id, absencePattern); if (ok) { setTodoOpen(false); scrollDown(); } return ok; })}>근거 확인 후 충족 처리 →</button>}
+          {fix && onRequestFix && (fix.route === 'repair' || fix.route === 'revision') && <button type="button" className={goal.blockKind === 'no_changes' ? 'secondary' : 'primary'} disabled={working} onClick={() => void guarded(async () => { const ok = await onRequestFix(); if (ok) { setTodoOpen(false); scrollDown(); } return ok; })}>{working ? '요청하는 중…' : goal.blockKind === 'no_changes' ? '재계획 요청 →' : `${fixReceiverName}에게 해결 요청 →`}</button>}
           {fix?.route === 'connections' && !providerHint && <button type="button" className="primary" onClick={onOpenConnections}>AI 연결 열기 →</button>}
           {decision.kind === 'revision' && <button type="button" className={fix && onRequestFix && fix.route !== 'direct' ? 'secondary' : 'primary'} onClick={focusComposer}>직접 지시하기</button>}
           {decision.kind === 'guidance' && activeGuidance?.status === 'review_required' && (!activeGuidance.autoContinue || autoContinuationFailure) && <button type="button" className="primary" onClick={() => revisionRef.current?.scrollIntoView({ block: 'nearest' })}>새 목표 내용 검토 →</button>}

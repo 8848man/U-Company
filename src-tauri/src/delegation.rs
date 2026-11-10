@@ -28,7 +28,7 @@ const MARK_OPEN: &str = "⟦";
 const MARK_CLOSE: &str = "⟧ ";
 /// `plan_form` (ADR-0048): the planner's plan failed the app's format checks twice in a row.
 /// `criteria_blocked` (ADR-0060): the CEO stopped at a criteria card.
-pub const BLOCK_KINDS: [&str; 11] = ["precall", "approval_denied", "interrupted", "integration_conflict", "qa_failed", "needs_scope", "qa_form", "plan_form", "provider", "criteria_blocked", "other"];
+pub const BLOCK_KINDS: [&str; 12] = ["precall", "approval_denied", "interrupted", "no_changes", "integration_conflict", "qa_failed", "needs_scope", "qa_form", "plan_form", "provider", "criteria_blocked", "other"];
 
 /// Tags an engine-generated error with its block kind. Only engine code calls this; model text is
 /// never parsed for a kind because provider errors are passed through `provider` sites.
@@ -433,7 +433,7 @@ mod tests {
         store.select_project(&project).unwrap();
         for item in team().1 { store.put("connection", &item.id.clone(), &item, None).unwrap(); }
         for item in team().0 { store.put("agent", &item.id.clone(), &item, None).unwrap(); }
-        let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Launch docs".into(), status: "executing".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new() };
+        let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Launch docs".into(), status: "executing".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new(), repeat_block: false };
         store.put("goal", "g", &goal, None).unwrap();
         store.put("approval", "a", &Approval { id: "a".into(), goal_id: Some("g".into()), operation: "project_write".into(), reason: String::new(), status: "approved".into(), created_at: crate::model::now() }, None).unwrap();
         let mut ids = Vec::new();
@@ -471,7 +471,7 @@ mod tests {
         connection.status = "ready".into();
         store2.put("connection", "cli2", &connection, None).unwrap();
         // developer-b reserved by another goal's pending task
-        let other = Goal { id: "other".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Other".into(), status: "executing".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new() };
+        let other = Goal { id: "other".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Other".into(), status: "executing".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new(), repeat_block: false };
         store2.put("goal", "other", &other, None).unwrap();
         let mut foreign: Task = store2.get("task", &ids2[1]).unwrap().unwrap();
         foreign.id = "foreign".into(); foreign.goal_id = "other".into();

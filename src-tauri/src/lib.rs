@@ -422,7 +422,7 @@ fn set_reference_caption(id: String, caption: String, store: tauri::State<'_, St
 fn submit_goal(intent: String, lineage_meeting_id: Option<String>, lineage_package_sha256: Option<String>, reference_ids: Option<Vec<String>>, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<Goal, String> {
     if intent.trim().len() < 10 { return Err("Describe the goal in at least 10 characters".into()); }
     let project: Project = store.get("project", "selected")?.ok_or("먼저 프로젝트 폴더를 선택해 주세요")?;
-    let goal = Goal { id: model::id(), kind: "execution".into(), project_id: Some(project.id), intent: intent.trim().into(), status: "new".into(), report: String::new(), created_at: model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(project.review_loop_limit), work_group: None, block_kind: String::new() };
+    let goal = Goal { id: model::id(), kind: "execution".into(), project_id: Some(project.id), intent: intent.trim().into(), status: "new".into(), report: String::new(), created_at: model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(project.review_loop_limit), work_group: None, block_kind: String::new(), repeat_block: false };
     match (lineage_meeting_id, lineage_package_sha256) {
         (Some(meeting_id), Some(sha)) => meeting::submit_with_lineage(&store, &goal, &meeting_id, &sha)?,
         (None, None) => store.put("goal", &goal.id, &goal, Some(NewEvent::goal("goal_created", &goal, "CEO goal received")))?,
@@ -623,6 +623,11 @@ fn send_goal_message(goal_id: String, agent_id: String, message: String, store: 
 #[tauri::command]
 fn request_team_fix(goal_id: String, app: tauri::AppHandle) -> Result<GoalTurn, String> {
     engine::request_team_fix(app, goal_id)
+}
+
+#[tauri::command]
+fn accept_no_change(goal_id: String, task_id: String, pattern: String, app: tauri::AppHandle) -> Result<(), String> {
+    engine::accept_no_change(app, goal_id, task_id, pattern)
 }
 
 #[tauri::command]
@@ -989,7 +994,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, add_mock_connection, get_goal_result, get_block_stats, open_project_folder, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, request_team_fix, stage_text_reference, stage_image_reference, discard_reference, set_reference_caption, set_reference_role, set_curator_enabled, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, decide_command_permission, set_permission_mode, decide_criteria, resume_conversation, reopen_conversation, revise_plan, cancel_goal, get_tech_presets, save_tech_preset_draft, preview_tech_preset_ai_draft, approve_tech_preset_ai_draft, refuse_tech_preset_ai_draft, preview_tech_preset, select_tech_preset, get_plan_preset_snapshot, restore_plan_preset_definitions, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
+        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, add_mock_connection, get_goal_result, get_block_stats, open_project_folder, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, request_team_fix, accept_no_change, stage_text_reference, stage_image_reference, discard_reference, set_reference_caption, set_reference_role, set_curator_enabled, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, decide_command_permission, set_permission_mode, decide_criteria, resume_conversation, reopen_conversation, revise_plan, cancel_goal, get_tech_presets, save_tech_preset_draft, preview_tech_preset_ai_draft, approve_tech_preset_ai_draft, refuse_tech_preset_ai_draft, preview_tech_preset, select_tech_preset, get_plan_preset_snapshot, restore_plan_preset_definitions, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
         .run(tauri::generate_context!())
         .expect("error while running AI Organization OS");
 }

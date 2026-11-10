@@ -4,6 +4,7 @@ const revisionExplanation: Record<string, string> = {
   approval_denied: '거절은 기록되었고 같은 범위를 자동으로 다시 요청하지 않습니다. 범위를 바꾸려면 CEO 지침으로 새 목표 버전을 만들어 계획과 승인을 다시 받습니다.',
   interrupted: '앱이 실행 중에 종료되어 작업 결과를 알 수 없습니다. 격리 작업공간에 일부 변경이 남았을 수 있어 자동으로 다시 실행하거나 통합하지 않습니다. 기록을 확인한 뒤 새 목표 버전으로 이어 갑니다.',
   integration_conflict: '원래 프로젝트 파일은 덮어쓰지 않았습니다. 충돌한 파일과 기존 통합 기록을 확인한 뒤 새 목표 버전에서 범위를 다시 승인받습니다.',
+  no_changes: '작업이 선언 파일을 바꾸지 않았습니다. 없는 코드나 이미 있는 결과를 확인한 뒤 충족 처리하면 기존 승인 범위로 이어가고, 재계획하면 새 목표 버전의 계획을 승인합니다.',
   qa_failed: 'QA 근거와 실패한 산출물은 보존했습니다. 정한 횟수만큼 다시 고쳤지만 통과하지 못해 CEO의 결정이 필요합니다.',
   needs_scope: '재작업에 승인되지 않은 새 파일이 필요합니다. 해결을 요청하면 이 대화에서 다음 계획 버전을 세우고, 바뀐 범위를 계획 카드에서 승인받습니다.',
   qa_form: 'QA가 산출물별 판정을 형식에 맞게 내지 않아 완료로 처리하지 않았습니다. 재작업 횟수는 쓰지 않았습니다. 새 목표 버전에서 QA를 다시 받습니다.',
@@ -29,7 +30,7 @@ export function goalRecovery(goal: Goal, tasks: Task[], approvals: Approval[], g
   if (goal.status === 'blocked' && ownedTasks.some(task => task.status === 'pending') && ownedTasks.every(task => task.status === 'pending' || task.status === 'completed') && ownedApprovals.some(approval => approval.operation === 'project_write' && approval.status === 'approved'))
     return { kind: 'resume', label: '승인된 계획 이어서 실행', explanation: goal.blockKind === 'precall' ? '호출 전 확인에서 멈춰 AI 호출은 없었습니다. 원인(연결·팀원 상태)을 고친 뒤 승인된 범위의 미시작 업무만 실행합니다. 엔진이 시작 전에 다시 확인합니다.' : '승인된 파일 범위와 아직 시작하지 않은 업무를 그대로 실행합니다. 통합된 업무는 다시 실행하지 않습니다.' };
   // ADR-0048: the card's main action is the one-click fix request, except where only the CEO or a connection can help.
-  const label = goal.blockKind === 'approval_denied' ? '수정 지침으로 새 목표 만들기' : goal.blockKind === 'provider' || goal.blockKind === 'precall' ? 'AI 연결 확인' : '팀원에게 해결 요청';
+  const label = goal.blockKind === 'no_changes' ? '변경 없는 작업 확인' : goal.blockKind === 'approval_denied' ? '수정 지침으로 새 목표 만들기' : goal.blockKind === 'provider' || goal.blockKind === 'precall' ? 'AI 연결 확인' : '팀원에게 해결 요청';
   return { kind: 'revision', label, explanation: revisionExplanation[goal.blockKind ?? ''] ?? '이 단계의 기존 AI 세션은 자동 재개할 수 없습니다. 기존 작업과 오류를 검토한 뒤 CEO 지침으로 새 목표 버전을 만들고 계획·승인을 다시 받습니다.' };
 }
 
@@ -41,6 +42,8 @@ export type TeamFix = { route: 'repair' | 'revision'; note: string } | { route: 
 
 export function teamFixRoute(goal: Goal, tasks: Task[], approvals: Approval[], guidance: GoalGuidance[]): TeamFix {
   const kind = goal.blockKind ?? '';
+  if (goal.repeatBlock) return { route: 'direct', note: '같은 파일에서 같은 차단이 두 번 반복됐어요. 자동 재계획 대신 현재 근거를 확인하거나 직접 지시해 주세요.' };
+  if (kind === 'no_changes') return { route: 'revision', note: '재계획하면 바꿀 것이 없었다는 기록을 다음 계획에 넘기고 새 파일 작업은 다시 승인받아요.' };
   if (kind === 'provider' || kind === 'precall') return { route: 'connections', note: 'AI 연결이나 팀원 상태 문제라 팀원이 고칠 수 없어요. 연결을 확인해 주세요.' };
   if (kind === 'approval_denied') return { route: 'direct', note: '거절한 범위예요. 무엇을 바꿀지 직접 적어 주세요.' };
   const owned = tasks.filter(task => task.goalId === goal.id);

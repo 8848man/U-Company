@@ -22,6 +22,7 @@ pub fn route(goal: &Goal, tasks: &[Task], approvals: &[Approval], guidance: &[Go
     if goal.kind != "execution" { return FixRoute::Refused("회의 목표는 회의 화면에서 이어 가 주세요".into()); }
     if goal.status != "blocked" { return FixRoute::Refused("멈춘 목표가 아닙니다. 화면을 새로고침해 주세요".into()); }
     if goal.project_id.is_none() { return FixRoute::Refused("프로젝트가 연결되지 않은 목표입니다".into()); }
+    if goal.repeat_block { return FixRoute::Refused("같은 파일에서 같은 문제가 두 번 반복됐습니다. 자동 재계획 대신 충족 처리 근거를 확인하거나 직접 지시해 주세요".into()); }
     let own_guidance: Vec<&GoalGuidance> = guidance.iter().filter(|item| item.goal_id == goal.id).collect();
     if own_guidance.iter().any(|item| ["pending", "review_required"].contains(&item.status.as_str())) { return FixRoute::Refused("검토 중인 방향 변경이 있습니다. 대화에서 먼저 확인해 주세요".into()); }
     if own_guidance.iter().any(|item| item.status == "revised" && item.replacement_goal_id.is_some()) { return FixRoute::Refused("이 목표는 이미 새 버전으로 이어졌습니다. 새 버전을 열어 주세요".into()); }
@@ -51,6 +52,11 @@ pub fn limit_after_click(used: u32, limit: u32) -> Option<u32> {
 pub fn brief(goal: &Goal, reviews: &[DeliverableReview], tasks: &[Task]) -> String {
     let reason = goal.report.strip_prefix("Blocked: ").unwrap_or(&goal.report).trim();
     let mut lines = vec![format!("멈춘 이유: {}", reason.chars().take(600).collect::<String>())];
+    if goal.block_kind == "no_changes" {
+        for task in tasks.iter().filter(|task| task.goal_id == goal.id && task.status == "awaiting_integration") {
+            lines.push(format!("작업 {}는 파일 {}에서 바꿀 것이 없었음. 같은 파일에 새 수정 작업을 만들려면 현재 결함의 코드 인용 또는 실패하는 테스트를 붙이세요.", task.title, task.files.join(", ")));
+        }
+    }
     let own: Vec<&DeliverableReview> = reviews.iter().filter(|item| item.goal_id == goal.id).collect();
     if let Some(round) = own.iter().map(|item| item.round).max() {
         let mut failed = Vec::new();
@@ -81,6 +87,16 @@ mod tests {
     }
     fn approved() -> Vec<Approval> {
         vec![Approval { id: "a".into(), goal_id: Some("g".into()), operation: "project_write".into(), reason: String::new(), status: "approved".into(), created_at: "t".into() }]
+    }
+    #[test]
+    fn no_changes_brief_names_the_saved_task_and_repeated_block_refuses_auto_revision() {
+        let goal = goal("no_changes", "executing");
+        let task = task("t1", "awaiting_integration");
+        let brief = brief(&goal, &[], std::slice::from_ref(&task));
+        assert!(brief.contains("바꿀 것이 없었음") && brief.contains("현재 결함"));
+        assert_eq!(route(&goal, std::slice::from_ref(&task), &approved(), &[]), FixRoute::Revision);
+        let repeated = Goal { repeat_block: true, ..goal };
+        assert!(matches!(route(&repeated, &[task], &approved(), &[]), FixRoute::Refused(_)));
     }
 
     #[test]

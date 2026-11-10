@@ -75,3 +75,4 @@ Rows are in ID order. Each ADR starts with its title, a `Status:` line, and a `D
 | [ADR-0069](ADR-0069.md) | Retire the v1 and v2 frontends; v4 is the default app and keeps the v2 shell parts in `src/shell/` | Accepted |
 | [ADR-0070](ADR-0070.md) | External adapter protocol: optional progress events, cancel request and declared resume (v1 compatible) | Accepted |
 | [ADR-0071](ADR-0071.md) | Reduce development debug information and measure whether build storage is sufficient | Accepted; build-size verification pending |
+| [ADR-0072](ADR-0072.md) | Verify unchanged task evidence, keep partial integration, and stop repeated fix revisions | Accepted; implemented, Windows QA pending |

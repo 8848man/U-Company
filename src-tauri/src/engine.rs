@@ -1,4 +1,4 @@
-use crate::model::{Agent, AiConnection, Approval, ContinuationDecision, FileDigest, Goal, GoalGuidance, GoalTurn, Project, Snapshot, Squad, Task, TaskIntegrationProof, TokenUsageRecord};
+use crate::model::{Agent, AiConnection, Approval, ContinuationDecision, FileDigest, Goal, GoalGuidance, GoalTurn, NoChangeObservation, Project, Snapshot, Squad, Task, TaskIntegrationProof, TaskNoChangeProof, TokenUsageRecord};
 use crate::squad;
 use crate::delegation;
 use crate::platform;
@@ -294,12 +294,50 @@ pub fn resume_approved<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_id: Str
     let analysis = store.get::<String>("goal_analysis", &goal_id)?.unwrap_or_else(|| goal.report.clone());
     let mut resumed = goal.clone();
     resumed.block_kind.clear();
+    resumed.repeat_block = false;
     store.put("goal", &goal_id, &resumed, None)?;
     transition_goal(&app, &goal_id, "executing", "Approved plan resumed; unfinished tasks had not started")?;
     thread::spawn(move || {
         if let Err(error) = execute_planned(&app, &goal_id, &project, &goal, &analysis, &snapshot) {
             block_goal(&app, &goal_id, &error);
         }
+    });
+    Ok(())
+}
+
+/// CEO supplies a literal absence pattern; the engine reruns it in every declared file.
+/// The observation does not judge the deliverable. The existing approved plan resumes before QA.
+pub fn accept_no_change<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_id: String, task_id: String, pattern: String) -> Result<(), String> {
+    let store = app.state::<Store>();
+    let goal: Goal = store.get("goal", &goal_id)?.ok_or("목표를 찾을 수 없습니다")?;
+    if goal.status != "blocked" || goal.block_kind != "no_changes" { return Err("변경 없음으로 멈춘 목표가 아닙니다".into()); }
+    let mut task: Task = store.get("task", &task_id)?.ok_or("작업을 찾을 수 없습니다")?;
+    if task.goal_id != goal_id || task.status != "awaiting_integration" { return Err("변경 없음 확인을 기다리는 작업이 아닙니다".into()); }
+    if pattern.is_empty() || pattern.len() > 200 { return Err("찾을 문자열을 1~200자로 입력해 주세요".into()); }
+    let snapshot = store.snapshot()?;
+    let project = project_for_goal(&snapshot, &goal)?;
+    let root = PathBuf::from(&project.path);
+    let worktree = Path::new(task.worktree.as_deref().ok_or("격리 작업공간이 없습니다")?);
+    if !workspace_changes(worktree, &project.kind)?.is_empty() { return Err("격리 작업공간에 변경이 있어 변경 없음으로 처리할 수 없습니다".into()); }
+    for file in &task.files { approved_task_file(&store, &task, file)?; }
+    let mut observation = task.clone();
+    observation.result = serde_json::json!({"outcome":"no_change_needed","evidence":[{"pattern":pattern,"files":task.files.clone()}]}).to_string();
+    let proof = verified_no_change_report(&root, &observation).ok_or("선언 파일에서 검색을 다시 실행했지만 부재 근거를 확인하지 못했습니다")?;
+    complete_no_change_task(&store, &mut task, Some(proof)).map_err(|error| error.to_string())?;
+    let remaining: Vec<Task> = store.list::<Task>("task")?.into_iter().filter(|item| item.goal_id == goal_id && item.status != "completed").collect();
+    if remaining.iter().any(|item| item.status != "pending") {
+        let _ = app.emit("state-changed", ());
+        return Ok(());
+    }
+    if !remaining.is_empty() { return resume_approved(app, goal_id); }
+    let analysis = store.get::<String>("goal_analysis", &goal_id)?.unwrap_or_else(|| goal.report.clone());
+    let mut resumed = goal.clone();
+    resumed.block_kind.clear();
+    resumed.repeat_block = false;
+    store.put("goal", &goal_id, &resumed, None)?;
+    transition_goal(&app, &goal_id, "executing", "Unchanged observation checked; independent QA resumes")?;
+    thread::spawn(move || {
+        if let Err(error) = execute_planned(&app, &goal_id, &project, &goal, &analysis, &snapshot) { block_goal(&app, &goal_id, &error); }
     });
     Ok(())
 }
@@ -371,6 +409,7 @@ fn block_goal<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, error
         goal.resumed_from = Some(goal.status.clone());
         goal.status = "blocked".into();
         goal.block_kind = kind;
+        goal.repeat_block = repeated_block_signature(&store, goal_id).unwrap_or(false);
         goal.report = format!("Blocked: {message}");
         let _ = store.put("goal", &goal.id, &goal, Some(NewEvent::goal("goal_blocked", &goal, &message)));
         // ADR-0054: every block is kept by kind so the project can show where its goals stop.
@@ -378,6 +417,23 @@ fn block_goal<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, error
         let _ = store.put("goal_block", &crate::model::id(), &record, None);
     }
     let _ = app.emit("state-changed", ());
+}
+
+fn repeated_block_signature(store: &Store, goal_id: &str) -> Result<bool, String> {
+    let guidance = store.list::<GoalGuidance>("goal_guidance")?;
+    let mut lineage = HashSet::from([goal_id.to_string()]);
+    let mut current = goal_id.to_string();
+    while let Some(parent) = guidance.iter().find(|item| item.replacement_goal_id.as_deref() == Some(&current)).map(|item| item.goal_id.clone()) {
+        if !lineage.insert(parent.clone()) { break; }
+        current = parent;
+    }
+    let mut counts = std::collections::HashMap::<String, usize>::new();
+    for record in store.list::<crate::model::BlockSignatureRecord>("block_signature")?.into_iter().filter(|item| lineage.contains(&item.goal_id)) {
+        let count = counts.entry(record.signature).or_default();
+        *count += 1;
+        if *count >= 2 { return Ok(true); }
+    }
+    Ok(false)
 }
 
 pub(crate) fn record_progress<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, task_id: Option<&str>, agent_id: &str, message: &str) {
@@ -883,9 +939,28 @@ fn execute_planned<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, 
         // ADR-0058: commands a teammate was refused are asked about before its work is integrated.
         crate::permissions_flow::settle_task_denials(app, goal_id, project, goal, &wave_ids)?;
         check_goal_guidance(app, goal_id, "개발 업무 완료 후 통합 전")?;
+        let mut integration_failures = Vec::new();
+        let mut integrated_count = 0_usize;
         for task_id in wave_ids {
-            integrate_task(&store, &root, &task_id, &project.kind).map_err(|error| delegation::mark("integration_conflict", error))?;
+            if let Err(error) = integrate_task(&store, &root, &task_id, &project.kind) {
+                let task: Task = store.get("task", &task_id)?.ok_or("통합에 실패한 업무 기록이 없습니다")?;
+                let mut files = task.files.iter().map(|file| file.to_ascii_lowercase()).collect::<Vec<_>>();
+                files.sort();
+                let signature = serde_json::json!({"kind": error.code(), "files": files});
+                store.put("block_signature", &crate::model::id(), &crate::model::BlockSignatureRecord { goal_id: goal_id.into(), signature: signature.to_string(), at: crate::model::now() }, None)?;
+                store.append_event(NewEvent { kind: "task_integration_failed".into(), goal_id: Some(goal_id.into()), task_id: Some(task_id), agent_id: None, message: format!("{}\n{}", signature, error) })?;
+                integration_failures.push(error);
+            } else {
+                if store.get::<TaskIntegrationProof>("task_proof", &task_id)?.is_some() { integrated_count += 1; }
+            }
             let _ = app.emit("state-changed", ());
+        }
+        if !integration_failures.is_empty() {
+            integration_failures.sort_by_key(platform::IntegrationError::priority);
+            let primary = &integration_failures[0];
+            let detail = integration_failures.iter().map(|error| match error { platform::IntegrationError::NoChanges => "변경한 파일이 없고 확인 가능한 근거가 없습니다".to_string(), other => other.to_string() }).collect::<Vec<_>>().join("; ");
+            let files_fact = if integrated_count == 0 { "이번 차례에 원본 프로젝트 파일을 바꾼 작업은 없습니다" } else { "이번 차례에 다른 작업은 원본 프로젝트 파일에 통합되었습니다" };
+            return Err(delegation::mark(primary.block_kind(), format!("{}개 업무가 멈췄습니다. {files_fact}. {detail}. 근거를 확인해 충족 처리하거나 새 계획을 요청하세요", integration_failures.len())));
         }
     }
     transition_goal(app, goal_id, "integrating", "All implementation tasks completed; integration started")?;
@@ -926,7 +1001,8 @@ fn execute_planned<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, 
             format!("You are {} ({}) independently reviewing the team's deliverables for this CEO goal: {}. Inspect each deliverable's files in the selected project and judge every acceptance criterion against the actual file content and the listed read-only evidence. A criterion is met only if you can point to concrete evidence (file and section or a short quote). Content that states unverified market facts, numbers or customer statements as fact without local evidence fails the criterion it affects; list such items under unverified. Do not edit files. Return ONLY one JSON object: {{\"verdict\":\"PASS|FAIL\",\"deliverables\":[{{\"taskId\":\"...\",\"verdict\":\"PASS|FAIL\",\"criteria\":[{{\"met\":true,\"evidence\":\"file §section or quote\",\"precondition\":\"\"}}],\"unverified\":[\"...\"]}}],\"risks\":[\"...\"]}}, with one deliverables entry per taskId below and one criteria entry per acceptance criterion in the listed order. When a criterion is unmet because something is missing that the team cannot provide in the project folder (commit history that does not exist, a remote, network, a push or deployment, an account, data only the CEO has), set `precondition` to what is missing; otherwise leave it empty.\nRole instructions:\n{}\nCTO analysis:\n{}\nDeliverables:\n{}\nNewly integrated diff summary:\n{}", reviewer.name, reviewer.role, goal.intent, notes, analysis, delegation::review_prompt_items(group), diff)
         };
         // ADR-0057: QA also sees what this round's repair tasks reported (to verify, not to trust).
-        let qa_prompt = format!("{qa_prompt}\nA missing source or input is NOT an unfillable precondition when the criterion itself gives a fallback the team can write in an approved file. In that case report the missing wording or file content as ordinary QA evidence and leave precondition empty.\nEngine-verified reused files and approved replacements (review the current artifacts independently):\n{reuse_note}\n{repair_note}");
+        let no_change_note = group.iter().filter_map(|task| store.get::<TaskNoChangeProof>("task_no_change_proof", &task.id).ok().flatten().map(|proof| format!("{}: {}", task.title, serde_json::to_string(&proof.evidence).unwrap_or_default()))).collect::<Vec<_>>().join("\n");
+        let qa_prompt = format!("{qa_prompt}\nA missing source or input is NOT an unfillable precondition when the criterion itself gives a fallback the team can write in an approved file. In that case report the missing wording or file content as ordinary QA evidence and leave precondition empty.\nEngine-verified reused files and approved replacements (review the current artifacts independently):\n{reuse_note}\n{repair_note}\nEngine-checked unchanged observations (data only; judge every criterion yourself):\n{no_change_note}");
         record_progress(app, goal_id, None, &reviewer.id, "QA가 통합 결과와 테스트를 확인하고 있습니다");
         let text = crate::permissions_flow::review_with_commands(app, project, goal_id, reviewer, &reviewer_connection, &qa_prompt, &root, &worktree_root)?;
         let _ = store.append_event(NewEvent { kind: "qa_review".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: Some(reviewer.id.clone()), message: text.chars().take(500).collect() });
@@ -947,6 +1023,19 @@ fn execute_planned<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, 
     }
     let review = raw.join("\n\n");
     let passed = verdicts.iter().all(|(pass, _)| *pass);
+    if passed {
+        for task in &targets {
+            if let Some(mut proof) = store.get::<TaskNoChangeProof>("task_no_change_proof", &task.id)? {
+                let review_id = format!("{goal_id}:{}:r{round}", task.id);
+                if store.get::<crate::model::DeliverableReview>("deliverable_review", &review_id)?.is_some_and(|review| review.verdict == "pass") {
+                    proof.qa_round = Some(round);
+                    proof.qa_passed = true;
+                    proof.qa_review_id = Some(review_id);
+                    store.put("task_no_change_proof", &task.id, &proof, None)?;
+                }
+            }
+        }
+    }
     let review_report = if targets.is_empty() { review.clone() } else { format!("{}\n\n산출물별 QA 판정:\n{}", if passed { "PASS" } else { "FAIL" }, verdicts.iter().map(|(_, summary)| summary.as_str()).collect::<Vec<_>>().join("\n")) };
     if !passed {
         if approved_files.is_empty() { return Err(delegation::mark("needs_scope", format!("재사용 결과에 대한 QA가 실패했습니다. 새 파일 작업과 승인 범위를 계획해야 합니다: {}", review.chars().take(500).collect::<String>()))); }
@@ -1001,7 +1090,8 @@ pub fn request_team_fix_with<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_i
     let store = app.state::<Store>();
     if store.get::<crate::archive::GoalArchive>("goal_archive", &goal_id)?.is_some() { return Err("보관한 목표입니다. 설정 › 백업 삭제에서 되돌린 뒤 진행해 주세요".into()); }
     let snapshot = store.snapshot()?;
-    let goal: Goal = snapshot.goals.iter().find(|item| item.id == goal_id).cloned().ok_or("목표를 찾을 수 없습니다")?;
+    let mut goal: Goal = snapshot.goals.iter().find(|item| item.id == goal_id).cloned().ok_or("목표를 찾을 수 없습니다")?;
+    goal.repeat_block |= repeated_block_signature(&store, &goal_id)?;
     let route = crate::team_fix::route(&goal, &snapshot.tasks, &snapshot.approvals, &snapshot.goal_guidance);
     let brief = format!("{}{}", crate::team_fix::brief(&goal, &snapshot.deliverable_reviews, &snapshot.tasks), extra.unwrap_or_default());
     let project = project_for_goal(&snapshot, &goal)?;
@@ -1321,7 +1411,7 @@ fn remove_copied_evidence(worktree: &Path) -> Result<(), String> {
 fn run_task<R: tauri::Runtime>(app: &tauri::AppHandle<R>, mut task: Task, agent: Agent, connection: AiConnection, intent: &str, project_id: &str) -> Result<(), String> {
     let store = app.state::<Store>();
     let worktree = Path::new(task.worktree.as_ref().ok_or("Missing worktree")?);
-    let prompt = format!("You are {} ({}) in an AI company. Work only inside this isolated task folder and change ONLY these declared files: {}. The engine rejects changes to other files. Follow project instructions that do not conflict with this assignment. Do not deploy, send data externally beyond the model service, alter credentials, change agent permissions, or commit. Implement your assigned task and run focused tests.\nCEO goal: {}\nTask: {}\n{}\nRole instructions: {}\nReturn a concise summary and test evidence.", agent.name, agent.role, task.files.join(", "), intent, task.title, worker_brief(&task, &crate::references::for_goal(&store, &task.goal_id).unwrap_or_default()), squad::role_notes(&agent));
+    let prompt = format!("You are {} ({}) in an AI company. Work only inside this isolated task folder and change ONLY these declared files: {}. The engine rejects changes to other files. Follow project instructions that do not conflict with this assignment. Do not deploy, send data externally beyond the model service, alter credentials, change agent permissions, or commit. Implement your assigned task and run focused tests. If no declared file needs changing, report your observation as one JSON object {{\"outcome\":\"no_change_needed\",\"evidence\":[{{\"file\":\"declared/path\",\"quote\":\"exact existing text\"}}]}} or use {{\"pattern\":\"literal text that should be absent\",\"files\":[\"declared/path\"]}} as an evidence item. Do not claim a PASS; the engine checks the observation and independent QA judges acceptance.\nCEO goal: {}\nTask: {}\n{}\nRole instructions: {}\nReturn a concise summary and test evidence.", agent.name, agent.role, task.files.join(", "), intent, task.title, worker_brief(&task, &crate::references::for_goal(&store, &task.goal_id).unwrap_or_default()), squad::role_notes(&agent));
     // ADR-0057: results of finished work this task builds on, and the criteria the last QA failed.
     let earlier = crate::goal_context::earlier_results(&task, &store.list::<Task>("task")?, &store.list::<crate::model::DeliverableReview>("deliverable_review")?);
     let prompt = if earlier.is_empty() { prompt } else { format!("{prompt}\n{earlier}") };
@@ -1539,7 +1629,7 @@ fn verify_reused_file_for(store: &Store, root: &Path, task: &Task, file: &str, g
     let mut verdict = verify_reused_file_depth(store, root, task, file, goal_id, 0);
     if verdict.is_err() {
         let transition = store.get::<crate::model::ReuseFileTransition>("reuse_file_transition", &transition_key(goal_id, file))?;
-        let old = store.get::<TaskIntegrationProof>("task_proof", &task.id)?.and_then(|proof| proof.files.into_iter().find(|item| item.path.eq_ignore_ascii_case(file)));
+        let old = store.get::<TaskIntegrationProof>("task_proof", &task.id)?.and_then(|proof| proof.files.into_iter().find(|item| item.path.eq_ignore_ascii_case(file))).or_else(|| store.get::<TaskNoChangeProof>("task_no_change_proof", &task.id).ok().flatten().and_then(|proof| proof.files.into_iter().find(|item| item.path.eq_ignore_ascii_case(file))));
         let current = digest_project_file(root, file).ok().map(|item| item.sha256);
         let scope_valid = transition.as_ref().is_some_and(|item| store.get::<Task>("task", &item.task_id).ok().flatten().is_some_and(|owner| approved_task_file(store, &owner, file).ok().as_deref() == Some(item.approval_id.as_str())));
         let missing_link = transition.as_ref().is_some_and(|item| {
@@ -1559,24 +1649,31 @@ fn verify_reused_file_for(store: &Store, root: &Path, task: &Task, file: &str, g
 
 fn verify_reused_file_depth(store: &Store, root: &Path, task: &Task, file: &str, goal_id: &str, depth: usize) -> Result<(), String> {
     if depth > 12 { return Err(format!("재사용 증거 불일치: {file}; 연결 차수가 너무 깊습니다. 원장을 확인하고 새 계획을 승인하세요")); }
-    let proof: TaskIntegrationProof = store.get("task_proof", &task.id)?.ok_or_else(|| format!("출처 불명 변경: {file}; 누락 증거: 이전 통합 증거; 복구: 원본 복원 또는 새 계획 승인"))?;
-    let old = proof.files.iter().find(|item| item.path.eq_ignore_ascii_case(file)).ok_or_else(|| format!("출처 불명 변경: {file}; 누락 증거: 이전 파일 해시; 복구: 원본 복원 또는 새 계획 승인"))?;
+    let old_sha256 = if let Some(unchanged) = store.get::<TaskNoChangeProof>("task_no_change_proof", &task.id)? {
+        let review = unchanged.qa_review_id.as_ref().and_then(|id| store.get::<crate::model::DeliverableReview>("deliverable_review", id).ok().flatten());
+        if unchanged.evidence.is_empty() || !unchanged.qa_passed || !review.is_some_and(|item| item.goal_id == task.goal_id && item.task_id == task.id && item.verdict == "pass") || unchanged.goal_id != task.goal_id || task.status != "completed" { return Err(format!("변경 없음 작업의 검증 근거 또는 QA 합격 기록이 없습니다: {file}")); }
+        let saved = unchanged.files.iter().find(|item| item.path.eq_ignore_ascii_case(file)).ok_or_else(|| format!("변경 없음 작업의 파일 해시가 없습니다: {file}"))?;
+        saved.sha256.clone()
+    } else {
+        let proof: TaskIntegrationProof = store.get("task_proof", &task.id)?.ok_or_else(|| format!("출처 불명 변경: {file}; 누락 증거: 이전 통합 증거; 복구: 원본 복원 또는 새 계획 승인"))?;
+        proof.files.iter().find(|item| item.path.eq_ignore_ascii_case(file)).ok_or_else(|| format!("출처 불명 변경: {file}; 누락 증거: 이전 파일 해시; 복구: 원본 복원 또는 새 계획 승인"))?.sha256.clone()
+    };
     let current = digest_project_file(root, file)?.sha256;
     if let Some(transition) = store.get::<crate::model::ReuseFileTransition>("reuse_file_transition", &transition_key(goal_id, file))? {
         let changed: Task = store.get("task", &transition.task_id)?.ok_or_else(|| format!("출처 불명 변경: {file}; 누락 증거: 후속 작업; 복구: 원본 복원 또는 새 계획 승인"))?;
         let approval: crate::model::Approval = store.get("approval", &transition.approval_id)?.ok_or_else(|| format!("출처 불명 변경: {file}; 누락 증거: 후속 승인; 복구: 원본 복원 또는 새 계획 승인"))?;
         let new_proof: TaskIntegrationProof = store.get("task_proof", &transition.task_id)?.ok_or_else(|| format!("출처 불명 변경: {file}; 누락 증거: 후속 통합; 복구: 원본 복원 또는 새 계획 승인"))?;
         let event = integrated_event_matches(store, goal_id, &transition.task_id, &transition.integration_event)?;
-        if transition.source_task_id == task.id && transition.goal_id == goal_id && changed.goal_id == goal_id && changed.status == "completed" && changed.files.iter().any(|item| item.eq_ignore_ascii_case(file)) && transition_scope_matches(store, &transition, &changed)? && approval.goal_id.as_deref() == Some(goal_id) && approval.status == "approved" && approved_task_file(store, &changed, file).ok().as_deref() == Some(transition.approval_id.as_str()) && event && new_proof.goal_id == goal_id && new_proof.integrated_at == transition.integrated_at && new_proof.files.iter().any(|item| item.path.eq_ignore_ascii_case(file) && item.sha256 == transition.after_sha256) && current == transition.after_sha256 && transition_chain_valid(store, &transition, &old.sha256, 0)? {
+        if transition.source_task_id == task.id && transition.goal_id == goal_id && changed.goal_id == goal_id && changed.status == "completed" && changed.files.iter().any(|item| item.eq_ignore_ascii_case(file)) && transition_scope_matches(store, &transition, &changed)? && approval.goal_id.as_deref() == Some(goal_id) && approval.status == "approved" && approved_task_file(store, &changed, file).ok().as_deref() == Some(transition.approval_id.as_str()) && event && new_proof.goal_id == goal_id && new_proof.integrated_at == transition.integrated_at && new_proof.files.iter().any(|item| item.path.eq_ignore_ascii_case(file) && item.sha256 == transition.after_sha256) && current == transition.after_sha256 && transition_chain_valid(store, &transition, &old_sha256, 0)? {
             return Ok(());
         }
-        return Err(format!("재사용 증거 불일치: {file}; 이전 SHA-256 {}, 현재 SHA-256 {current}, 후속 SHA-256 {}; diff: 이전 파일 바이트 스냅샷 없음; 작업/승인/통합/해시를 확인하고 원본 복원 또는 새 계획 승인을 선택하세요", old.sha256, transition.after_sha256));
+        return Err(format!("재사용 증거 불일치: {file}; 이전 SHA-256 {old_sha256}, 현재 SHA-256 {current}, 후속 SHA-256 {}; diff: 이전 파일 바이트 스냅샷 없음; 작업/승인/통합/해시를 확인하고 원본 복원 또는 새 계획 승인을 선택하세요", transition.after_sha256));
     }
-    if current == old.sha256 { return Ok(()); }
+    if current == old_sha256 { return Ok(()); }
     if let Some(parent) = store.list::<GoalGuidance>("goal_guidance")?.into_iter().find(|item| item.replacement_goal_id.as_deref() == Some(goal_id)).map(|item| item.goal_id) {
         if parent != goal_id { return verify_reused_file_depth(store, root, task, file, &parent, depth + 1); }
     }
-    Err(format!("출처 불명 변경: {file}; 이전 SHA-256 {}, 현재 SHA-256 {current}; 후속 작업·승인·통합 증거 없음; diff: 이전 파일 바이트 스냅샷 없음. 원본 복원 또는 새 계획 승인을 선택하세요", old.sha256))
+    Err(format!("출처 불명 변경: {file}; 이전 SHA-256 {old_sha256}, 현재 SHA-256 {current}; 후속 작업·승인·통합 증거 없음; diff: 이전 파일 바이트 스냅샷 없음. 원본 복원 또는 새 계획 승인을 선택하세요"))
 }
 
 fn verify_reuse_dependencies(store: &Store, root: &Path, task: &Task, source_tasks: &[Task], goal_id: &str, report_goal: &str) -> Result<(), String> {
@@ -1621,8 +1718,9 @@ fn validate_continuation(store: &Store, root: &Path, source_tasks: &[Task], plan
         // Overlap is checked before plan approval. The caller moves this task from
         // reused_task_ids to replaced_task_ids, so it cannot be counted as fully reused.
         for file in task.files.iter().filter(|file| new_files.contains(&file.to_ascii_lowercase())) {
-            let proof: TaskIntegrationProof = store.get("task_proof", &task.id)?.ok_or_else(|| format!("중복 파일 {file}: 이전 통합 증거 없음"))?;
-            if !proof.files.iter().any(|item| item.path.eq_ignore_ascii_case(file)) { return Err(format!("중복 파일 {file}: 이전 파일 해시 없음")); }
+            let integrated = store.get::<TaskIntegrationProof>("task_proof", &task.id)?.is_some_and(|proof| proof.files.iter().any(|item| item.path.eq_ignore_ascii_case(file)));
+            let unchanged = store.get::<TaskNoChangeProof>("task_no_change_proof", &task.id)?.is_some_and(|proof| proof.qa_passed && proof.files.iter().any(|item| item.path.eq_ignore_ascii_case(file)));
+            if !integrated && !unchanged { return Err(format!("중복 파일 {file}: 이전 파일 증거 없음")); }
         }
     }
     Ok(())
@@ -1676,7 +1774,7 @@ fn integrate_sdd(root: &Path, worktree: &Path, project_kind: &str) -> Result<Vec
         return Err(format!("PM이 SDD 밖의 파일({outside})을 바꿔 아무것도 반영하지 않았습니다"));
     }
     if changes.is_empty() { return Ok(changes); }
-    if project_kind == "git" { integrate_worktree(root, worktree, &changes)?; } else { platform::integrate_folder_copy(root, worktree, &changes)?; }
+    if project_kind == "git" { integrate_worktree(root, worktree, &changes).map_err(|error| error.to_string())?; } else { platform::integrate_folder_copy(root, worktree, &changes).map_err(|error| error.to_string())?; }
     Ok(changes)
 }
 
@@ -1724,22 +1822,65 @@ fn sdd_step<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, project
     integrate_sdd(&root, &worktree, &project.kind)
 }
 
-fn integrate_worktree(root: &Path, worktree: &Path, allowed_files: &[String]) -> Result<(), String> {
+fn integrate_worktree(root: &Path, worktree: &Path, allowed_files: &[String]) -> Result<(), platform::IntegrationError> {
     let _ = git_output_bytes(worktree, &["add", "-N", "."])?;
     let changed = git_output_bytes(worktree, &["diff", "--name-only", "-z", "HEAD"])?;
     for path in changed.split(|byte| *byte == 0).filter(|path| !path.is_empty()) {
         let path = String::from_utf8_lossy(path).replace('\\', "/");
         if !allowed_files.iter().any(|allowed| allowed.eq_ignore_ascii_case(&path)) {
-            return Err(format!("Agent changed undeclared file: {path}"));
+            return Err(platform::IntegrationError::ScopeViolation(format!("Agent changed undeclared file: {path}")));
         }
     }
     let patch = git_output_bytes(worktree, &["diff", "--binary", "HEAD"])?;
-    if patch.is_empty() { return Err("Task produced no file changes".into()); }
-    git_apply(root, &patch, true).map_err(|e| format!("Patch conflict: {e}"))?;
-    git_apply(root, &patch, false)
+    if patch.is_empty() { return Err(platform::IntegrationError::NoChanges); }
+    git_apply(root, &patch, true).map_err(|e| platform::IntegrationError::PatchConflict(format!("Patch conflict: {e}")))?;
+    git_apply(root, &patch, false).map_err(|e| platform::IntegrationError::PatchConflict(format!("Patch conflict: {e}")))
 }
 
-fn integrate_task(store: &Store, root: &Path, task_id: &str, project_kind: &str) -> Result<(), String> {
+/// Parse a teammate's observation as data, then independently check it against current project files.
+/// Invalid or unverified reports deliberately behave like a bare no-change result.
+fn verified_no_change_report(root: &Path, task: &Task) -> Option<TaskNoChangeProof> {
+    let json = crate::meeting::extract_json(&task.result).ok()?;
+    let report: serde_json::Value = serde_json::from_str(json).ok()?;
+    if report.get("outcome")?.as_str()? != "no_change_needed" { return None; }
+    let observations = report.get("evidence")?.as_array()?;
+    if observations.is_empty() || observations.len() > 8 { return None; }
+    let mut checked = Vec::new();
+    for item in observations {
+        if let (Some(file), Some(quote)) = (item.get("file").and_then(serde_json::Value::as_str), item.get("quote").and_then(serde_json::Value::as_str)) {
+            if quote.is_empty() || quote.len() > 500 || !task.files.iter().any(|allowed| allowed.eq_ignore_ascii_case(file)) { return None; }
+            digest_project_file(root, file).ok()?;
+            let body = std::fs::read_to_string(root.join(file)).ok()?;
+            if !body.contains(quote) { return None; }
+            checked.push(NoChangeObservation::Quote { file: file.into(), quote: quote.into() });
+        } else if let (Some(pattern), Some(files)) = (item.get("pattern").and_then(serde_json::Value::as_str), item.get("files").and_then(serde_json::Value::as_array)) {
+            if pattern.is_empty() || pattern.len() > 200 || files.is_empty() || files.len() > task.files.len() { return None; }
+            let mut paths = Vec::new();
+            for file in files {
+                let file = file.as_str()?;
+                if !task.files.iter().any(|allowed| allowed.eq_ignore_ascii_case(file)) || paths.iter().any(|prior: &String| prior.eq_ignore_ascii_case(file)) { return None; }
+                digest_project_file(root, file).ok()?;
+                let metadata = std::fs::metadata(root.join(file)).ok()?;
+                if metadata.len() > 1024 * 1024 { return None; }
+                let body = std::fs::read_to_string(root.join(file)).ok()?;
+                if body.contains(pattern) { return None; }
+                paths.push(file.to_string());
+            }
+            checked.push(NoChangeObservation::Absence { pattern: pattern.into(), files: paths, matches: 0 });
+        } else { return None; }
+    }
+    let files = task.files.iter().map(|file| digest_project_file(root, file)).collect::<Result<Vec<_>, _>>().ok()?;
+    Some(TaskNoChangeProof { task_id: task.id.clone(), goal_id: task.goal_id.clone(), files, evidence: checked, checked_at: crate::model::now(), qa_round: None, qa_passed: false, qa_review_id: None })
+}
+
+fn complete_no_change_task(store: &Store, task: &mut Task, proof: Option<TaskNoChangeProof>) -> Result<(), platform::IntegrationError> {
+    if let Some(proof) = proof { store.put("task_no_change_proof", &task.id, &proof, None)?; }
+    task.status = "completed".into();
+    task.result.push_str("\n\n(선언 파일 변경 없음. 엔진이 확인한 근거는 QA 자료이며 QA가 수용 기준을 판정합니다.)");
+    store.put("task", &task.id, task, Some(NewEvent::task("task_unchanged", task, "No declared file changed; independent QA will judge the deliverable"))).map_err(Into::into)
+}
+
+fn integrate_task(store: &Store, root: &Path, task_id: &str, project_kind: &str) -> Result<(), platform::IntegrationError> {
     let mut task: Task = store.get("task", task_id)?.ok_or("Finished task disappeared")?;
     if task.status != "awaiting_integration" { return Err("Task is not ready for integration".into()); }
     let inherited = store.list::<GoalGuidance>("goal_guidance")?.into_iter().find(|item| item.replacement_goal_id.as_deref() == Some(&task.goal_id)).and_then(|item| item.continuation);
@@ -1750,9 +1891,9 @@ fn integrate_task(store: &Store, root: &Path, task_id: &str, project_kind: &str)
             for file in task.files.iter().filter(|file| source_task.files.iter().any(|old| old.eq_ignore_ascii_case(file))) {
                 let before = digest_project_file(root, file)?.sha256;
                 let existing_current = store.get::<crate::model::ReuseFileTransition>("reuse_file_transition", &transition_key(&task.goal_id, file))?;
-                if existing_current.is_some() { verify_reused_file(store, root, source_task, file, &task.goal_id)?; }
-                else { verify_reused_file_for(store, root, source_task, file, &decision.source_goal_id, &task.goal_id)?; }
-                let approval_id = approved_task_file(store, &task, file)?;
+                if existing_current.is_some() { verify_reused_file(store, root, source_task, file, &task.goal_id).map_err(platform::IntegrationError::ReuseMismatch)?; }
+                else { verify_reused_file_for(store, root, source_task, file, &decision.source_goal_id, &task.goal_id).map_err(platform::IntegrationError::ReuseMismatch)?; }
+                let approval_id = approved_task_file(store, &task, file).map_err(platform::IntegrationError::ScopeViolation)?;
                 let previous = existing_current.or(store.get("reuse_file_transition", &transition_key(&decision.source_goal_id, file))?);
                 let previous_transition_key = previous.filter(|item| item.source_task_id == source_task.id && item.after_sha256 == before).map(|item| transition_history_key(&item.goal_id, &item.task_id, file));
                 transitions.push((source_task.id.clone(), file.clone(), before, approval_id, previous_transition_key));
@@ -1769,28 +1910,33 @@ fn integrate_task(store: &Store, root: &Path, task_id: &str, project_kind: &str)
             let after = digest_project_file(worktree, file).ok().map(|item| item.sha256);
             let approved_files = store.get::<crate::model::RepairTaskScope>("repair_task_scope", &task.id)?.map(|scope| scope.files).unwrap_or_else(|| task.files.clone());
             save_reuse_conflict(store, crate::model::ReuseConflict { goal_id: task.goal_id.clone(), path: file.clone(), kind: "approval_scope_conflict".into(), source_task_id: String::new(), task_id: Some(task.id.clone()), approval_id: store.get::<crate::model::RepairTaskScope>("repair_task_scope", &task.id)?.map(|scope| scope.approval_id), approved_files, missing_evidence: vec![reason.clone()], before_sha256: before.clone(), after_sha256: after, current_sha256: before, diff: None, recovery: "원본 복원 또는 정확한 파일 범위로 새 계획·승인".into(), recorded_at: crate::model::now() })?;
-            return Err(reason);
+            return Err(platform::IntegrationError::ScopeViolation(reason));
         }
     }
-    let applied = if project_kind == "git" { integrate_worktree(root, worktree, &task.files).map_err(|e| format!("Integration of '{}' failed: {e}", task.title)) }
-    else { crate::platform::integrate_folder_copy(root, worktree, &task.files).map(|_| ()).map_err(|e| format!("Integration of '{}' failed: {}", task.title, explain_folder_integration_failure(&task, &e))) };
-    // ADR-0053: a repair that finds nothing to change (QA may have misjudged) is not a conflict; the
-    // next QA judges the unchanged files and the rework limit still bounds the loop.
-    let unchanged_repair = task.title.starts_with(delegation::REPAIR_PREFIX) && applied.as_ref().is_err_and(|error| error.contains(NO_CHANGES));
-    if !unchanged_repair {
+    if changed_files.is_empty() {
+        for file in &task.files { approved_task_file(store, &task, file).map_err(platform::IntegrationError::ScopeViolation)?; }
+        let mut verified = verified_no_change_report(root, &task);
+        let is_repair = task.title.starts_with(delegation::REPAIR_PREFIX);
+        if verified.is_none() && !is_repair {
+            return Err(platform::IntegrationError::NoChanges);
+        }
+        if verified.is_none() && is_repair {
+            verified = Some(TaskNoChangeProof { task_id: task.id.clone(), goal_id: task.goal_id.clone(), files: task.files.iter().map(|file| digest_project_file(root, file)).collect::<Result<Vec<_>, _>>()?, evidence: vec![], checked_at: crate::model::now(), qa_round: None, qa_passed: false, qa_review_id: None });
+        }
+        return complete_no_change_task(store, &mut task, verified);
+    }
+    let applied = if project_kind == "git" { integrate_worktree(root, worktree, &task.files) }
+    else { crate::platform::integrate_folder_copy(root, worktree, &task.files).map(|_| ()) };
+    {
         if let Err(reason) = applied {
             for file in &changed_files {
                 let before = digest_project_file(root, file).ok().map(|item| item.sha256);
-                save_reuse_conflict(store, crate::model::ReuseConflict { goal_id: task.goal_id.clone(), path: file.clone(), kind: "integration_conflict".into(), source_task_id: String::new(), task_id: Some(task.id.clone()), approval_id: approved_task_file(store, &task, file).ok(), approved_files: task.files.clone(), missing_evidence: vec![reason.clone()], before_sha256: before.clone(), after_sha256: digest_project_file(worktree, file).ok().map(|item| item.sha256), current_sha256: before, diff: None, recovery: "충돌 내용을 확인하고 원본 복원 또는 새 계획 승인".into(), recorded_at: crate::model::now() })?;
+                save_reuse_conflict(store, crate::model::ReuseConflict { goal_id: task.goal_id.clone(), path: file.clone(), kind: reason.block_kind().into(), source_task_id: String::new(), task_id: Some(task.id.clone()), approval_id: approved_task_file(store, &task, file).ok(), approved_files: task.files.clone(), missing_evidence: vec![reason.to_string()], before_sha256: before.clone(), after_sha256: digest_project_file(worktree, file).ok().map(|item| item.sha256), current_sha256: before, diff: None, recovery: "충돌 내용을 확인하고 원본 복원 또는 새 계획 승인".into(), recorded_at: crate::model::now() })?;
             }
             return Err(reason);
         }
     }
     task.status = "completed".into();
-    if unchanged_repair {
-        task.result = format!("{}\n\n(바꾼 파일 없음: 재작업 담당이 고칠 것이 없다고 판단했어요. 다음 QA가 다시 판정해요.)", task.result);
-        return store.put("task", &task.id, &task, Some(NewEvent::task("task_unchanged", &task, "Repair made no file change; QA reviews the unchanged files")));
-    }
     let proof = TaskIntegrationProof { task_id: task.id.clone(), goal_id: task.goal_id.clone(), files: task.files.iter().map(|file| digest_project_file(root, file)).collect::<Result<Vec<_>, _>>()?, integrated_at: crate::model::now() };
     store.put("task_proof", &task.id, &proof, None)?;
     store.put("task", &task.id, &task, Some(NewEvent::task("task_integrated", &task, "Declared changes applied to selected project")))?;
@@ -1841,8 +1987,8 @@ fn approved_task_file(store: &Store, task: &Task, file: &str) -> Result<String, 
     Err(format!("승인 범위 밖 변경: {file}; 후속 업무 {}의 파일 승인 증거가 없습니다. 원본 복원 또는 정확한 범위의 새 계획 승인을 선택하세요", task.id))
 }
 
-const NO_CHANGES: &str = "Task produced no file changes";
 
+#[cfg(test)]
 fn explain_folder_integration_failure(task: &Task, error: &str) -> String {
     if error != "Task produced no file changes" { return error.into(); }
     let description = format!("{} {}", task.title, task.instructions).to_ascii_lowercase();
@@ -1878,6 +2024,59 @@ mod tests {
     use crate::storage::Store;
     use crate::model::{GoalTurn, GoalGuidance, Agent, AiConnection, Task};
     use super::{delegation, summary_line, task_from, ProposedTask};
+    #[test]
+    fn no_change_observations_are_checked_against_declared_current_files() {
+        let root = std::env::temp_dir().join(format!("no-change-evidence-{}", crate::model::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("workflow.js"), "export function run() { return true; }\n").unwrap();
+        std::fs::write(root.join("outside.js"), "audit();\n").unwrap();
+        let mut task: Task = serde_json::from_value(serde_json::json!({"id":"t","goalId":"g","title":"remove audit","instructions":"","files":["workflow.js"],"assigneeId":"dev","status":"awaiting_integration","dependsOn":[],"worktree":null,"result":""})).unwrap();
+        task.result = r#"{"outcome":"no_change_needed","evidence":[{"pattern":"audit(","files":["workflow.js"]}]}"#.into();
+        let proof = super::verified_no_change_report(&root, &task).unwrap();
+        assert_eq!(proof.files.len(), 1);
+        assert!(!proof.qa_passed);
+        task.result = r#"{"outcome":"no_change_needed","evidence":[{"pattern":"run()","files":["workflow.js"]}]}"#.into();
+        assert!(super::verified_no_change_report(&root, &task).is_none(), "engine reruns the absence search");
+        task.result = r#"{"outcome":"no_change_needed","evidence":[{"pattern":"audit(","files":["outside.js"]}]}"#.into();
+        assert!(super::verified_no_change_report(&root, &task).is_none(), "search cannot leave declared scope");
+        task.result = r#"{"outcome":"no_change_needed","evidence":[{"file":"workflow.js","quote":"missing quote"}]}"#.into();
+        assert!(super::verified_no_change_report(&root, &task).is_none());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn changed_no_change_proof_cannot_be_reused() {
+        let root = std::env::temp_dir().join(format!("no-change-reuse-{}", crate::model::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("workflow.js"), "export const ready = true;\n").unwrap();
+        let store = Store::open(&root.join("state.sqlite")).unwrap();
+        let task: Task = serde_json::from_value(serde_json::json!({"id":"t","goalId":"g","title":"check workflow","instructions":"","files":["workflow.js"],"assigneeId":"dev","status":"completed","dependsOn":[],"worktree":null,"result":""})).unwrap();
+        let review_id = "g:t:r0";
+        let review: crate::model::DeliverableReview = serde_json::from_value(serde_json::json!({"id": review_id,"goalId":"g","taskId":"t","round":0,"verdict":"pass","criteria":[],"unverified":[],"reviewerId":"qa","createdAt":"now"})).unwrap();
+        store.put("deliverable_review", review_id, &review, None).unwrap();
+        let proof = crate::model::TaskNoChangeProof { task_id: task.id.clone(), goal_id: task.goal_id.clone(), files: vec![super::digest_project_file(&root, "workflow.js").unwrap()], evidence: vec![crate::model::NoChangeObservation::Absence { pattern: "audit(".into(), files: vec!["workflow.js".into()], matches: 0 }], checked_at: crate::model::now(), qa_round: Some(0), qa_passed: true, qa_review_id: Some(review_id.into()) };
+        store.put("task_no_change_proof", &task.id, &proof, None).unwrap();
+        assert!(super::verify_reused_file_depth(&store, &root, &task, "workflow.js", "g", 0).is_ok());
+        std::fs::write(root.join("workflow.js"), "export const ready = false;\n").unwrap();
+        assert!(super::verify_reused_file_depth(&store, &root, &task, "workflow.js", "g", 0).is_err());
+        drop(store);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn repeated_block_uses_saved_error_kind_and_file_set_not_task_id_or_message() {
+        let root = std::env::temp_dir().join(format!("repeat-block-{}", crate::model::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let store = Store::open(&root.join("state.sqlite")).unwrap();
+        let first = crate::model::BlockSignatureRecord { goal_id: "g1".into(), signature: r#"{"files":["workflow.js"],"kind":"NoChanges"}"#.into(), at: crate::model::now() };
+        store.put("block_signature", "one", &first, None).unwrap();
+        assert!(!super::repeated_block_signature(&store, "g1").unwrap());
+        let guidance: crate::model::GoalGuidance = serde_json::from_value(serde_json::json!({"id":"guidance","goalId":"g1","text":"retry","status":"revised","createdAt":"now","replacementGoalId":"g2"})).unwrap();
+        store.put("goal_guidance", &guidance.id, &guidance, None).unwrap();
+        let second = crate::model::BlockSignatureRecord { goal_id: "g2".into(), ..first };
+        store.put("block_signature", "two", &second, None).unwrap();
+        assert!(super::repeated_block_signature(&store, "g2").unwrap());
+        drop(store);
+        std::fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn integration_event_lookup_checks_the_ledger_beyond_snapshot_limit() {
         let path = std::env::temp_dir().join(format!("integration-event-{}.sqlite", crate::model::id()));
@@ -2186,7 +2385,7 @@ mod tests {
         let store = Store::open(&path).unwrap();
         let statuses = ["deliberating", "awaiting_decision", "completed", "blocked", "new", "analyzing", "awaiting_approval"];
         for status in statuses {
-            let goal = crate::model::Goal { id: format!("meeting-{status}"), kind: "deliberation".into(), project_id: Some("p".into()), intent: "Meeting goal".into(), status: status.into(), report: String::new(), created_at: crate::model::now(), resumed_from: Some("analyzing".into()), review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new() };
+            let goal = crate::model::Goal { id: format!("meeting-{status}"), kind: "deliberation".into(), project_id: Some("p".into()), intent: "Meeting goal".into(), status: status.into(), report: String::new(), created_at: crate::model::now(), resumed_from: Some("analyzing".into()), review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new(), repeat_block: false };
             store.put("goal", &goal.id, &goal, None).unwrap();
             assert!(!can_retry_before_write(&goal, &[], &[]), "{status}: retry must not reach CTO/PM");
             let turn = GoalTurn { id: format!("turn-{status}"), goal_id: goal.id.clone(), question: "Proceed?".into(), answer: String::new(), status: "pending".into(), asked_at: crate::model::now(), answered_at: None, agent_id: "cto".into(), agent_name: "CTO".into(), connection_name: "Local".into(), model_id: String::new(), guidance_id: None, route: None };
@@ -2211,7 +2410,7 @@ mod tests {
 
     #[test]
     fn retries_only_goals_blocked_before_any_write_plan() {
-        let mut goal = crate::model::Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Create HTML".into(), status: "blocked".into(), report: "Blocked: batch file arguments are invalid".into(), created_at: crate::model::now(), resumed_from: Some("analyzing".into()), review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new() };
+        let mut goal = crate::model::Goal { id: "g".into(), kind: "execution".into(), project_id: Some("p".into()), intent: "Create HTML".into(), status: "blocked".into(), report: "Blocked: batch file arguments are invalid".into(), created_at: crate::model::now(), resumed_from: Some("analyzing".into()), review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new(), repeat_block: false };
         assert!(can_retry_before_write(&goal, &[], &[]));
         goal.resumed_from = Some("awaiting_approval".into());
         assert!(!can_retry_before_write(&goal, &[], &[]));
@@ -2430,7 +2629,7 @@ mod tests {
         let plan_snapshot = serde_json::json!({ "projectId": "project", "goalId": "goal", "planRevision": 1, "approvalId": "plan-approval", "applicable": false, "choices": [], "resolved": {}, "validation": { "status": "pass", "issues": [] }, "qaChecklist": [], "impact": [], "selectionFingerprint": "test", "tasks": [{ "id": "task", "files": ["good.txt"] }], "capturedAt": "test", "fingerprint": "test" });
         store.transact(|tx| { tx.execute("INSERT INTO tech_plan_snapshot(project_id,goal_id,plan_revision,approval_id,fingerprint,payload,captured_at) VALUES(?1,?2,?3,?4,?5,?6,?7)", rusqlite::params!["project", "goal", 1, "plan-approval", "test", plan_snapshot.to_string(), "test"]).map_err(|e| e.to_string())?; Ok(()) }).unwrap();
         std::fs::write(worktree.join("wrong.txt"), "outside declaration\n").unwrap();
-        assert!(integrate_task(&store, &root, &task.id, "git").unwrap_err().contains("승인 범위 밖 변경"));
+        assert!(integrate_task(&store, &root, &task.id, "git").unwrap_err().to_string().contains("승인 범위 밖 변경"));
         assert_eq!(store.get::<Task>("task", &task.id).unwrap().unwrap().status, "awaiting_integration");
         assert!(verify_task_reuse(&store, &root, &task).is_err());
         std::fs::remove_file(worktree.join("wrong.txt")).unwrap();

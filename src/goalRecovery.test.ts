@@ -49,6 +49,13 @@ describe('one-click fix request (ADR-0048)', () => {
     expect(goalRecovery({ ...reviewed, blockKind: 'approval_denied' }, [done], [approval], [])?.label).toBe('수정 지침으로 새 목표 만들기');
     expect(teamFixRoute({ ...reviewed, blockKind: 'approval_denied' }, [done], [approval], []).route).toBe('direct');
   });
+  it('offers no-change verification and stops automatic replanning after repetition', () => {
+    const unchanged = { ...reviewed, resumedFrom: 'executing', blockKind: 'no_changes' as const };
+    const awaiting = { ...task, status: 'awaiting_integration' };
+    expect(goalRecovery(unchanged, [awaiting], [approval], [])?.label).toBe('변경 없는 작업 확인');
+    expect(teamFixRoute(unchanged, [awaiting], [approval], []).route).toBe('revision');
+    expect(teamFixRoute({ ...unchanged, repeatBlock: true }, [awaiting], [approval], []).route).toBe('direct');
+  });
   it('sends the request to the goal planning lead', () => {
     const agents = [{ id: 'pm', name: '서연', enabled: true }, { id: 'pm2', name: '도윤', enabled: true }];
     expect(fixReceiver('g', [{ goalId: 'g', members: [{ slot: 'lead', duty: 'planning', agentId: 'pm2' }] }], agents)).toBe('도윤');

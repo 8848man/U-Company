@@ -61,7 +61,13 @@ pub fn result(store: &Store, goal_id: &str) -> Result<GoalResult, String> {
     let project_id = goal.project_id.clone().ok_or("프로젝트에 묶이지 않은 목표입니다")?;
     let project: Project = store.get("project_entry", &project_id)?.ok_or("프로젝트를 찾을 수 없습니다")?;
     let root = Path::new(&project.path);
-    let files = changed_files(&store.list::<Task>("task")?, goal_id, root);
+    let mut tasks = Vec::new();
+    for task in store.list::<Task>("task")? {
+        if store.get::<crate::model::TaskNoChangeProof>("task_no_change_proof", &task.id)?.is_none() {
+            tasks.push(task);
+        }
+    }
+    let files = changed_files(&tasks, goal_id, root);
     let hints = run_hints(root, &files);
     Ok(GoalResult { folder: project.path.clone(), files, hints })
 }
@@ -72,6 +78,7 @@ pub fn block_label(kind: &str) -> &'static str {
         "approval_denied" => "CEO가 승인을 거절함",
         "interrupted" => "앱이 꺼져 중단됨",
         "integration_conflict" => "결과를 프로젝트에 합치지 못함",
+        "no_changes" => "파일을 바꿀 필요가 있는지 확인 필요",
         "qa_failed" => "다시 고치기 횟수를 다 씀",
         "needs_scope" => "새 파일 승인이 필요함",
         "qa_form" => "QA 판정 형식이 틀림",
@@ -129,6 +136,26 @@ mod tests {
         assert!(hints.iter().any(|hint| hint.contains("npm run dev")) && hints.iter().any(|hint| hint.contains("npm test")));
         assert!(!hints.iter().any(|hint| hint.contains("node --test")), "the project's own test script wins");
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn result_excludes_a_completed_task_with_no_change_proof() {
+        let root = std::env::temp_dir().join(format!("u-unchanged-result-{}", crate::model::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let store = Store::open(&root.join("state.sqlite")).unwrap();
+        let project = Project { id: "p".into(), path: root.to_string_lossy().into_owned(), name: "P".into(), kind: "folder".into(), review_loop_limit: 2 };
+        store.select_project(&project).unwrap();
+        let goal: Goal = serde_json::from_value(serde_json::json!({ "id": "g", "projectId": "p", "intent": "Check work", "status": "completed", "report": "", "createdAt": "now", "resumedFrom": null })).unwrap();
+        store.put("goal", "g", &goal, None).unwrap();
+        let unchanged = task("g", "completed", &["existing.txt"]);
+        let edited = task("g", "completed", &["edited.txt"]);
+        store.put("task", &unchanged.id, &unchanged, None).unwrap();
+        store.put("task", &edited.id, &edited, None).unwrap();
+        let proof: crate::model::TaskNoChangeProof = serde_json::from_value(serde_json::json!({ "taskId": unchanged.id, "goalId": "g", "files": [], "evidence": [], "checkedAt": "now", "qaRound": null, "qaPassed": false, "qaReviewId": null })).unwrap();
+        store.put("task_no_change_proof", &unchanged.id, &proof, None).unwrap();
+        let files = result(&store, "g").unwrap().files;
+        assert_eq!(files.iter().map(|file| file.path.as_str()).collect::<Vec<_>>(), vec!["edited.txt"]);
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
