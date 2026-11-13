@@ -73,7 +73,9 @@ export function stageLines(goal: Goal, events: Event[]): StreamLine[] {
     if (event.kind === 'goal_started') text = '팀이 목표를 받아 분석을 시작했어요';
     else if (event.kind === 'goal_stage') text = STAGE_LINES[event.message] ?? null;
     else if (event.kind === 'goal_completed') text = '검토를 통과했어요. 결과를 확인해 주세요';
-    else if (event.kind === 'goal_cancelled') text = '계획을 거부해 목표를 취소했어요';
+    else if (event.kind === 'goal_paused') text = 'CEO가 목표를 일시정지했어요';
+    else if (event.kind === 'goal_resumed') text = 'CEO가 목표를 재개했어요';
+    else if (event.kind === 'goal_cancelled') text = event.message.includes('paused') ? '일시정지한 목표를 취소했어요' : '계획을 거부해 목표를 취소했어요';
     else if (event.kind === 'plan_form_retry') text = '계획 형식이 맞지 않아 PM에게 한 번 더 받았어요';
     else if (event.kind === 'review_limit_extended') text = 'CEO 요청으로 재작업을 한 번 더 해요';
     else if (event.kind === 'sdd_updated') text = event.message.includes('(plan)') ? 'PM이 SDD에 기능·요구사항·작업 목록을 기록했어요' : 'PM이 SDD에 결과와 다음 작업을 기록했어요';

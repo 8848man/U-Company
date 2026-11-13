@@ -76,3 +76,4 @@ Rows are in ID order. Each ADR starts with its title, a `Status:` line, and a `D
 | [ADR-0070](ADR-0070.md) | External adapter protocol: optional progress events, cancel request and declared resume (v1 compatible) | Accepted |
 | [ADR-0071](ADR-0071.md) | Reduce development debug information and measure whether build storage is sufficient | Accepted; build-size verification pending |
 | [ADR-0072](ADR-0072.md) | Verify unchanged task evidence, keep partial integration, and stop repeated fix revisions | Accepted; implemented, Windows QA pending |
+| [ADR-0073](ADR-0073.md) | CEO pauses running goals and meetings, cancels in-flight calls, then resumes or cancels | Accepted decision; implementation status in WLG-085 |

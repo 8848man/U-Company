@@ -48,6 +48,7 @@ export function meetingAttention(_goal: Goal, meeting: Meeting | undefined, pack
       return { label: `진행 중 · ${meetingStageLabels[meeting.stage]}`, detail: `${members.calling.length ? `${members.calling.join(', ')} 응답 대기 · ` : ''}AI에게 물어본 횟수 ${meeting.callsUsed}/${meeting.maxCalls}`, next: '기다리기', needsDecision: false, active: true };
     case 'blocked': return { label: '회의가 멈췄어요', detail: meeting.blockReason || '회의가 멈췄습니다.', next: '다시 시작하거나 지금까지 결과로 마치기', needsDecision: true, active: false };
     case 'stopped': return { label: '중단됨', detail: meeting.blockReason || 'CEO가 회의를 중단했습니다.', next: '다시 시작하거나 지금까지 결과로 마치기', needsDecision: true, active: false };
+    case 'cancelled': return { label: '취소됨', detail: meeting.blockReason || 'CEO가 회의를 취소했습니다.', next: '기록 보기', needsDecision: false, active: false };
     case 'package_ready': return { label: '회의가 끝났어요 · 결정해 주세요', detail: meeting.package?.partial ? '일부만 끝났어요.' : '한 바퀴 토론을 마쳤어요.', next: '제안 고르기, 다시 논의, 보류 중 하나', needsDecision: true, active: false };
     case 'decision_recorded': return { label: '결정 기록됨', detail: meeting.decision?.kind === 'adopt' ? '고른 제안은 목표 초안으로만 넘어가요.' : '결정을 기록했어요.', next: '회의 결과 보기', needsDecision: false, active: false };
     case 'legacy_closed': return { label: '이전 방식 회의 · 읽기 전용', detail: '앱 업데이트 전 고정 관점 방식의 회의라 더 진행하지 않습니다.', next: '기록 보기', needsDecision: false, active: false };

@@ -46,7 +46,7 @@ pub fn archived_ids(tx: &rusqlite::Transaction<'_>) -> Result<BTreeSet<String>, 
 fn archivable(goal: &Goal, tasks: &[Task], meeting: Option<&Meeting>) -> Result<(), String> {
     if goal.kind == "deliberation" {
         let stage = meeting.map(|item| item.stage.as_str()).unwrap_or("decision_recorded");
-        if goal.status == "completed" || ["decision_recorded", "legacy_closed", "blocked", "stopped"].contains(&stage) { return Ok(()); }
+        if goal.status == "completed" || ["decision_recorded", "legacy_closed", "blocked", "stopped", "cancelled"].contains(&stage) { return Ok(()); }
         return Err("진행 중인 회의는 보관할 수 없습니다. 회의를 중단하거나 결정을 기록한 뒤 보관해 주세요".into());
     }
     if !["new", "completed", "blocked", "cancelled"].contains(&goal.status.as_str()) { return Err("진행 중이거나 승인을 기다리는 목표는 보관할 수 없습니다. 끝나거나 멈춘 뒤 보관해 주세요".into()); }

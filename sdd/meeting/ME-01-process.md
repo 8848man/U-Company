@@ -26,6 +26,8 @@ The CEO approves an exact plan revision and digest in one card ([ME-02](ME-02-pa
 
 On restart an in-flight call becomes `outcome_unknown`, the meeting becomes `blocked`, and the plan approval expires. `resume_meeting` revalidates current inputs for the next stage, connections and busy state, returns to `plan_review` for re-approval, and then prepares new packet revisions only for missing contributions; an uncertain predecessor is flagged and never re-sent automatically. A blocked or stopped meeting may instead close as a partial package.
 
+CEO의 `회의 중단`은 이미 시작한 호출에도 취소 신호를 보내고, 중단 뒤 도착한 응답은 발언이나 계획으로 채택하지 않는다([ADR-0073](../architecture/decisions/ADR-0073.md)). 전송과 사용량 기록은 남고, 이미 저장된 발언과 호출 횟수는 보존된다. 중단 뒤에는 CEO가 재개하거나 취소한다. 재개는 기존처럼 계획을 재검토하고 승인한 뒤 남은 호출만 보낸다. 취소는 결론을 만들어 내지 않고 회의를 종료한다.
+
 ## Contributions and traceability
 
 The engine extracts the first complete JSON object even when surrounded by prose and retains the entire raw reply. The engine assigns IDs (`<agentId>.C1`, `<agentId>.K1`, `R1`) and records equivalent case/zero-padding ID normalization and rejects unknown claim, critique or source IDs, unhandled received critiques, rebuttals without a source reference, and out-of-bound sizes. A quote is `verified` only when it matches the frozen source after CRLF/LF and whitespace normalization; the first occurrence offset and the occurrence count are recorded. Source text is sent only in proposal packets.

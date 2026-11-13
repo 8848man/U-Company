@@ -18,6 +18,8 @@ When the engine blocks an execution Goal it records the block kind from the bloc
 
 An interrupted deliberation Goal keeps its Goal kind and coarse status. The Meeting becomes blocked, any in-flight provider call and usage are uncertain, pending exact packet decisions survive, and a meeting-scoped preapproval expires. Restart never resends a meeting packet automatically. A meeting-specific resume checks source hashes, destination identity, limits and current approval before a new call ([ME-01](../meeting/ME-01-process.md), [ME-02](../meeting/ME-02-packets.md)).
 
+CEO가 멈춘 실행 목표는 실패 차단과 별개의 `paused` 상태다([ADR-0073](../architecture/decisions/ADR-0073.md)). 진행 중 호출과 업무 기록이 정리될 때까지 재개·취소는 기다린다. 재개할 때 승인·파일·연결을 다시 검사하고, 시작했지만 통합하지 않은 격리 작업본은 폐기한 뒤 남은 업무를 새 호출로 실행한다. 이미 통합된 업무와 QA 근거는 보존한다. 취소는 앱 소유 격리 작업본을 경계 검사 후 정리하지만 원본 프로젝트의 통합 파일은 되돌리지 않는다.
+
 ## 관계와 소유 경계
 
 | 관계 | 대상 | 의미 |

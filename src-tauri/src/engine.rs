@@ -262,7 +262,9 @@ pub fn start<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_id: String) -> Re
         crate::storage::tx_event(tx, "goal_started", &goal.id, &format!("Analysis started by squad lead {}", lead.agent_id))
     })?;
     let _ = app.emit("state-changed", ());
+    let job = crate::run_control::begin_job(&goal_id);
     thread::spawn(move || {
+        let _job = job;
         if let Err(error) = run(&app, &goal_id) {
             block_goal(&app, &goal_id, &error);
         }
@@ -275,6 +277,105 @@ fn can_retry_before_write(goal: &Goal, tasks: &[Task], approvals: &[Approval]) -
         && matches!(goal.resumed_from.as_deref(), Some("analyzing" | "planning"))
         && !tasks.iter().any(|task| task.goal_id == goal.id)
         && !approvals.iter().any(|approval| approval.goal_id.as_deref() == Some(goal.id.as_str()))
+}
+
+pub fn pause<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<(), String> {
+    let store = app.state::<Store>();
+    store.transact(|tx| {
+        let mut goal: Goal = crate::storage::tx_get(tx, "goal", goal_id)?.ok_or("목표를 찾을 수 없습니다")?;
+        if goal.kind != "execution" || !["analyzing", "planning", "executing", "integrating", "validating"].contains(&goal.status.as_str()) {
+            return Err("진행 중인 실행 목표만 멈출 수 있습니다".into());
+        }
+        goal.resumed_from = Some(goal.status.clone());
+        goal.status = "paused".into();
+        goal.block_kind = "ceo_paused".into();
+        goal.report = "CEO가 멈췄습니다. 진행 중 AI 호출에 취소를 요청했고, 완료된 일은 보존했습니다".into();
+        crate::storage::tx_put(tx, "goal", goal_id, &goal)?;
+        crate::storage::tx_event(tx, "goal_paused", goal_id, "CEO paused; in-flight result will be discarded")
+    })?;
+    crate::run_control::stop(goal_id);
+    let _ = app.emit("state-changed", ());
+    Ok(())
+}
+
+fn clean_isolated_workspaces<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal: &Goal) -> Result<(), String> {
+    if goal.id.is_empty() || goal.id.contains(['/', '\\', '.']) { return Err("격리 작업본 경로가 안전하지 않습니다".into()); }
+    let root = worktree_base(app)?.join(&goal.id);
+    let meta = match root.symlink_metadata() {
+        Ok(meta) => meta,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(format!("격리 작업본을 확인하지 못했습니다: {error}")),
+    };
+    if !meta.is_dir() || meta.file_type().is_symlink() { return Err("격리 작업본이 일반 폴더가 아닙니다".into()); }
+    let store = app.state::<Store>();
+    let snapshot = store.snapshot()?;
+    let project = project_for_goal(&snapshot, goal)?;
+    for entry in std::fs::read_dir(&root).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        let meta = path.symlink_metadata().map_err(|e| e.to_string())?;
+        if !meta.is_dir() || meta.file_type().is_symlink() { return Err("격리 작업본 안에 예상하지 못한 항목이 있습니다".into()); }
+        if project.kind == "git" && path.join(".git").exists() {
+            let output = Command::new("git").arg("-C").arg(&project.path).args(["worktree", "remove", "--force"]).arg(&path).output().map_err(|e| e.to_string())?;
+            if !output.status.success() { return Err(format!("격리 Git 작업본을 정리하지 못했습니다: {}", String::from_utf8_lossy(&output.stderr))); }
+        } else {
+            std::fs::remove_dir_all(&path).map_err(|e| e.to_string())?;
+        }
+    }
+    std::fs::remove_dir(&root).map_err(|e| e.to_string())
+}
+
+pub fn cancel_paused<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<(), String> {
+    let store = app.state::<Store>();
+    let mut goal: Goal = store.get("goal", goal_id)?.ok_or("목표를 찾을 수 없습니다")?;
+    if goal.kind != "execution" || goal.status != "paused" { return Err("멈춘 실행 목표만 취소할 수 있습니다".into()); }
+    if crate::run_control::active(goal_id) { return Err("진행 중 작업 정리가 끝나면 취소할 수 있습니다".into()); }
+    if store.list::<Task>("task")?.iter().any(|task| task.goal_id == goal_id && task.status == "running") { return Err("진행 중 업무 기록이 정리되면 다시 눌러 주세요".into()); }
+    clean_isolated_workspaces(app, &goal)?;
+    goal.status = "cancelled".into();
+    goal.block_kind.clear();
+    goal.report = "CEO가 목표를 취소했습니다. 이미 원본 프로젝트에 통합된 변경은 보존했습니다".into();
+    store.put("goal", goal_id, &goal, Some(NewEvent::goal("goal_cancelled", &goal, "CEO cancelled the paused goal")))?;
+    let _ = app.emit("state-changed", ());
+    Ok(())
+}
+
+pub fn resume_paused<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_id: String) -> Result<(), String> {
+    let store = app.state::<Store>();
+    let mut goal: Goal = store.get("goal", &goal_id)?.ok_or("목표를 찾을 수 없습니다")?;
+    if goal.kind != "execution" || goal.status != "paused" { return Err("멈춘 실행 목표만 재개할 수 있습니다".into()); }
+    if crate::run_control::active(&goal_id) { return Err("진행 중 작업 정리가 끝나면 재개할 수 있습니다".into()); }
+    let tasks: Vec<Task> = store.list::<Task>("task")?.into_iter().filter(|task| task.goal_id == goal_id).collect();
+    if tasks.iter().any(|task| task.status == "running") { return Err("진행 중 업무 기록이 정리되면 다시 눌러 주세요".into()); }
+    let early = matches!(goal.resumed_from.as_deref(), Some("analyzing" | "planning")) && tasks.is_empty();
+    if !early && !store.list::<Approval>("approval")?.iter().any(|item| item.goal_id.as_deref() == Some(&goal_id) && item.operation == "project_write" && item.status == "approved") {
+        return Err("승인된 변경 계획이 없어 기존 실행을 재개할 수 없습니다".into());
+    }
+    clean_isolated_workspaces(&app, &goal)?;
+    for mut task in tasks.into_iter().filter(|task| task.status != "completed") {
+        task.status = "pending".into();
+        task.worktree = None;
+        task.session_id = None;
+        task.result.clear();
+        store.put("task", &task.id, &task, Some(NewEvent::task("task_reset_after_pause", &task, "CEO resumed; unintegrated isolated result discarded")))?;
+    }
+    goal.status = "blocked".into();
+    goal.block_kind.clear();
+    goal.report.clear();
+    store.put("goal", &goal_id, &goal, Some(NewEvent::goal("goal_resumed", &goal, "CEO resumed paused goal; current scope will be checked")))?;
+    crate::run_control::resume(&goal_id);
+    if early { return start(app, goal_id); }
+    if store.list::<Task>("task")?.iter().any(|task| task.goal_id == goal_id && task.status == "pending") { return resume_approved(app, goal_id); }
+    let snapshot = store.snapshot()?;
+    let project = project_for_goal(&snapshot, &goal)?;
+    let analysis = store.get::<String>("goal_analysis", &goal_id)?.unwrap_or_default();
+    transition_goal(&app, &goal_id, "executing", "CEO resumed completed task set for independent QA")?;
+    let job = crate::run_control::begin_job(&goal_id);
+    thread::spawn(move || {
+        let _job = job;
+        if let Err(error) = execute_planned(&app, &goal_id, &project, &goal, &analysis, &snapshot) { block_goal(&app, &goal_id, &error); }
+    });
+    Ok(())
 }
 
 pub fn resume_approved<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_id: String) -> Result<(), String> {
@@ -297,7 +398,9 @@ pub fn resume_approved<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_id: Str
     resumed.repeat_block = false;
     store.put("goal", &goal_id, &resumed, None)?;
     transition_goal(&app, &goal_id, "executing", "Approved plan resumed; unfinished tasks had not started")?;
+    let job = crate::run_control::begin_job(&goal_id);
     thread::spawn(move || {
+        let _job = job;
         if let Err(error) = execute_planned(&app, &goal_id, &project, &goal, &analysis, &snapshot) {
             block_goal(&app, &goal_id, &error);
         }
@@ -336,7 +439,9 @@ pub fn accept_no_change<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_id: St
     resumed.repeat_block = false;
     store.put("goal", &goal_id, &resumed, None)?;
     transition_goal(&app, &goal_id, "executing", "Unchanged observation checked; independent QA resumes")?;
+    let job = crate::run_control::begin_job(&goal_id);
     thread::spawn(move || {
+        let _job = job;
         if let Err(error) = execute_planned(&app, &goal_id, &project, &goal, &analysis, &snapshot) { block_goal(&app, &goal_id, &error); }
     });
     Ok(())
@@ -363,7 +468,9 @@ pub fn verify_bootstrap_goal<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_i
     let goal_id = goal_id.to_string();
     let commit_id = commit_id.to_string();
     let files = committed_files.join(", ");
+    let job = crate::run_control::begin_job(&goal_id);
     thread::spawn(move || {
+        let _job = job;
         let result = (|| -> Result<(), String> {
             let prompt = format!("You are {} ({}) independently reviewing a CEO-approved Git bootstrap. Inspect the selected project read-only. Verify the requested goal, main branch, exactly one initial commit, committed file list, relevant line-ending rules and document contents. Run safe read-only checks if useful. Return PASS or FAIL on the first line, then concise evidence. Do not edit files.\nRole instructions:\n{}\nCEO goal:\n{}\nCommit:\n{}\nApproved files:\n{}", qa.name, qa.role, qa.instructions, goal.intent, commit_id, files);
             record_progress(&app, &goal_id, None, &qa.id, "QA가 Git 첫 커밋과 문서를 확인하고 있습니다");
@@ -405,6 +512,7 @@ fn block_goal<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, error
     let _ = check_goal_guidance(app, goal_id, "실행 오류 후");
     let store = app.state::<Store>();
     if let Ok(Some(mut goal)) = store.get::<Goal>("goal", goal_id) {
+        if goal.status == "paused" || goal.status == "cancelled" { return; }
         let (kind, message) = delegation::split_mark(error);
         goal.resumed_from = Some(goal.status.clone());
         goal.status = "blocked".into();
@@ -449,7 +557,9 @@ fn record_handoff<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, f
 }
 
 pub(crate) fn check_goal_guidance<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, checkpoint: &str) -> Result<(), String> {
+    if crate::run_control::stopped(goal_id) { return Err("cancelled: CEO가 목표를 멈췄습니다".into()); }
     let store = app.state::<Store>();
+    if store.get::<Goal>("goal", goal_id)?.is_some_and(|goal| goal.status == "paused" || goal.status == "cancelled") { return Err("cancelled: CEO가 목표를 멈췄습니다".into()); }
     let mut proposals: Vec<GoalGuidance> = store.list::<GoalGuidance>("goal_guidance")?.into_iter()
         .filter(|item| item.goal_id == goal_id && ["pending", "review_required"].contains(&item.status.as_str())).collect();
     if proposals.is_empty() { return Ok(()); }
@@ -477,11 +587,14 @@ pub(crate) fn execute_tracked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, proj
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn execute_tracked_with<R: tauri::Runtime>(app: &tauri::AppHandle<R>, project_id: &str, goal_id: &str, task_id: Option<&str>, agent_id: &str, connection: &AiConnection, prompt: &str, cwd: &Path, writable: bool, options: &provider::CallOptions) -> Result<provider::AiResponse, String> {
     let store = app.state::<Store>();
+    let signal = crate::run_control::register(goal_id);
+    let mut options = options.clone();
+    options.cancel = Some(signal.clone());
     let mut usage = TokenUsageRecord { id: crate::model::id(), project_id: project_id.into(), goal_id: goal_id.into(), agent_id: agent_id.into(), task_id: task_id.map(str::to_string), connection_id: connection.id.clone(), connection_name: connection.name.clone(), model_id: connection.model_id.clone(), input_tokens: prompt.chars().count().div_ceil(4) as u64, output_tokens: 0, source: "estimated".into(), status: "active".into(), updated_at: crate::model::now(), meeting_id: None };
     store.put("usage", &usage.id, &usage, None)?;
     let _ = app.emit("state-changed", ());
     let mut last_usage_flush = Instant::now();
-    let result = provider::execute_with_options(connection, prompt, cwd, writable, options,
+    let result = provider::execute_with_options(connection, prompt, cwd, writable, &options,
         &mut |message| record_progress(app, goal_id, task_id, agent_id, message),
         &mut |output, reported| {
             if reported || output > usage.output_tokens { usage.output_tokens = output; }
@@ -493,13 +606,16 @@ pub(crate) fn execute_tracked_with<R: tauri::Runtime>(app: &tauri::AppHandle<R>,
                 last_usage_flush = Instant::now();
             }
         });
+    let paused = store.get::<Goal>("goal", goal_id).ok().flatten().is_some_and(|goal| goal.status == "paused" || goal.status == "cancelled");
+    let result = if crate::run_control::stopped(goal_id) || paused { Err("cancelled: CEO가 실행을 멈춰 결과를 사용하지 않았습니다".into()) } else { result };
+    crate::run_control::release(goal_id, &signal);
     match &result {
         Ok(completed) => {
             if let Some((input, output)) = completed.usage { usage.input_tokens = input; usage.output_tokens = output; usage.source = "reported".into(); }
             else { usage.output_tokens = completed.text.chars().count().div_ceil(4) as u64; }
             usage.status = "completed".into();
         }
-        Err(_) => usage.status = "failed".into(),
+        Err(error) => usage.status = if error.starts_with("cancelled:") { "cancelled" } else { "failed" }.into(),
     }
     usage.updated_at = crate::model::now();
     store.put("usage", &usage.id, &usage, None)?;
@@ -727,6 +843,7 @@ fn run<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<()
     let analysis_prompt = format!("{analysis_prompt}\n{}", planner_facts(&project));
     record_progress(app, goal_id, None, &cto.id, "CTO가 목표와 프로젝트를 분석하고 있습니다");
     let analysis = execute_tracked(app, &project.id, goal_id, None, &cto.id, &cto_connection, &analysis_prompt, &root, false)?.text;
+    check_goal_guidance(app, goal_id, "CTO 응답 후")?;
     // Kept apart from the goal report, which a later block overwrites, so a resumed plan's QA still
     // receives the CTO analysis.
     store.put("goal_analysis", goal_id, &analysis, None)?;
@@ -735,9 +852,12 @@ fn run<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<()
     let summary = summary_line(&analysis);
     if !summary.is_empty() { store.put("goal_summary", goal_id, &crate::model::GoalSummary { goal_id: goal_id.into(), text: summary, created_at: crate::model::now() }, None)?; }
     record_goal_origin(&store, goal_id, &project.id, &analysis, origin_status.as_ref(), origin_muted)?;
-    let mut planning_goal = goal.clone();
-    planning_goal.report = analysis.clone();
-    store.put("goal", goal_id, &planning_goal, None)?;
+    store.transact(|tx| {
+        let mut current: Goal = crate::storage::tx_get(tx, "goal", goal_id)?.ok_or("목표를 찾을 수 없습니다")?;
+        if current.status == "paused" || current.status == "cancelled" { return Err("cancelled: CEO가 목표를 멈췄습니다".into()); }
+        current.report = analysis.clone();
+        crate::storage::tx_put(tx, "goal", goal_id, &current)
+    })?;
     check_goal_guidance(app, goal_id, "CTO 분석 후")?;
     // ADR-0046: `개선` sends the plan back to the PM on the same goal; each pass ends at a new approval.
     let base_context = change_context.clone();
@@ -780,6 +900,7 @@ fn run<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<()
         validate_requirement_coverage(plan, &refs)?;
         validate_continuation(&store, &root, &source_tasks, plan, revision.is_some(), revision.as_ref().map(|item| item.goal_id.as_str()).unwrap_or(goal_id), goal_id)
     })?;
+    check_goal_guidance(app, goal_id, "PM 응답 후")?;
     // ADR-0057: file names keep the case of the file already in the project.
     normalize_plan_case(&mut proposed, &root, &[]);
     let requirement_note = requirement_note(&proposed, &refs);
@@ -942,6 +1063,7 @@ fn execute_planned<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, 
         let mut integration_failures = Vec::new();
         let mut integrated_count = 0_usize;
         for task_id in wave_ids {
+            if crate::run_control::stopped(goal_id) { return Err("cancelled: CEO가 통합 전에 목표를 멈췄습니다".into()); }
             if let Err(error) = integrate_task(&store, &root, &task_id, &project.kind) {
                 let task: Task = store.get("task", &task_id)?.ok_or("통합에 실패한 업무 기록이 없습니다")?;
                 let mut files = task.files.iter().map(|file| file.to_ascii_lowercase()).collect::<Vec<_>>();
@@ -1124,7 +1246,9 @@ pub fn request_team_fix_with<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_i
             let analysis = store.get::<String>("goal_analysis", &goal_id)?.unwrap_or_default();
             let approved_files: HashSet<String> = snapshot.tasks.iter().filter(|task| task.goal_id == goal_id).flat_map(|task| task.files.iter().map(|file| file.to_ascii_lowercase())).collect();
             let review = brief.clone();
+            let job = crate::run_control::begin_job(&goal_id);
             thread::spawn(move || {
+                let _job = job;
                 let result = (|| -> Result<(), String> {
                     let store = app.state::<Store>();
                     let qa_id = reviewers_for(&store, &store.snapshot()?, &goal_id)?.first().map(|agent| agent.id.clone()).unwrap_or_default();
@@ -1419,7 +1543,15 @@ fn run_task<R: tauri::Runtime>(app: &tauri::AppHandle<R>, mut task: Task, agent:
     let options = crate::permissions_flow::options_for_task(&store, &task, None)?;
     let prompt = format!("{prompt}{}", crate::permissions_flow::approved_note(&store, &task.goal_id)?);
     record_progress(app, &task.goal_id, Some(&task.id), &agent.id, "담당 파일을 구현하고 검증하고 있습니다");
-    match execute_tracked_with(app, project_id, &task.goal_id, Some(&task.id), &agent.id, &connection, &prompt, worktree, true, &options) {
+    let result = execute_tracked_with(app, project_id, &task.goal_id, Some(&task.id), &agent.id, &connection, &prompt, worktree, true, &options);
+    if crate::run_control::stopped(&task.goal_id) || store.get::<Goal>("goal", &task.goal_id)?.is_some_and(|goal| goal.status == "paused" || goal.status == "cancelled") {
+        task.status = "paused".into();
+        task.result = "CEO가 멈춰 진행 중 호출의 결과를 사용하지 않았습니다".into();
+        store.put("task", &task.id, &task, Some(NewEvent::task("task_paused", &task, &task.result)))?;
+        let _ = app.emit("state-changed", ());
+        return Err("cancelled: CEO가 목표를 멈췄습니다".into());
+    }
+    match result {
         Ok(result) => {
             crate::permissions_flow::record_task_denials(&store, &task, &result.permission_denials, 0)?;
             crate::permissions_flow::record_commands_run(&store, &task, &result.commands_run)?;
@@ -1490,6 +1622,7 @@ fn summary_line(text: &str) -> String {
 pub(crate) fn transition_goal<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str, status: &str, message: &str) -> Result<(), String> {
     let store = app.state::<Store>();
     let mut goal: Goal = store.get("goal", id)?.ok_or("Goal not found")?;
+    if goal.status == "paused" || goal.status == "cancelled" { return Err("CEO가 목표를 멈춰 이후 단계를 진행하지 않았습니다".into()); }
     goal.status = status.into();
     store.put("goal", id, &goal, Some(NewEvent::goal("goal_stage", &goal, message)))?;
     let _ = app.emit("state-changed", ());

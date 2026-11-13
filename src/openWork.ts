@@ -29,7 +29,7 @@ export function openWork(snapshot: Snapshot): OpenWork[] {
       projectName: snapshot.projects.find(project => project.id === goal.projectId)?.name ?? '프로젝트 확인 필요',
       tasks: snapshot.tasks.filter(task => task.goalId === goal.id && task.status !== 'completed'),
       meetingLabel: goal.kind === 'deliberation' ? meetingAttentionFor(goal, snapshot).label : undefined,
-      needsDecision: goal.kind === 'deliberation' ? meetingAttentionFor(goal, snapshot).needsDecision : goal.status === 'blocked' || goal.status === 'awaiting_approval' || pendingApprovals.has(goal.id),
+      needsDecision: goal.kind === 'deliberation' ? meetingAttentionFor(goal, snapshot).needsDecision : ['blocked', 'paused', 'awaiting_approval'].includes(goal.status) || pendingApprovals.has(goal.id),
     }))
     .sort((a, b) => Number(b.needsDecision) - Number(a.needsDecision) || b.goal.createdAt.localeCompare(a.goal.createdAt));
 }

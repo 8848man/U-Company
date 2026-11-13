@@ -1,5 +1,9 @@
 # Validation specification
 
+## CEO pause, resume, and cancel (ADR-0073)
+
+With a disposable project and a delayed provider, stop an execution goal during analysis, a writing task, and QA; stop a meeting during an in-flight packet. In each case verify the active provider receives cancellation, a late successful response is discarded, no later call or file integration starts, usage and completed work remain, and restart retains the pause. Resume the execution goal only after the in-flight call settles, recheck the approved scope and current files, discard unintegrated isolated output, and run only unfinished work. Cancel a paused goal and check the app-owned isolated folders are removed while already integrated project bytes remain. For a stopped meeting, verify existing contributions and call counts remain, the cancelled packet contributes nothing, resume requires review of the plan before another call, and cancel closes without a fabricated decision. Check the same actions in the v4 Windows app; a compile or fixture alone does not prove the live provider cancellation.
+
 ## Reused-file approved modification and QA re-entry (ADR-0068)
 
 Use a disposable project with an integrated source task, saved per-file SHA-256 proof, one dependent task, a linked goal, explicit plan and repair approvals, and an event ledger. Record task IDs, approval IDs and file scopes, event IDs, before/after hashes, exact changed paths, and QA outcome. Run these as engine fixtures and a local end-to-end pass; a document-only check does not prove runtime behavior.
