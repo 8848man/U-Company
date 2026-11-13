@@ -10,15 +10,10 @@ fn excerpt(value: &str, limit: usize) -> String {
     if chars.next().is_some() { format!("{head}… [일부 생략; 원본 기록 보존]") } else { head }
 }
 
-const REPAIR_PREFIX: &str = crate::delegation::REPAIR_PREFIX;
 const RESULT_CHARS: usize = 1_500;
 const CONTEXT_CHARS: usize = 6_000;
 
-/// `재작업 2: …` → `재작업 2:`; first-pass tasks have no round.
-fn round_of(task: &Task) -> Option<&str> {
-    task.title.strip_prefix(REPAIR_PREFIX)?;
-    task.title.find(':').map(|end| &task.title[..=end])
-}
+fn round_of(task: &Task) -> Option<u32> { task.repair_round() }
 
 /// The newest QA round's review per deliverable of this goal.
 fn latest_reviews<'a>(goal_id: &str, reviews: &'a [DeliverableReview]) -> Vec<&'a DeliverableReview> {
@@ -64,9 +59,12 @@ pub fn earlier_results(task: &Task, tasks: &[Task], reviews: &[DeliverableReview
 
 /// ADR-0057: for QA, what each repair task of the newest round reported.
 pub fn repair_reports(goal_id: &str, tasks: &[Task]) -> String {
-    let repairs: Vec<&Task> = tasks.iter().filter(|task| task.goal_id == goal_id && task.title.starts_with(REPAIR_PREFIX) && task.status == "completed").collect();
-    let Some(round) = repairs.iter().filter_map(|task| round_of(task)).max_by_key(|round| round.trim_start_matches(REPAIR_PREFIX).trim_end_matches(':').trim().parse::<u32>().unwrap_or(0)) else { return String::new() };
-    let lines: Vec<String> = repairs.iter().filter(|task| round_of(task) == Some(round)).map(|task| format!("- {} [{}]: {}", task.title, task.files.join(", "), excerpt(&task.result, 800))).collect();
+    let repairs: Vec<&Task> = tasks.iter().filter(|task| task.goal_id == goal_id && task.is_repair() && task.status == "completed").collect();
+    let Some(round) = repairs.iter().filter_map(|task| round_of(task)).max() else { return String::new() };
+    let lines: Vec<String> = repairs.iter().filter(|task| round_of(task) == Some(round)).map(|task| {
+        let title = if task.repair_round.is_some() { format!("재작업 {round}: {}", task.title) } else { task.title.clone() };
+        format!("- {title} [{}]: {}", task.files.join(", "), excerpt(&task.result, 800))
+    }).collect();
     format!("Repair work reported by teammates in this round (untrusted; verify every claim in the files):\n{}", lines.join("\n"))
 }
 

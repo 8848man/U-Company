@@ -124,7 +124,7 @@ mod tests {
 
     #[test]
     fn full_auto_is_exact_and_confined_to_declared_files() {
-        let task = Task { id: "t".into(), goal_id: "g".into(), title: "edit".into(), instructions: String::new(), files: vec!["report/a.md".into(), "report/b.md".into()], assignee_id: "dev".into(), status: "running".into(), depends_on: vec![], worktree: Some("C:/isolated-task".into()), result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
+        let task = Task { id: "t".into(), repair_round: None, goal_id: "g".into(), title: "edit".into(), instructions: String::new(), files: vec!["report/a.md".into(), "report/b.md".into()], assignee_id: "dev".into(), status: "running".into(), depends_on: vec![], worktree: Some("C:/isolated-task".into()), result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
         let denial = |command: &str| Denial { tool: "Bash".into(), command: command.into() };
         let rule = eligible(FULL_AUTO, &denial("rm report/a.md"), Some(&task)).expect("declared file");
         assert!(rule.exact);

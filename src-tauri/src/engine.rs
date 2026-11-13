@@ -85,10 +85,24 @@ struct ProposedTask {
     #[serde(default)]
     evidence: Vec<String>,
     #[serde(default)]
+    defect_evidence: Vec<ProposedDefectEvidence>,
+    #[serde(default)]
     capability: String,
     /// ADR-0058: shell commands the teammate will run (tests, builds); approved with the plan.
     #[serde(default)]
     commands: Vec<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProposedDefectEvidence {
+    file: String,
+    #[serde(default)]
+    quote: String,
+    #[serde(default)]
+    qa_review_id: String,
+    #[serde(default)]
+    criterion_index: Option<usize>,
 }
 
 impl ProposedTask {
@@ -97,7 +111,7 @@ impl ProposedTask {
     }
 }
 
-const TASK_SCHEMA: &str = r#"{"title":"...","deliverable":"one line: what this task delivers","instructions":"...","files":["relative/path.ext"],"acceptance":["checkable criterion", "..."],"evidence":["existing/project/input.md"],"capability":"document|code","commands":["npm test"],"dependsOn":[]}"#;
+const TASK_SCHEMA: &str = r#"{"title":"...","deliverable":"one line: what this task delivers","instructions":"...","files":["relative/path.ext"],"acceptance":["checkable criterion", "..."],"evidence":["existing/project/input.md"],"defectEvidence":[{"file":"relative/path.ext","quote":"exact current defect text"}],"capability":"document|code","commands":["npm test"],"dependsOn":[]}"#;
 const FOCUSED_PLAN_GUIDANCE: &str = concat!(
     "Planning process for each task: name the specific existing evidence files needed for its acceptance criteria ",
     "and describe useful focused checks in `instructions`. Name focused owning SDD files when applicable; ",
@@ -211,8 +225,8 @@ fn wait_free<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, ids: &
     }
 }
 
-fn task_from(proposal: ProposedTask, id: String, goal_id: &str, title: String, ids: &[String], assignee: &(String, String)) -> Task {
-    Task { id, goal_id: goal_id.into(), title, instructions: proposal.instructions, files: proposal.files, assignee_id: assignee.0.clone(), status: "pending".into(), depends_on: proposal.depends_on.into_iter().map(|i| ids[i].clone()).collect(), worktree: None, result: String::new(), session_id: None, deliverable: proposal.deliverable.trim().into(), acceptance: proposal.acceptance.into_iter().map(|item| item.trim().to_string()).filter(|item| !item.is_empty()).collect(), evidence: proposal.evidence, capability: proposal.capability.trim().into(), assignment_reason: assignee.1.clone() }
+fn task_from(proposal: ProposedTask, id: String, goal_id: &str, title: String, ids: &[String], assignee: &(String, String), repair_round: u32) -> Task {
+    Task { id, repair_round: Some(repair_round), goal_id: goal_id.into(), title, instructions: proposal.instructions, files: proposal.files, assignee_id: assignee.0.clone(), status: "pending".into(), depends_on: proposal.depends_on.into_iter().map(|i| ids[i].clone()).collect(), worktree: None, result: String::new(), session_id: None, deliverable: proposal.deliverable.trim().into(), acceptance: proposal.acceptance.into_iter().map(|item| item.trim().to_string()).filter(|item| !item.is_empty()).collect(), evidence: proposal.evidence, capability: proposal.capability.trim().into(), assignment_reason: assignee.1.clone() }
 }
 
 #[derive(Deserialize)]
@@ -768,7 +782,7 @@ fn run<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<()
     let pm_connection = connection(&snapshot.connections, pm)?;
     record_handoff(app, goal_id, &cto.id, &pm.id);
     let plan_prompt = format!("You are {} ({}) in an AI company. Decompose the CEO goal into remaining FILE-CHANGING implementation tasks. If the CEO requests one standalone file, propose exactly one task owning that file; do not invent extra artifacts merely for parallelism. Split independent tasks only for genuinely separate changes. The engine runs separate QA, so NEVER include QA, testing-only, review-only, or reporting-only tasks. Every new task must change explicitly named files. For a linked revision you may nominate only engine-verified completed task IDs in reusedTaskIds; QA will review the whole revised outcome. Return ONLY JSON: {{\"tasks\":[{TASK_SCHEMA}],\"reusedTaskIds\":[],\"squad\":{{\"structure\":\"standard|launch_prep\",\"reason\":\"why this team structure fits\"}}}}. Propose the squad structure for the CEO to approve: `standard` (up to 2 writers, 1 reviewer) for ordinary work, or `launch_prep` (출시 준비 팀: up to 3 writers, 2 reviewers) for a multi-document launch package. Do not name members; the engine fills them with checked, free teammates. List in `commands` the exact shell commands the teammate must run for the task (focused tests, builds, checks), or []; the CEO approves them with the plan, and commands that delete files, install packages, publish or use the network are asked about separately. Every task needs a one-line deliverable, 1-8 checkable acceptance criteria (each at most 300 characters), the existing project files it must be based on as evidence (read-only, may be empty), and capability `document` for documents/plans/research write-ups or `code` for software changes. Do not name an assignee; the engine assigns capable, free teammates. Claims that cannot be verified from local evidence must be marked as assumptions or unverified inside the deliverable, never stated as fact. A no-write revision may have zero tasks only if it reuses verified work. Use forward-slash relative paths and zero-based dependency indices. Tasks own distinct files; include focused tests with code implementation. Do not modify files.\nRole instructions:\n{}\nCEO goal: {}\nCTO analysis:\n{}\nProject context:\n{}\nRevision context:\n{}", pm.name, pm.role, pm.instructions, goal.intent, analysis, format_args!("{context}{sdd_context}{pm_refs}"), change_context);
-    let plan_prompt = format!("{plan_prompt}\n{FOCUSED_PLAN_GUIDANCE}\n{}{}", planner_facts(&project), preset_plan.prompt_context());
+    let plan_prompt = format!("{plan_prompt}\n{FOCUSED_PLAN_GUIDANCE}\nFor a linked revision after a no-change block, any new task that again changes the blocked task's file must include `defectEvidence` for each such file: an exact quote from the current file showing the defect, or a saved failed QA review ID and zero-based criterion index. This observation does not grant write approval.\n{}{}", planner_facts(&project), preset_plan.prompt_context());
     record_progress(app, goal_id, None, &pm.id, "PM이 파일별 작업과 완료 기준을 계획하고 있습니다");
     let mut proposed = plan_with_retry(app, &project.id, goal_id, pm, &pm_connection, &plan_prompt, &root, "PM 계획 후", |plan| {
         if plan.tasks.len() > 12 || (plan.tasks.is_empty() && plan.reused_task_ids.is_empty()) { return Err("PM must propose remaining tasks or verified reused work".into()); }
@@ -778,7 +792,8 @@ fn run<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<()
         delegation::validate_contract(&plan.tasks.iter().map(ProposedTask::contract).collect::<Vec<_>>(), &root)?;
         validate_reference_evidence(plan, &refs)?;
         validate_requirement_coverage(plan, &refs)?;
-        validate_continuation(&store, &root, &source_tasks, plan, revision.is_some(), revision.as_ref().map(|item| item.goal_id.as_str()).unwrap_or(goal_id), goal_id)
+        validate_continuation(&store, &root, &source_tasks, plan, revision.is_some(), revision.as_ref().map(|item| item.goal_id.as_str()).unwrap_or(goal_id), goal_id)?;
+        validate_repeated_change_evidence(&store, &root, &source_tasks, plan, revision.as_ref().map(|item| item.goal_id.as_str()))
     })?;
     // ADR-0057: file names keep the case of the file already in the project.
     normalize_plan_case(&mut proposed, &root, &[]);
@@ -813,7 +828,7 @@ fn run<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<()
     let proposed_commands: Vec<Vec<String>> = proposed.tasks.iter().map(|task| task.commands.clone()).collect();
     for (index, proposal) in proposed.tasks.into_iter().enumerate() {
         let title = proposal.title.clone();
-        let task = task_from(proposal, ids[index].clone(), goal_id, title, &ids, &assignees[index]);
+        let task = task_from(proposal, ids[index].clone(), goal_id, title, &ids, &assignees[index], 0);
         store.put("task", &task.id, &task, Some(NewEvent::task("task_delegated", &task, &format!("Engine assigned: {}", task.assignment_reason))))?;
         record_handoff(app, goal_id, &pm.id, &task.assignee_id);
     }
@@ -1205,8 +1220,8 @@ fn plan_repair<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str, proj
     store.put("goal", goal_id, &current, Some(NewEvent::goal("review_rework_started", &current, &format!("QA 재작업 {round}/{review_limit} 시작"))))?;
     let ids: Vec<String> = (0..proposed.tasks.len()).map(|_| crate::model::id()).collect();
     for (index, proposal) in proposed.tasks.into_iter().enumerate() {
-        let title = format!("{}{round}: {}", delegation::REPAIR_PREFIX, proposal.title);
-        let task = task_from(proposal, ids[index].clone(), goal_id, title, &ids, &repair_assignees[index]);
+        let title = proposal.title.clone();
+        let task = task_from(proposal, ids[index].clone(), goal_id, title, &ids, &repair_assignees[index], round);
         store.put("repair_task_scope", &task.id, &crate::model::RepairTaskScope { task_id: task.id.clone(), goal_id: task.goal_id.clone(), approval_id: scope_approval_id.clone().unwrap(), files: task.files.clone() }, None)?;
         store.put("task", &task.id, &task, Some(NewEvent::task("task_delegated", &task, "PM delegated QA repair")))?;
         record_handoff(app, goal_id, &pm.id, &task.assignee_id);
@@ -1411,7 +1426,8 @@ fn remove_copied_evidence(worktree: &Path) -> Result<(), String> {
 fn run_task<R: tauri::Runtime>(app: &tauri::AppHandle<R>, mut task: Task, agent: Agent, connection: AiConnection, intent: &str, project_id: &str) -> Result<(), String> {
     let store = app.state::<Store>();
     let worktree = Path::new(task.worktree.as_ref().ok_or("Missing worktree")?);
-    let prompt = format!("You are {} ({}) in an AI company. Work only inside this isolated task folder and change ONLY these declared files: {}. The engine rejects changes to other files. Follow project instructions that do not conflict with this assignment. Do not deploy, send data externally beyond the model service, alter credentials, change agent permissions, or commit. Implement your assigned task and run focused tests. If no declared file needs changing, report your observation as one JSON object {{\"outcome\":\"no_change_needed\",\"evidence\":[{{\"file\":\"declared/path\",\"quote\":\"exact existing text\"}}]}} or use {{\"pattern\":\"literal text that should be absent\",\"files\":[\"declared/path\"]}} as an evidence item. Do not claim a PASS; the engine checks the observation and independent QA judges acceptance.\nCEO goal: {}\nTask: {}\n{}\nRole instructions: {}\nReturn a concise summary and test evidence.", agent.name, agent.role, task.files.join(", "), intent, task.title, worker_brief(&task, &crate::references::for_goal(&store, &task.goal_id).unwrap_or_default()), squad::role_notes(&agent));
+    let task_label = if task.repair_round.is_some() { task.repair_round().map_or_else(|| task.title.clone(), |round| format!("{}{}: {}", delegation::REPAIR_PREFIX, round, task.title)) } else { task.title.clone() };
+    let prompt = format!("You are {} ({}) in an AI company. Work only inside this isolated task folder and change ONLY these declared files: {}. The engine rejects changes to other files. Follow project instructions that do not conflict with this assignment. Do not deploy, send data externally beyond the model service, alter credentials, change agent permissions, or commit. Implement your assigned task and run focused tests. If no declared file needs changing, report your observation as one JSON object {{\"outcome\":\"no_change_needed\",\"evidence\":[{{\"file\":\"declared/path\",\"quote\":\"exact existing text\"}}]}} or use {{\"pattern\":\"literal text that should be absent\",\"files\":[\"declared/path\"]}} as an evidence item. Do not claim a PASS; the engine checks the observation and independent QA judges acceptance.\nCEO goal: {}\nTask: {}\n{}\nRole instructions: {}\nReturn a concise summary and test evidence.", agent.name, agent.role, task.files.join(", "), intent, task_label, worker_brief(&task, &crate::references::for_goal(&store, &task.goal_id).unwrap_or_default()), squad::role_notes(&agent));
     // ADR-0057: results of finished work this task builds on, and the criteria the last QA failed.
     let earlier = crate::goal_context::earlier_results(&task, &store.list::<Task>("task")?, &store.list::<crate::model::DeliverableReview>("deliverable_review")?);
     let prompt = if earlier.is_empty() { prompt } else { format!("{prompt}\n{earlier}") };
@@ -1599,7 +1615,7 @@ fn integrated_event_matches(store: &Store, goal_id: &str, task_id: &str, event_i
 }
 
 fn transition_scope_matches(store: &Store, transition: &crate::model::ReuseFileTransition, task: &Task) -> Result<bool, String> {
-    let files = if task.title.starts_with(delegation::REPAIR_PREFIX) {
+    let files = if task.is_repair() {
         store.get::<crate::model::RepairTaskScope>("repair_task_scope", &task.id)?.map(|scope| scope.files)
     } else {
         crate::technology_presets::snapshot_for(store, &transition.approval_id)?.and_then(|snapshot| snapshot.tasks.into_iter().find(|planned| planned.id == task.id).map(|planned| planned.files))
@@ -1721,6 +1737,48 @@ fn validate_continuation(store: &Store, root: &Path, source_tasks: &[Task], plan
             let integrated = store.get::<TaskIntegrationProof>("task_proof", &task.id)?.is_some_and(|proof| proof.files.iter().any(|item| item.path.eq_ignore_ascii_case(file)));
             let unchanged = store.get::<TaskNoChangeProof>("task_no_change_proof", &task.id)?.is_some_and(|proof| proof.qa_passed && proof.files.iter().any(|item| item.path.eq_ignore_ascii_case(file)));
             if !integrated && !unchanged { return Err(format!("중복 파일 {file}: 이전 파일 증거 없음")); }
+        }
+    }
+    Ok(())
+}
+
+/// ADR-0074: a repeated change of a file blocked as unchanged needs independently checked
+/// defect evidence before the CEO sees a new write-approval card.
+fn validate_repeated_change_evidence(store: &Store, root: &Path, source_tasks: &[Task], plan: &ProposedPlan, source_goal_id: Option<&str>) -> Result<(), String> {
+    let Some(source_goal_id) = source_goal_id else { return Ok(()) };
+    let Some(source_goal) = store.get::<Goal>("goal", source_goal_id)? else { return Err("이전 목표 기록이 없습니다".into()) };
+    if source_goal.status != "blocked" || source_goal.block_kind != "no_changes" { return Ok(()) }
+    // Read the ledger directly: Snapshot intentionally shows only the newest 250 events.
+    let failed_ids: HashSet<String> = {
+        let db = store.0.lock().map_err(|e| e.to_string())?;
+        let mut stmt = db.prepare("SELECT task_id,message FROM events WHERE goal_id=?1 AND kind='task_integration_failed'").map_err(|e| e.to_string())?;
+        let rows = stmt.query_map([source_goal_id], |row| Ok((row.get::<_, Option<String>>(0)?, row.get::<_, String>(1)?))).map_err(|e| e.to_string())?;
+        rows.filter_map(Result::ok).filter(|(_, message)| message.lines().next().and_then(|line| serde_json::from_str::<serde_json::Value>(line).ok()).is_some_and(|signature| signature.get("kind").and_then(|kind| kind.as_str()) == Some("NoChanges")))
+            .filter_map(|(task_id, _)| task_id).collect()
+    };
+    if failed_ids.is_empty() { return Err("이전 변경 없음 차단의 작업별 기록을 확인할 수 없습니다".into()); }
+    let unchanged: Vec<&Task> = source_tasks.iter().filter(|task| task.goal_id == source_goal_id && failed_ids.contains(&task.id)).collect();
+    for task in &plan.tasks {
+        for item in &task.defect_evidence {
+            if !task.files.iter().any(|file| file.eq_ignore_ascii_case(&item.file)) { return Err(format!("결함 근거 파일 {}은 이 작업의 선언 파일이 아닙니다", item.file)); }
+        }
+        for file in task.files.iter().filter(|file| unchanged.iter().any(|old| old.files.iter().any(|prior| prior.eq_ignore_ascii_case(file)))) {
+            let item = task.defect_evidence.iter().find(|item| item.file.eq_ignore_ascii_case(file)).ok_or_else(|| format!("반복 수정 파일 {file}의 현재 결함 근거가 없습니다"))?;
+            if item.quote.trim().is_empty() == item.qa_review_id.trim().is_empty() { return Err(format!("결함 근거 {file}: 현재 파일 인용 또는 실패 QA 판정 중 하나만 지정하세요")); }
+            if !item.quote.trim().is_empty() {
+                if item.quote.chars().count() > 500 || item.criterion_index.is_some() { return Err(format!("결함 근거 {file}: 인용문 형식이 올바르지 않습니다")); }
+                let path = root.join(file).canonicalize().map_err(|_| format!("결함 근거 {file}: 현재 파일을 읽을 수 없습니다"))?;
+                if !path.starts_with(root.canonicalize().map_err(|e| e.to_string())?) || !std::fs::read_to_string(path).map_err(|_| format!("결함 근거 {file}: 텍스트 파일을 읽을 수 없습니다"))?.contains(&item.quote) {
+                    return Err(format!("결함 근거 {file}: 현재 파일에 인용문이 없습니다"));
+                }
+            } else {
+                let index = item.criterion_index.ok_or_else(|| format!("결함 근거 {file}: 실패 기준 번호가 없습니다"))?;
+                let review: crate::model::DeliverableReview = store.get("deliverable_review", &item.qa_review_id)?.ok_or_else(|| format!("결함 근거 {file}: 저장된 QA 판정이 없습니다"))?;
+                let owned = unchanged.iter().any(|old| old.id == review.task_id && old.files.iter().any(|prior| prior.eq_ignore_ascii_case(file)));
+                if review.goal_id != source_goal_id || !owned || review.verdict == "pass" || !review.criteria.get(index).is_some_and(|criterion| !criterion.met && !criterion.evidence.trim().is_empty()) {
+                    return Err(format!("결함 근거 {file}: 해당 파일의 실패 QA 기준이 아닙니다"));
+                }
+            }
         }
     }
     Ok(())
@@ -1916,7 +1974,7 @@ fn integrate_task(store: &Store, root: &Path, task_id: &str, project_kind: &str)
     if changed_files.is_empty() {
         for file in &task.files { approved_task_file(store, &task, file).map_err(platform::IntegrationError::ScopeViolation)?; }
         let mut verified = verified_no_change_report(root, &task);
-        let is_repair = task.title.starts_with(delegation::REPAIR_PREFIX);
+        let is_repair = task.is_repair();
         if verified.is_none() && !is_repair {
             return Err(platform::IntegrationError::NoChanges);
         }
@@ -1945,7 +2003,7 @@ fn integrate_task(store: &Store, root: &Path, task_id: &str, project_kind: &str)
         if !changed_files.iter().any(|file| file.eq_ignore_ascii_case(&path)) { continue; }
         let after_sha256 = proof.files.iter().find(|item| item.path.eq_ignore_ascii_case(&path)).ok_or("통합 파일 해시 누락")?.sha256.clone();
         if before_sha256 == after_sha256 { continue; }
-        let approved_files = if task.title.starts_with(delegation::REPAIR_PREFIX) { store.get::<crate::model::RepairTaskScope>("repair_task_scope", &task.id)?.ok_or("Repair scope missing")?.files } else { task.files.clone() };
+        let approved_files = if task.is_repair() { store.get::<crate::model::RepairTaskScope>("repair_task_scope", &task.id)?.ok_or("Repair scope missing")?.files } else { task.files.clone() };
         let transition = crate::model::ReuseFileTransition { source_task_id, task_id: task.id.clone(), goal_id: task.goal_id.clone(), approval_id, path: path.clone(), before_sha256, after_sha256, integrated_at: proof.integrated_at.clone(), approved_files, integration_event: integration_event.clone(), previous_transition_key };
         store.put("reuse_file_transition_history", &transition_history_key(&task.goal_id, &task.id, &path), &transition, None)?;
         store.put("reuse_file_transition", &transition_key(&task.goal_id, &path), &transition, Some(NewEvent::task("reuse_file_transition", &task, &format!("Approved integrated reuse replacement: {path}"))))?;
@@ -1954,7 +2012,7 @@ fn integrate_task(store: &Store, root: &Path, task_id: &str, project_kind: &str)
 }
 
 fn approved_task_file(store: &Store, task: &Task, file: &str) -> Result<String, String> {
-    if task.title.starts_with(delegation::REPAIR_PREFIX) {
+    if task.is_repair() {
         if let Some(scope) = store.get::<crate::model::RepairTaskScope>("repair_task_scope", &task.id)? {
             let approval: crate::model::Approval = store.get("approval", &scope.approval_id)?.ok_or("Repair approval missing")?;
             // ADR-0053: a repair inside the approved plan is bound to the plan approval itself.
@@ -2062,6 +2120,43 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
     #[test]
+    fn repeated_change_needs_current_file_or_saved_failed_qa_evidence() {
+        let root = std::env::temp_dir().join(format!("plan-defect-{}", crate::model::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("workflow.js"), "export const broken = true;\n").unwrap();
+        let store = Store::open(&root.join("state.sqlite")).unwrap();
+        let goal = crate::model::Goal { id: "old".into(), kind: "execution".into(), project_id: None, intent: "fix".into(), status: "blocked".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: "no_changes".into(), repeat_block: false };
+        store.put("goal", "old", &goal, None).unwrap();
+        let old: Task = serde_json::from_value(serde_json::json!({"id":"prior","goalId":"old","title":"edit workflow","instructions":"x","files":["workflow.js"],"assigneeId":"dev","status":"awaiting_integration","dependsOn":[],"worktree":null,"result":""})).unwrap();
+        store.append_event(crate::storage::NewEvent { kind: "task_integration_failed".into(), goal_id: Some("old".into()), task_id: Some(old.id.clone()), agent_id: None, message: "{\"kind\":\"NoChanges\",\"files\":[\"workflow.js\"]}\nTask produced no file changes".into() }).unwrap();
+        let parse = |evidence: serde_json::Value| parse_plan(&serde_json::json!({"tasks":[{"title":"fix","instructions":"i","files":["workflow.js"],"defectEvidence":evidence}]}).to_string()).unwrap();
+        let missing = parse(serde_json::json!([]));
+        assert!(super::validate_repeated_change_evidence(&store, &root, std::slice::from_ref(&old), &missing, Some("old")).is_err());
+        let bad = parse(serde_json::json!([{"file":"workflow.js","quote":"not present"}]));
+        assert!(super::validate_repeated_change_evidence(&store, &root, std::slice::from_ref(&old), &bad, Some("old")).is_err());
+        let good = parse(serde_json::json!([{"file":"workflow.js","quote":"broken = true"}]));
+        assert!(super::validate_repeated_change_evidence(&store, &root, std::slice::from_ref(&old), &good, Some("old")).is_ok());
+        let review: crate::model::DeliverableReview = serde_json::from_value(serde_json::json!({"id":"old:prior:r0","goalId":"old","taskId":"prior","round":0,"verdict":"fail","criteria":[{"criterion":"works","met":false,"evidence":"workflow.js test failed"}],"reviewerId":"qa","createdAt":"now"})).unwrap();
+        store.put("deliverable_review", &review.id, &review, None).unwrap();
+        let qa = parse(serde_json::json!([{"file":"workflow.js","qaReviewId":"old:prior:r0","criterionIndex":0}]));
+        assert!(super::validate_repeated_change_evidence(&store, &root, &[old], &qa, Some("old")).is_ok());
+        let completed = crate::model::Goal { status: "completed".into(), ..goal };
+        store.put("goal", "old", &completed, None).unwrap();
+        assert!(super::validate_repeated_change_evidence(&store, &root, &[], &missing, Some("old")).is_ok(), "a finished goal can accept an ordinary follow-up");
+        drop(store);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn persisted_repair_round_overrides_title_and_legacy_titles_still_read() {
+        let mut task: Task = serde_json::from_value(serde_json::json!({"id":"t","goalId":"g","title":"재작업 2: label","instructions":"","files":[],"assigneeId":"dev","status":"completed","dependsOn":[],"worktree":null,"result":""})).unwrap();
+        assert_eq!(task.repair_round(), Some(2));
+        task.repair_round = Some(0);
+        assert!(!task.is_repair());
+        task.title = "plain repair".into();
+        task.repair_round = Some(3);
+        assert_eq!(task.repair_round(), Some(3));
+    }
+    #[test]
     fn repeated_block_uses_saved_error_kind_and_file_set_not_task_id_or_message() {
         let root = std::env::temp_dir().join(format!("repeat-block-{}", crate::model::id()));
         std::fs::create_dir_all(&root).unwrap();
@@ -2098,7 +2193,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("utopia-repair-scope-{}", crate::model::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let db = dir.join("state.sqlite");
-        let repair = Task { id: "repair".into(), goal_id: "goal".into(), title: format!("{}1: fix", delegation::REPAIR_PREFIX), instructions: String::new(), files: vec!["own.md".into(), "other.md".into()], assignee_id: "a".into(), status: "awaiting_integration".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
+        let repair = Task { id: "repair".into(), repair_round: None, goal_id: "goal".into(), title: format!("{}1: fix", delegation::REPAIR_PREFIX), instructions: String::new(), files: vec!["own.md".into(), "other.md".into()], assignee_id: "a".into(), status: "awaiting_integration".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
         {
             let store = Store::open(&db).unwrap();
             store.put("approval", "approved", &Approval { id: "approved".into(), goal_id: Some("goal".into()), operation: super::SCOPE_OPERATION.into(), reason: String::new(), status: "approved".into(), created_at: String::new() }, None).unwrap();
@@ -2130,7 +2225,7 @@ mod tests {
         std::fs::write(worker.join("product.md"), "approved repair\n").unwrap();
         let db = dir.join("state.sqlite");
         let store = Store::open(&db).unwrap();
-        let make_task = |id: &str, goal: &str, status: &str, worktree: Option<String>| Task { id: id.into(), goal_id: goal.into(), title: format!("{}1: product", delegation::REPAIR_PREFIX), instructions: String::new(), files: vec!["product.md".into()], assignee_id: "a".into(), status: status.into(), depends_on: vec![], worktree, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
+        let make_task = |id: &str, goal: &str, status: &str, worktree: Option<String>| Task { id: id.into(), repair_round: None, goal_id: goal.into(), title: format!("{}1: product", delegation::REPAIR_PREFIX), instructions: String::new(), files: vec!["product.md".into()], assignee_id: "a".into(), status: status.into(), depends_on: vec![], worktree, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
         let source = make_task("source", "old-goal", "completed", None);
         store.put("task", &source.id, &source, None).unwrap();
         store.put("task_proof", &source.id, &TaskIntegrationProof { task_id: source.id.clone(), goal_id: source.goal_id.clone(), files: vec![FileDigest { path: "product.md".into(), sha256: old.clone() }], integrated_at: "before".into() }, None).unwrap();
@@ -2175,7 +2270,7 @@ mod tests {
         let file = "sdd-product.md";
         std::fs::write(root.join(file), "old").unwrap();
         let old = super::digest_project_file(&root, file).unwrap().sha256;
-        let task = |id: &str, goal: &str| Task { id: id.into(), goal_id: goal.into(), title: id.into(), instructions: String::new(), files: vec![file.into()], assignee_id: "a".into(), status: "completed".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
+        let task = |id: &str, goal: &str| Task { id: id.into(), repair_round: None, goal_id: goal.into(), title: id.into(), instructions: String::new(), files: vec![file.into()], assignee_id: "a".into(), status: "completed".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
         let db = dir.join("state.sqlite");
         {
             let store = Store::open(&db).unwrap();
@@ -2360,13 +2455,13 @@ mod tests {
     }
     #[test]
     fn git_metadata_only_work_gets_actionable_folder_failure() {
-        let task = crate::model::Task { id: "t".into(), goal_id: "g".into(), title: "Create the Git repository, normalize line endings and make the first commit on main".into(), instructions: "Initialize Git".into(), files: vec![".gitattributes".into()], assignee_id: "developer-a".into(), status: "awaiting_integration".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
+        let task = crate::model::Task { id: "t".into(), repair_round: None, goal_id: "g".into(), title: "Create the Git repository, normalize line endings and make the first commit on main".into(), instructions: "Initialize Git".into(), files: vec![".gitattributes".into()], assignee_id: "developer-a".into(), status: "awaiting_integration".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
         assert!(explain_folder_integration_failure(&task, "Task produced no file changes").contains("다시 선택"));
         assert_eq!(explain_folder_integration_failure(&task, "Agent changed undeclared file"), "Agent changed undeclared file");
     }
     #[test]
     fn bootstrap_qa_requires_exact_failed_task_scope() {
-        let mut task = crate::model::Task { id: "t".into(), goal_id: "g".into(), title: "Create Git repository and first commit".into(), instructions: "Initialize Git".into(), files: vec!["README.md".into(), ".gitattributes".into()], assignee_id: "developer-a".into(), status: "awaiting_integration".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
+        let mut task = crate::model::Task { id: "t".into(), repair_round: None, goal_id: "g".into(), title: "Create Git repository and first commit".into(), instructions: "Initialize Git".into(), files: vec!["README.md".into(), ".gitattributes".into()], assignee_id: "developer-a".into(), status: "awaiting_integration".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
         assert!(bootstrap_task_candidate(&[task.clone()], &[".gitattributes".into(), "README.md".into()]).is_some());
         assert!(bootstrap_task_candidate(&[task.clone()], &["README.md".into()]).is_none());
         let mut other = task.clone();
@@ -2415,7 +2510,7 @@ mod tests {
         goal.resumed_from = Some("awaiting_approval".into());
         assert!(!can_retry_before_write(&goal, &[], &[]));
         goal.resumed_from = Some("planning".into());
-        let task = crate::model::Task { id: "t".into(), goal_id: goal.id.clone(), title: String::new(), instructions: String::new(), files: vec![], assignee_id: String::new(), status: "pending".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
+        let task = crate::model::Task { id: "t".into(), repair_round: None, goal_id: goal.id.clone(), title: String::new(), instructions: String::new(), files: vec![], assignee_id: String::new(), status: "pending".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
         assert!(!can_retry_before_write(&goal, &[task], &[]));
     }
     #[test]
@@ -2437,7 +2532,7 @@ mod tests {
         let assigned = delegation::assign(&capabilities, &agents, &connections, &Default::default()).unwrap();
         assert_eq!(assigned.iter().map(|item| item.0.as_str()).collect::<Vec<_>>(), vec!["developer-a", "developer-b", "developer-a"]);
         let ids: Vec<String> = (0..3).map(|n| format!("t{n}")).collect();
-        let tasks: Vec<Task> = plan.tasks.into_iter().enumerate().map(|(index, proposal)| { let title = proposal.title.clone(); task_from(proposal, ids[index].clone(), "g", title, &ids, &assigned[index]) }).collect();
+        let tasks: Vec<Task> = plan.tasks.into_iter().enumerate().map(|(index, proposal)| { let title = proposal.title.clone(); task_from(proposal, ids[index].clone(), "g", title, &ids, &assigned[index], 0) }).collect();
         assert_eq!(tasks[1].depends_on, vec!["t0".to_string()]);
         assert_eq!(tasks[0].evidence, vec!["notes/idea.md".to_string(), "notes/interviews.md".to_string()]);
         let summary = delegation::approval_lines(&tasks, &agents);
@@ -2617,7 +2712,7 @@ mod tests {
         prepare_worktree(&root, &worktree, &base).unwrap();
         let store = Store::open(&dir.join("state.sqlite")).unwrap();
         let task = Task {
-            id: "task".into(), goal_id: "goal".into(), title: "Write good.txt".into(),
+            id: "task".into(), repair_round: None, goal_id: "goal".into(), title: "Write good.txt".into(),
             instructions: String::new(), files: vec!["good.txt".into()],
             assignee_id: "developer-a".into(), status: "awaiting_integration".into(),
             depends_on: vec![], worktree: Some(worktree.to_string_lossy().into_owned()),
@@ -2661,7 +2756,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("utopia-revision-lineage-{}", crate::model::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let store = Store::open(&dir.join("state.sqlite")).unwrap();
-        let task = Task { id: "old-task".into(), goal_id: "original".into(), title: "Existing file".into(), instructions: String::new(), files: vec!["result.txt".into()], assignee_id: "developer-a".into(), status: "completed".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
+        let task = Task { id: "old-task".into(), repair_round: None, goal_id: "original".into(), title: "Existing file".into(), instructions: String::new(), files: vec!["result.txt".into()], assignee_id: "developer-a".into(), status: "completed".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
         store.put("task", &task.id, &task, None).unwrap();
         let guidance = GoalGuidance { id: "revision".into(), goal_id: "original".into(), text: "Change acceptance criteria".into(), status: "revised".into(), created_at: crate::model::now(), checkpoint: None, replacement_goal_id: Some("middle".into()), addressed_agent_id: Some("developer-a".into()), worker_handoff: Some("Escalated".into()), continuation: Some(ContinuationDecision { source_goal_id: "original".into(), reused_task_ids: vec![task.id.clone()], replaced_task_ids: vec![], new_task_count: 0, reviewed_at: crate::model::now() }), auto_continue: false };
         store.put("goal_guidance", &guidance.id, &guidance, None).unwrap();

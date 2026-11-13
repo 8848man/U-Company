@@ -128,7 +128,7 @@ pub fn attach(items: &mut [StuckCriterion], proposals: &[Proposal]) {
 pub fn from_proposals(tasks: &[Task], reviews: &[DeliverableReview], goal_id: &str, round: u32, proposals: &[Proposal]) -> Vec<StuckCriterion> {
     let mut items: Vec<StuckCriterion> = Vec::new();
     for proposal in proposals {
-        let Some(task) = tasks.iter().find(|task| task.goal_id == goal_id && task.id == proposal.task_id.trim() && !task.title.starts_with(crate::delegation::REPAIR_PREFIX)) else { continue };
+        let Some(task) = tasks.iter().find(|task| task.goal_id == goal_id && task.id == proposal.task_id.trim() && !task.is_repair()) else { continue };
         let Some(criterion) = task.acceptance.get(proposal.index) else { continue };
         if items.iter().any(|item| item.task_id == task.id && item.index == proposal.index) { continue; }
         let evidence = reviews.iter().find(|review| review.goal_id == goal_id && review.round == round && review.task_id == task.id).and_then(|review| review.criteria.iter().find(|item| &item.criterion == criterion)).map(|item| cut(&item.evidence, 600)).unwrap_or_default();
