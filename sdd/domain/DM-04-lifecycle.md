@@ -16,6 +16,8 @@ A registered Git project may contain tracked or untracked local changes when the
 
 For deliverable tasks QA answers per task and per criterion. The goal completes only when the overall verdict passes and every deliverable task passes with every criterion met and evidenced. A missing or malformed per-deliverable answer blocks the goal as a QA form failure without spending a rework round. If QA rejects the integrated result, the engine records the review, increments the goal's rework round, asks PM for concrete repair tasks, runs developers in new isolated worktrees based on the integrated project snapshot, integrates declared changes, and asks QA again. Each goal owns its maximum *additional* repair rounds, copied from the project's 0–5 preset at creation. Changing a goal's cap while it runs takes effect at its next QA decision; changing the project preset affects only future goals. Legacy goals without a saved cap inherit the project preset once during storage migration. When the cap is exhausted, the goal blocks with the latest QA reason. A repair plan may modify only files in the original project-write approval; a new file or broader scope requires a separate CEO approval and is not silently attempted. The loop count is persisted so a restart never resets it.
 
+New QA repair tasks persist their repair round separately from the title. Existing saved repair tasks with only the historical `재작업 N:` title are read compatibly; a title alone never gives a new task repair privileges ([ADR-0074](../architecture/decisions/ADR-0074.md)).
+
 ## 관계와 소유 경계
 
 | 관계 | 대상 | 의미 |
