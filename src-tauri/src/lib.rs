@@ -19,6 +19,7 @@ mod presets;
 mod provider;
 pub mod provider_harness;
 mod runtime;
+mod run_control;
 mod spec_import;
 mod sdd_origin;
 mod plan_review;
@@ -39,7 +40,7 @@ use tauri::{Emitter, Manager};
 struct BackendInfo { protocol_version: u32, build_id: String }
 
 #[tauri::command]
-fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 42, build_id: meeting::meeting_build() } }
+fn get_backend_info() -> BackendInfo { BackendInfo { protocol_version: 43, build_id: meeting::meeting_build() } }
 
 #[tauri::command]
 fn get_snapshot(store: tauri::State<'_, Store>) -> Result<Snapshot, String> { store.snapshot() }
@@ -457,7 +458,7 @@ fn meeting_transport(store: &Store, meeting_id: Option<&str>) -> Result<meeting:
     };
     let project: Project = store.get("project_entry", &project_id)?.ok_or("회의 프로젝트를 찾을 수 없습니다")?;
     let root = std::path::Path::new(&project.path).canonicalize().map_err(|e| format!("프로젝트 경로를 확인할 수 없습니다: {e}"))?;
-    Ok(meeting::ProviderTransport { project_root: root })
+    Ok(meeting::ProviderTransport { project_root: root, meeting_id: meeting_id.map(str::to_owned) })
 }
 
 /// Runs the meeting's approved packets off the UI thread (chair planning or debate stages).
@@ -542,6 +543,7 @@ fn dispatch_meeting(meeting_id: String, store: tauri::State<'_, Store>, app: tau
 #[tauri::command]
 fn stop_meeting(meeting_id: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
     meeting::stop(&store, &meeting_id)?;
+    run_control::stop(&meeting_id);
     let _ = app.emit("state-changed", ());
     Ok(())
 }
@@ -550,8 +552,16 @@ fn stop_meeting(meeting_id: String, store: tauri::State<'_, Store>, app: tauri::
 fn resume_meeting(meeting_id: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
     let transport = meeting_transport(&store, Some(&meeting_id))?;
     let replanning = meeting::resume(&store, &meeting_id, &transport)?;
+    run_control::resume(&meeting_id);
     let _ = app.emit("state-changed", ());
     if replanning { spawn_meeting_dispatch(app, meeting_id); }
+    Ok(())
+}
+
+#[tauri::command]
+fn cancel_stopped_meeting(meeting_id: String, store: tauri::State<'_, Store>, app: tauri::AppHandle) -> Result<(), String> {
+    meeting::cancel_stopped(&store, &meeting_id)?;
+    let _ = app.emit("state-changed", ());
     Ok(())
 }
 
@@ -967,6 +977,15 @@ fn run_goal(goal_id: String, app: tauri::AppHandle) -> Result<(), String> { engi
 #[tauri::command]
 fn resume_goal(goal_id: String, app: tauri::AppHandle) -> Result<(), String> { engine::resume_approved(app, goal_id) }
 
+#[tauri::command]
+fn pause_goal(goal_id: String, app: tauri::AppHandle) -> Result<(), String> { engine::pause(&app, &goal_id) }
+
+#[tauri::command]
+fn resume_paused_goal(goal_id: String, app: tauri::AppHandle) -> Result<(), String> { engine::resume_paused(app, goal_id) }
+
+#[tauri::command]
+fn cancel_paused_goal(goal_id: String, app: tauri::AppHandle) -> Result<(), String> { engine::cancel_paused(&app, &goal_id) }
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
@@ -994,7 +1013,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, add_mock_connection, get_goal_result, get_block_stats, open_project_folder, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, request_team_fix, accept_no_change, stage_text_reference, stage_image_reference, discard_reference, set_reference_caption, set_reference_role, set_curator_enabled, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, decide_command_permission, set_permission_mode, decide_criteria, resume_conversation, reopen_conversation, revise_plan, cancel_goal, get_tech_presets, save_tech_preset_draft, preview_tech_preset_ai_draft, approve_tech_preset_ai_draft, refuse_tech_preset_ai_draft, preview_tech_preset, select_tech_preset, get_plan_preset_snapshot, restore_plan_preset_definitions, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
+        .invoke_handler(tauri::generate_handler![get_backend_info, get_snapshot, discover_ai, check_connection, start_connection_login, list_connection_models, get_role_presets, preview_spec_import, apply_spec_import, get_portable_spec_status, preview_portable_spec, create_portable_spec_from_draft, create_portable_spec, get_sdd_origin_status, plan_sdd_origin, apply_sdd_origin, decide_goal_origin, set_sdd_origin_mute, pick_project_folder, set_project, switch_project, set_project_review_limit, set_goal_review_limit, set_goal_work_group, create_project, save_agent, assign_team_connection, save_connection, add_mock_connection, get_goal_result, get_block_stats, open_project_folder, submit_goal, meeting_readiness, start_meeting_from_home, update_meeting_plan, approve_meeting_plan, reject_meeting_plan, revoke_meeting_plan, decide_transmission, dispatch_meeting, stop_meeting, resume_meeting, cancel_stopped_meeting, retry_meeting_packet, continue_meeting_source_snapshot, close_meeting_partial, record_meeting_decision, ask_goal, send_goal_message, request_team_fix, accept_no_change, stage_text_reference, stage_image_reference, discard_reference, set_reference_caption, set_reference_role, set_curator_enabled, propose_goal_change, create_goal_revision, preview_git_bootstrap, bootstrap_project_git, save_task, decide_approval, decide_command_permission, set_permission_mode, decide_criteria, resume_conversation, reopen_conversation, revise_plan, cancel_goal, pause_goal, resume_paused_goal, cancel_paused_goal, get_tech_presets, save_tech_preset_draft, preview_tech_preset_ai_draft, approve_tech_preset_ai_draft, refuse_tech_preset_ai_draft, preview_tech_preset, select_tech_preset, get_plan_preset_snapshot, restore_plan_preset_definitions, swap_squad_member, add_squad_member, archive_goal, restore_goal, backup_usage, purge_goal, preview_external_staff, import_external_staff, export_character, hire_external_staff, end_external_contract, run_goal, resume_goal])
         .run(tauri::generate_context!())
         .expect("error while running AI Organization OS");
 }

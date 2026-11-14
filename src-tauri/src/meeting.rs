@@ -107,12 +107,17 @@ pub trait MeetingTransport {
 
 /// Real transport: same provider entry point, read-only flag and working directory as execution
 /// read-only calls (ADR-0036). The debug fixture answers locally and transmits nothing.
-pub struct ProviderTransport { pub project_root: PathBuf }
+pub struct ProviderTransport { pub project_root: PathBuf, pub meeting_id: Option<String> }
 impl MeetingTransport for ProviderTransport {
     fn invoke(&self, connection: &AiConnection, payload: &str) -> Result<TransportReply, String> {
         let profile = read_only_profile(connection)?;
         if profile == "offline_fixture" { return Ok(TransportReply { text: fixture_reply(payload), usage: None, runtime_version: "offline-fixture-v1".into() }); }
-        let response = crate::provider::execute_with_observer(connection, payload, &self.project_root, false, &mut |_| {}, &mut |_, _| {})?;
+        let signal = self.meeting_id.as_deref().map(crate::run_control::register);
+        let options = crate::provider::CallOptions { cancel: signal.clone(), ..Default::default() };
+        let response = crate::provider::execute_with_options(connection, payload, &self.project_root, false, &options, &mut |_| {}, &mut |_, _| {});
+        let stopped = self.meeting_id.as_deref().is_some_and(crate::run_control::stopped);
+        if let (Some(id), Some(flag)) = (&self.meeting_id, &signal) { crate::run_control::release(id, flag); }
+        let response = if stopped { return Err("cancelled: CEO가 회의를 멈춰 결과를 사용하지 않았습니다".into()); } else { response? };
         Ok(TransportReply { text: response.text, usage: response.usage, runtime_version: String::new() })
     }
 }
@@ -955,6 +960,25 @@ fn complete(store: &Store, packet: &MeetingPacket, meeting: &Meeting, call: Call
     store.transact(move |tx| {
         let mut packet: MeetingPacket = tx_get(tx, "meeting_packet", &packet_id)?.ok_or("패킷을 찾을 수 없습니다")?;
         if packet.status != "dispatching" { return Err("패킷 상태가 바뀌어 결과를 기록하지 않았습니다".into()); }
+        let current: Meeting = tx_get(tx, "meeting", &meeting_id)?.ok_or("회의를 찾을 수 없습니다")?;
+        if current.stage == "stopped" {
+            packet.status = "cancelled".into();
+            if let Some(dispatch) = packet.dispatch.as_mut() {
+                dispatch.finished_at = Some(model::now());
+                dispatch.duration_ms = Some(call.duration_ms);
+                dispatch.outcome = "cancelled".into();
+                dispatch.error = "CEO가 멈춰 응답을 폐기했습니다".into();
+                dispatch.input_tokens = input;
+                dispatch.output_tokens = output;
+                dispatch.usage_source = source.into();
+            }
+            let mut usage_record = usage_record.clone();
+            usage_record.status = "cancelled".into();
+            tx_put(tx, "meeting_packet", &packet.id, &packet)?;
+            tx_put(tx, "usage", &usage_record.id, &usage_record)?;
+            tx_event(tx, "meeting_call_cancelled", &current.goal_id, "CEO stop discarded the in-flight result")?;
+            return Ok(false);
+        }
         packet.status = if ok { "sent".into() } else if call.reply.is_ok() { "sent_invalid".into() } else { "failed".into() };
         if let Some(dispatch) = packet.dispatch.as_mut() {
             dispatch.finished_at = Some(model::now()); dispatch.duration_ms = Some(call.duration_ms); dispatch.runtime_version = runtime_version.clone();
@@ -1075,7 +1099,7 @@ pub fn stop(store: &Store, meeting_id: &str) -> Result<(), String> {
         if !(["planning", "plan_review", "awaiting_transfer_approval", "blocked"].contains(&meeting.stage.as_str()) || STAGES.contains(&meeting.stage.as_str())) { return Err("이 회의는 지금 중단할 수 없습니다".into()); }
         let in_flight = tx_list::<MeetingPacket>(tx, "meeting_packet")?.iter().any(|packet| packet.meeting_id == meeting.id && packet.status == "dispatching");
         meeting.stage = "stopped".into();
-        meeting.block_reason = if in_flight { "CEO가 회의를 중단했습니다. 새 호출은 시작하지 않습니다. 이미 시작된 호출은 회수되지 않으며 결과가 오면 기록만 합니다".into() } else { "CEO가 회의를 중단했습니다. 새 호출은 시작하지 않습니다".into() };
+        meeting.block_reason = if in_flight { "CEO가 회의를 멈췄습니다. 진행 중 호출에 취소를 요청하고 결과는 사용하지 않습니다".into() } else { "CEO가 회의를 멈췄습니다. 새 호출은 시작하지 않습니다".into() };
         meeting.blocked_at = model::now(); meeting.block_build = meeting_build();
         meeting.updated_at = model::now();
         tx_event(tx, "meeting_stopped", &meeting.goal_id, &meeting.block_reason.clone())?;
@@ -1182,6 +1206,28 @@ pub fn close_partial(store: &Store, meeting_id: &str) -> Result<(), String> {
     if store.list::<MeetingPacket>("meeting_packet")?.iter().any(|packet| packet.meeting_id == meeting.id && packet.status == "dispatching") { return Err("아직 끝나지 않은 호출이 있습니다".into()); }
     let reason = if meeting.block_reason.is_empty() { "CEO가 부분 결과로 마쳤습니다".to_string() } else { format!("부분 결과: {}", meeting.block_reason) };
     finish_package(store, meeting_id, true, &reason, &["blocked", "stopped"])
+}
+
+pub fn cancel_stopped(store: &Store, meeting_id: &str) -> Result<(), String> {
+    store.transact(|tx| {
+        let mut meeting: Meeting = tx_get(tx, "meeting", meeting_id)?.ok_or("회의를 찾을 수 없습니다")?;
+        require_current(&meeting)?;
+        if meeting.stage != "stopped" { return Err("CEO가 멈춘 회의만 취소할 수 있습니다".into()); }
+        if tx_list::<MeetingPacket>(tx, "meeting_packet")?.iter().any(|packet| packet.meeting_id == meeting_id && packet.status == "dispatching") {
+            return Err("진행 중 호출이 끝나면 취소할 수 있습니다".into());
+        }
+        void_unsent_tx(tx, meeting_id)?;
+        if let Some(approval) = meeting.plan_approval.as_mut() { approval.status = "expired".into(); }
+        meeting.stage = "cancelled".into();
+        meeting.block_reason = "CEO가 회의를 취소했습니다. 저장된 발언은 기록으로 남고 결론은 만들지 않았습니다".into();
+        meeting.updated_at = model::now();
+        let mut goal: Goal = tx_get(tx, "goal", &meeting.goal_id)?.ok_or("회의 목표를 찾을 수 없습니다")?;
+        goal.status = "cancelled".into();
+        goal.report = meeting.block_reason.clone();
+        tx_put(tx, "goal", &goal.id, &goal)?;
+        tx_event(tx, "meeting_cancelled", &meeting.goal_id, "CEO cancelled the stopped meeting")?;
+        tx_put(tx, "meeting", &meeting.id, &meeting)
+    })
 }
 
 /// Every store open: earlier-model meetings close read-only; plan approvals of interrupted meetings
@@ -1966,6 +2012,28 @@ mod tests {
         assert!(ready.members.iter().any(|member| member.agent_id == "qa" && member.reason.contains("실행 목표")));
         stop(&env.store, &first.id).unwrap();
         assert!(env.store.transact(meeting_busy_agents).unwrap().is_empty(), "stopped meetings release members");
+    }
+
+    #[test]
+    fn ceo_stop_discards_in_flight_meeting_reply_and_cancel_keeps_history() {
+        let env = setup();
+        let mut transport = Script::fixture();
+        let store = Arc::clone(&env.store);
+        let id_cell: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
+        let cell = Arc::clone(&id_cell);
+        transport.hook = Some(Box::new(move |index| {
+            if index == 2 { stop(&store, &cell.lock().unwrap()).unwrap(); }
+        }));
+        let planned = start_and_plan(&env, &transport);
+        *id_cell.lock().unwrap() = planned.id.clone();
+        approve(&env, &planned.id, "plan", &transport);
+        run(&env, &planned.id, &transport);
+        assert_eq!(meeting(&env, &planned.id).stage, "stopped");
+        assert_eq!(env.store.list::<MeetingContribution>("meeting_contribution").unwrap().iter().filter(|item| item.stage == "proposing").count(), 0);
+        assert!(env.store.list::<MeetingPacket>("meeting_packet").unwrap().iter().any(|packet| packet.meeting_id == planned.id && packet.status == "cancelled"));
+        cancel_stopped(&env.store, &planned.id).unwrap();
+        assert_eq!(meeting(&env, &planned.id).stage, "cancelled");
+        assert_eq!(env.store.get::<Goal>("goal", &planned.goal_id).unwrap().unwrap().status, "cancelled");
     }
 
     #[test]

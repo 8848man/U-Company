@@ -131,6 +131,25 @@ impl Harness {
     }
 }
 
+#[test]
+fn ceo_pause_and_cancel_preserve_project_bytes_without_approval() {
+    let Some(env) = harness(&[]) else { return; };
+    let project: crate::model::Project = env.store().get("project", "selected").unwrap().unwrap();
+    let goal = Goal { id: crate::model::id(), kind: "execution".into(), project_id: Some(project.id), intent: "샘플 일".into(), status: "executing".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: Some(2), work_group: None, block_kind: String::new(), repeat_block: false };
+    env.store().put("goal", &goal.id, &goal, None).unwrap();
+    let isolated = env.data.parent().unwrap().join("worktrees").join(&goal.id).join("unfinished");
+    std::fs::create_dir_all(&isolated).unwrap();
+    std::fs::write(isolated.join("partial.txt"), "unintegrated").unwrap();
+    crate::engine::pause(env.app.handle(), &goal.id).unwrap();
+    assert_eq!(env.goal(&goal.id).status, "paused");
+    assert!(crate::engine::resume_paused(env.app.handle().clone(), goal.id.clone()).is_err(), "approval is still required");
+    assert_eq!(env.goal(&goal.id).status, "paused");
+    crate::engine::cancel_paused(env.app.handle(), &goal.id).unwrap();
+    assert_eq!(env.goal(&goal.id).status, "cancelled");
+    assert!(!isolated.exists(), "only the app-owned isolated folder was removed");
+    assert_eq!(std::fs::read_to_string(env.root.join("README.md")).unwrap(), "# 샘플 프로젝트\n");
+}
+
 const GOAL: &str = "할 일을 적고 완료 표시와 삭제를 할 수 있는 작은 웹앱을 만들어 주세요. 테스트도 함께요.";
 
 fn seed_unchanged_workflow(h: &Harness) {

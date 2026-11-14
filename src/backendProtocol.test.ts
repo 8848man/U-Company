@@ -6,8 +6,8 @@ describe('meeting backend protocol gate', () => {
     expect(meetingBackendOutdated(22)).toBe(true);
     expect(meetingBackendOutdated(undefined)).toBe(true);
   });
-  it('allows protocol 32 or later', () => {
-    expect(meetingBackendOutdated(31)).toBe(true);
-    expect(meetingBackendOutdated(32)).toBe(false);
+  it('requires the CEO pause and cancel commands', () => {
+    expect(meetingBackendOutdated(42)).toBe(true);
+    expect(meetingBackendOutdated(43)).toBe(false);
   });
 });
