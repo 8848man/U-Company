@@ -18,6 +18,8 @@ For deliverable tasks QA answers per task and per criterion. The goal completes 
 
 CEO가 진행 중 실행 목표를 멈추면 `paused`가 된다([ADR-0073](../architecture/decisions/ADR-0073.md)). 완료·통합·QA 기록은 보존하고 새 호출과 통합을 중지한다. `paused`는 완료나 실패가 아니며 CEO의 재개 또는 취소 결정을 기다린다. 재개는 현재 승인과 파일·연결 상태를 재검사하고, 취소된 호출의 결과나 불명확한 격리 작업본을 자동 통합하지 않는다. `cancelled`로 끝낼 때 이미 원본 프로젝트에 통합된 변경은 되돌리지 않는다. 회의의 세부 중단·재개는 ME-01이 소유한다.
 
+New QA repair tasks persist their repair round separately from the title. Existing saved repair tasks with only the historical `재작업 N:` title are read compatibly; a title alone never gives a new task repair privileges ([ADR-0074](../architecture/decisions/ADR-0074.md)).
+
 ## 관계와 소유 경계
 
 | 관계 | 대상 | 의미 |

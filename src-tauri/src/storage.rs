@@ -1031,7 +1031,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("utopia-agent-hide-{}", crate::model::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let store = Store::open(&dir.join("state.sqlite")).unwrap();
-        let mut task = Task { id: "t".into(), goal_id: "g".into(), title: "Implement".into(), instructions: String::new(), files: vec!["file.txt".into()], assignee_id: "developer-a".into(), status: "pending".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
+        let mut task = Task { id: "t".into(), repair_round: None, goal_id: "g".into(), title: "Implement".into(), instructions: String::new(), files: vec!["file.txt".into()], assignee_id: "developer-a".into(), status: "pending".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
         store.put("task", "t", &task, None).unwrap();
         assert_eq!(store.unfinished_task_count("developer-a").unwrap(), 1);
         task.status = "completed".into();
@@ -1052,7 +1052,7 @@ mod tests {
             let store = Store::open(&path).unwrap();
             let goal = Goal { id: "g".into(), kind: "execution".into(), project_id: None, intent: "Implement a small feature".into(), status: "executing".into(), report: String::new(), created_at: crate::model::now(), resumed_from: None, review_loops_used: 0, review_loop_limit: None, work_group: None, block_kind: String::new(), repeat_block: false };
             store.put("goal", "g", &goal, None).unwrap();
-            let task = Task { id: "t".into(), goal_id: "g".into(), title: "Change a file".into(), instructions: String::new(), files: vec!["example.txt".into()], assignee_id: "developer-a".into(), status: "running".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
+            let task = Task { id: "t".into(), repair_round: None, goal_id: "g".into(), title: "Change a file".into(), instructions: String::new(), files: vec!["example.txt".into()], assignee_id: "developer-a".into(), status: "running".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
             store.put("task", "t", &task, None).unwrap();
         }
         let recovered = Store::open(&path).unwrap().snapshot().unwrap();
@@ -1079,7 +1079,7 @@ mod tests {
             store.put("goal", "g", &goal, None).unwrap();
             let approval = Approval { id: "a".into(), goal_id: Some("g".into()), operation: "project_write".into(), reason: "Apply planned files".into(), status: "pending".into(), created_at: crate::model::now() };
             store.put("approval", "a", &approval, None).unwrap();
-            let task = Task { id: "t".into(), goal_id: "g".into(), title: "Create file".into(), instructions: String::new(), files: vec!["example.txt".into()], assignee_id: "developer-a".into(), status: "pending".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
+            let task = Task { id: "t".into(), repair_round: None, goal_id: "g".into(), title: "Create file".into(), instructions: String::new(), files: vec!["example.txt".into()], assignee_id: "developer-a".into(), status: "pending".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: String::new(), acceptance: vec![], evidence: vec![], capability: String::new(), assignment_reason: String::new() };
             store.put("task", "t", &task, None).unwrap();
         }
         let recovered = Store::open(&path).unwrap().snapshot().unwrap();

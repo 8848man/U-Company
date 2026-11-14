@@ -4,6 +4,7 @@ import { goalStageLabel, taskStageLabel } from './goalBrief';
 import { shortGoal, goalTitle } from './progress';
 import type { Agent } from './types';
 import { currentProjectWork, type OpenWork } from './openWork';
+import { taskTitle } from './deliverables';
 
 function WorkGroup({ item, agents, onSelect }: { item: OpenWork; agents: Agent[]; onSelect: (goalId: string, taskId?: string) => void }) {
   const tasks = useLimitedItems(item.tasks);
@@ -11,7 +12,7 @@ function WorkGroup({ item, agents, onSelect }: { item: OpenWork; agents: Agent[]
     <button type="button" className="open-work-goal" onClick={() => onSelect(item.goal.id)}>
       <span><strong>{goalTitle(item.goal, 100)}</strong><small>{item.projectName} · {item.meetingLabel ? `다관점 회의 · ${item.meetingLabel}` : goalStageLabel(item.goal.status)}{item.needsDecision ? ' · 확인 필요' : ''}</small></span><span aria-hidden="true">→</span>
     </button>
-    {tasks.visible.map(task => <button type="button" className="open-work-task" key={task.id} onClick={() => onSelect(item.goal.id, task.id)}><span><strong>{shortGoal(task.title, 90)}</strong><small>{agents.find(agent => agent.id === task.assigneeId)?.name ?? '담당 팀원 확인 필요'} · {taskStageLabel(task.status)}</small></span><span aria-hidden="true">대화 →</span></button>)}
+    {tasks.visible.map(task => <button type="button" className="open-work-task" key={task.id} onClick={() => onSelect(item.goal.id, task.id)}><span><strong>{shortGoal(taskTitle(task), 90)}</strong><small>{agents.find(agent => agent.id === task.assigneeId)?.name ?? '담당 팀원 확인 필요'} · {taskStageLabel(task.status)}</small></span><span aria-hidden="true">대화 →</span></button>)}
     <ListDisclosure label="업무" total={tasks.total} hidden={tasks.hidden} expanded={tasks.expanded} onToggle={tasks.toggle} />
   </article>;
 }

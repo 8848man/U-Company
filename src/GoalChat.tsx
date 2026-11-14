@@ -7,7 +7,7 @@ import { goalBrief, goalStageLabel, taskStageLabel } from './goalBrief';
 import { fixReceiver, goalRecovery, teamFixRoute } from './goalRecovery';
 import { runtimeRecovery } from './providerRecovery';
 import { goalTitle } from './progress';
-import { blockFacts, deliverableRows } from './deliverables';
+import { blockFacts, deliverableRows, taskTitle } from './deliverables';
 import { BlockFactsView, DeliverablePanel } from './DeliverablePanel';
 import { ArchiveGoalButton } from './ArchiveGoalButton';
 import { SquadPanel } from './SquadPanel';
@@ -280,7 +280,7 @@ export function GoalChat(props: Props) {
       {gitBootstrapCompleted && projectKind === 'git' && <section className="chat-context" role="status"><strong>Git 저장소 초기화 완료</strong><p>{gitBootstrapCompleted.message}</p></section>}
       {autoContinuationFailure && !activeGuidance && <section className="chat-context" role="status"><strong>자동 진행을 끝내지 못했습니다.</strong><p>{autoContinuationFailure.message}</p>{replacementId && <button type="button" className="text-button" onClick={() => onOpenGoal(replacementId)}>새 목표에서 이어가기 →</button>}</section>}
 
-      <details className="chat-progress"><summary>진행 정보 · 업무 {ownedTasks.length}개 · QA {goal.reviewLoopsUsed}/{goal.reviewLoopLimit ?? 2}회 · 토큰 {brief.tokenTotal.toLocaleString()}개</summary><div className="chat-progress-body"><GoalGraph goal={goal} tasks={tasks} />{brief.latestEvent && <p>마지막 확인 기록 · {new Date(brief.latestEvent.at).toLocaleString()} · {brief.latestEvent.message}</p>}{ownedTasks.length > 0 && <div className="chat-progress-tasks"><strong>업무</strong>{taskWindow.visible.map(task => <p key={task.id}>{task.title} · {agents.find(agent => agent.id === task.assigneeId)?.name ?? '배정 전'} · {taskStageLabel(task.status)}</p>)}<ListDisclosure label="업무" total={taskWindow.total} hidden={taskWindow.hidden} expanded={taskWindow.expanded} onToggle={taskWindow.toggle} /></div>}{qaReview && <ContentPreview><p>최근 QA 기록: {qaReview.message}</p></ContentPreview>}</div></details>
+      <details className="chat-progress"><summary>진행 정보 · 업무 {ownedTasks.length}개 · QA {goal.reviewLoopsUsed}/{goal.reviewLoopLimit ?? 2}회 · 토큰 {brief.tokenTotal.toLocaleString()}개</summary><div className="chat-progress-body"><GoalGraph goal={goal} tasks={tasks} />{brief.latestEvent && <p>마지막 확인 기록 · {new Date(brief.latestEvent.at).toLocaleString()} · {brief.latestEvent.message}</p>}{ownedTasks.length > 0 && <div className="chat-progress-tasks"><strong>업무</strong>{taskWindow.visible.map(task => <p key={task.id}>{taskTitle(task)} · {agents.find(agent => agent.id === task.assigneeId)?.name ?? '배정 전'} · {taskStageLabel(task.status)}</p>)}<ListDisclosure label="업무" total={taskWindow.total} hidden={taskWindow.hidden} expanded={taskWindow.expanded} onToggle={taskWindow.toggle} /></div>}{qaReview && <ContentPreview><p>최근 QA 기록: {qaReview.message}</p></ContentPreview>}</div></details>
     </div>
 
     {todo && <button type="button" className={`gc-todo is-${todo.kind}`} onClick={() => setTodoOpen(true)} aria-haspopup="dialog"><span className="gc-todo-kicker">지금 할 일</span><strong>{todoTitle}</strong><span className="gc-todo-more" aria-hidden="true">자세히 ›</span></button>}

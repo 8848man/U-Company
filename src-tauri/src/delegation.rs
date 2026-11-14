@@ -268,7 +268,7 @@ pub const REPAIR_PREFIX: &str = "재작업 ";
 
 /// The original deliverable tasks QA judges per criterion (repair tasks change the same files).
 pub fn review_targets(tasks: &[Task]) -> Vec<Task> {
-    tasks.iter().filter(|task| !task.acceptance.is_empty() && !task.title.starts_with(REPAIR_PREFIX)).cloned().collect()
+    tasks.iter().filter(|task| !task.acceptance.is_empty() && !task.is_repair()).cloned().collect()
 }
 
 pub fn save_reviews(store: &Store, goal_id: &str, round: u32, reviewer_id: &str, parsed: &ParsedReview) -> Result<(), String> {
@@ -439,7 +439,7 @@ mod tests {
         let mut ids = Vec::new();
         for (index, name) in ["hypothesis.md", "message.md"].iter().enumerate() {
             let assignee = if two_tasks_same_agent || index == 0 { "developer-a" } else { "developer-b" };
-            let task = Task { id: format!("t{index}"), goal_id: "g".into(), title: name.to_string(), instructions: String::new(), files: vec![name.to_string()], assignee_id: assignee.into(), status: "pending".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: name.to_string(), acceptance: vec!["c".into()], evidence: vec![], capability: "document".into(), assignment_reason: String::new() };
+            let task = Task { id: format!("t{index}"), repair_round: None, goal_id: "g".into(), title: name.to_string(), instructions: String::new(), files: vec![name.to_string()], assignee_id: assignee.into(), status: "pending".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: name.to_string(), acceptance: vec!["c".into()], evidence: vec![], capability: "document".into(), assignment_reason: String::new() };
             store.put("task", &task.id.clone(), &task, None).unwrap();
             ids.push(task.id);
         }
@@ -512,7 +512,7 @@ mod tests {
     }
 
     fn task(id: &str, criteria: usize) -> Task {
-        Task { id: id.into(), goal_id: "g".into(), title: id.into(), instructions: String::new(), files: vec![format!("{id}.md")], assignee_id: "developer-a".into(), status: "completed".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: format!("{id} doc"), acceptance: (0..criteria).map(|n| format!("criterion {n}")).collect(), evidence: vec![], capability: "document".into(), assignment_reason: String::new() }
+        Task { id: id.into(), repair_round: None, goal_id: "g".into(), title: id.into(), instructions: String::new(), files: vec![format!("{id}.md")], assignee_id: "developer-a".into(), status: "completed".into(), depends_on: vec![], worktree: None, result: String::new(), session_id: None, deliverable: format!("{id} doc"), acceptance: (0..criteria).map(|n| format!("criterion {n}")).collect(), evidence: vec![], capability: "document".into(), assignment_reason: String::new() }
     }
 
     #[test]

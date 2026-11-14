@@ -783,6 +783,9 @@ pub struct Task {
     pub id: String,
     pub goal_id: String,
     pub title: String,
+    /// Some(0) is a new ordinary task; Some(n>0) is repair round n. None reads legacy titles.
+    #[serde(default)]
+    pub repair_round: Option<u32>,
     pub instructions: String,
     #[serde(default)]
     pub files: Vec<String>,
@@ -806,6 +809,18 @@ pub struct Task {
     /// Why the engine chose this assignee.
     #[serde(default)]
     pub assignment_reason: String,
+}
+
+impl Task {
+    pub fn repair_round(&self) -> Option<u32> {
+        match self.repair_round {
+            Some(0) => None,
+            Some(round) => Some(round),
+            None => self.title.strip_prefix(crate::delegation::REPAIR_PREFIX).and_then(|rest| rest.split_once(':')).and_then(|(round, _)| round.trim().parse::<u32>().ok()).filter(|round| *round > 0),
+        }
+    }
+
+    pub fn is_repair(&self) -> bool { self.repair_round().is_some() }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

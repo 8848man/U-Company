@@ -153,9 +153,13 @@
 | WLG-078 (2026-11-10, Claude) | clippy 설치 후 경고 26개를 0개로 정리하고, 상태만 기다리고 기록을 바로 읽던 종단 시험 2개의 경합을 고침 | clippy 0, `cargo test` 3회 연속 238 통과 | [WLG-078.md](milestones/WLG-078.md) |
 | WLG-079 (2026-11-10, Claude) | 외부 어댑터 프로토콜에 진행 이벤트·취소 요청·재개 선언을 추가(ADR-0070, v1 호환); 화면의 취소 동작은 별도 결정 | 새 시험 7개 포함 `cargo test` 245 통과, clippy 0; 실제 제3자 어댑터 미확인 | [WLG-079.md](milestones/WLG-079.md) |
 | WLG-080 (2026-11-10, Codex) | v4 Tauri npm 실행 전후 Rust 증분 캐시를 용량·나이 기준으로 정리; 직접 `cargo test`는 제외 | 집중 시험 2개 통과, 실제 npm pre 단계에서 2.27 GiB 확보; 전체 Tauri 실행 미검증 | [WLG-080.md](milestones/WLG-080.md) |
-| WLG-081 (2026-11-10, Codex) | 개발 프로필 디버그 정보 축소, 빌드 용량 보고·5 GiB 충분성 게이트·대안 SDD 명세 | 깨끗한 격리 경로에서 빌드·Rust 시험 245개 통과, 최종 3.87 GiB·무변경 증가 0; 기본 경로는 잠긴 실행 파일로 `LNK1104`, 최종 게이트 미통과 | [WLG-081.md](milestones/WLG-081.md) |
+| WLG-081 (2026-11-10, Codex) | 개발 프로필 디버그 정보 축소, 빌드 용량 보고·5 GiB 충분성 게이트·대안 SDD 명세 | 후속 WLG-083에서 기본 경로 빌드·Rust 시험 255개 통과, 최종 4.05 GiB·무변경 증가 0, v4 앱 시작 확인 | [WLG-081.md](milestones/WLG-081.md) |
 | WLG-082 (2026-11-10, Codex) | ADR-0072 변경 없음 근거·부분 통합·반복 복구; M4 계획 근거 검사는 다음 후보 | Rust 전체 254 통과·0 실패, 추가 집중 1 통과; Clippy·tsc·Vitest 161·v4 빌드 통과; Windows QA-58 대기 | [WLG-082.md](milestones/WLG-082.md) |
+| WLG-083 (2026-11-10, Codex) | 볼트 과제 5건 대조, 설치 파일·기본 Rust 빌드·v4 개발 앱 및 용량 게이트 검증 | E21 기록 정정은 기존 완료, 설치 파일 생성·기본 빌드·앱 시작·5 GiB 게이트 통과; 제3자 어댑터 부재로 실연동 대기 | [WLG-083.md](milestones/WLG-083.md) |
+| WLG-084 (2026-11-11, Claude) | 기본 경로 빌드 용량 게이트 재확인, Tauri 개발 앱 시작, 설치 파일 빌드, E21 엔진 시험 확인; 코드 변경 없음 | build→test(255 통과)→build 4.28 GiB·반복 증가 0으로 게이트 통과, 개발 앱 창 시작, NSIS 설치 파일 생성; 설치·데스크톱 QA·제3자 어댑터 미확인 | [WLG-084.md](milestones/WLG-084.md) |
 | WLG-085 (2026-11-14, Codex) | CEO가 진행 중 목표·회의를 멈추고 재개·취소; 호출 취소와 결과 폐기(ADR-0073) | Rust 258 통과·0 실패·3 무시, Vitest 161 통과, v4 빌드 통과; Windows 앱·실제 제공자 QA 대기 | [WLG-085.md](milestones/WLG-085.md) |
+| WLG-086 (2026-11-14, Codex) | ADR-0074 재계획 결함 근거 검사와 재작업 종류 저장 | Rust 전체 첫 실행 256 통과·1 실패 후 집중 시험 2개 통과; Vitest 161·v4 빌드·Clippy 통과; Windows 실앱 QA 대기 | [WLG-086.md](milestones/WLG-086.md) |
+| WLG-087 (2026-11-14, Codex) | 볼트 과제 안내를 실행 도구별 조회와 MCP 요약 제출·처리 요청으로 갱신 | 문서 변경, MCP 계약·Python 대체 명령 대조; 실제 MCP 연결 미검증 | [WLG-087.md](milestones/WLG-087.md) |
 | WLG-064 (2026-11-04, Codex) | 미통합 목표·권한·모델 선택 브랜치 통합, 기록 충돌 해결 | 프런트 시험·빌드와 Rust 컴파일 통과, Rust 시험 실행 환경 오류·실앱 QA 대기 | [WLG-064.md](milestones/WLG-064.md) |
 | 작업 차수 경계 구조화 요약과 미완료 기록 점검 (2026-10-25, Codex) | 새 작업 차수마다 저장 기록으로 요약 인계를 만들고 누적 약 8,000토큰부터 대화 발췌를 제외; 실제 Rust 실행·실앱 QA는 미검증 | 구현, 검증 대기 | [WLG-058.md](milestones/WLG-058.md) |
 | 워크로그 폴더와 라운드 인덱스 (2026-10-25, Codex) | 네 프로그램의 36개 라운드와 56개 기존 단독 기록을 파일별로 이관하고 인덱스에서 탐색하도록 연결 | 완료 | [WLG-057.md](milestones/WLG-057.md) |

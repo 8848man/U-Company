@@ -264,7 +264,7 @@ fn a_qa_failure_is_reworked_inside_the_approved_files_and_then_passes() {
     h.approve(&id);
     let goal = h.wait(&id, &["completed"]);
     assert_eq!(goal.review_loops_used, 1, "one rework round");
-    assert!(h.tasks(&id).iter().any(|task| task.title.starts_with(crate::delegation::REPAIR_PREFIX)), "a repair task ran");
+    assert!(h.tasks(&id).iter().any(Task::is_repair), "a repair task ran");
     assert!(h.event_kinds(&id).contains(&"review_rework_started".to_string()));
 }
 
@@ -630,7 +630,7 @@ fn linked_reuse_qa_repair_inside_scope_integrates_but_empty_repair_creates_no_tr
     let goal = h.wait(&next, &["completed"]);
     assert_eq!(goal.review_loops_used, 1);
     assert!(h.event_kinds(&next).contains(&"task_unchanged".to_string()));
-    let repairs: Vec<Task> = h.tasks(&next).into_iter().filter(|task| task.title.starts_with(crate::delegation::REPAIR_PREFIX)).collect();
+    let repairs: Vec<Task> = h.tasks(&next).into_iter().filter(Task::is_repair).collect();
     assert_eq!(repairs.len(), 1);
     assert!(repairs[0].files.iter().all(|file| ["todo.js", "todo.test.js"].contains(&file.as_str())));
     let transitions: Vec<crate::model::ReuseFileTransition> = h.store().list("reuse_file_transition_history").unwrap();
@@ -658,7 +658,7 @@ fn linked_reuse_qa_repair_inside_approved_files_records_a_second_integration() {
     h.approve(&next);
     let goal = h.wait(&next, &["completed"]);
     assert_eq!(goal.review_loops_used, 1);
-    let repair = h.tasks(&next).into_iter().find(|task| task.title.starts_with(crate::delegation::REPAIR_PREFIX)).unwrap();
+    let repair = h.tasks(&next).into_iter().find(Task::is_repair).unwrap();
     let transitions: Vec<crate::model::ReuseFileTransition> = h.store().list("reuse_file_transition_history").unwrap();
     let repaired = transitions.iter().find(|item| item.task_id == repair.id && item.path == "todo.js").expect("the real repair integration advances the file's evidence");
     let previous_key = repaired.previous_transition_key.as_ref().expect("repair links to the first integration");
@@ -1227,7 +1227,7 @@ fn a_missing_precondition_gets_a_repair_before_any_ceo_card_and_dropping_after_n
     h.approve(&id);
     let (card, request) = criteria_card(&h, &id);
     assert_eq!(h.goal(&id).review_loops_used, 1, "the team first tried to repair the failed file");
-    assert!(h.tasks(&id).iter().any(|task| task.title.starts_with(crate::delegation::REPAIR_PREFIX)), "a repair ran before the card");
+    assert!(h.tasks(&id).iter().any(Task::is_repair), "a repair ran before the card");
     let item = request.items.iter().find(|item| item.criterion == STUCK).unwrap();
     assert_eq!(item.kind, "no_progress");
     assert!(item.reason.contains("Git 이력"), "{}", item.reason);
@@ -1257,7 +1257,7 @@ fn ceo_can_keep_a_falsely_blocked_criterion_and_request_a_file_repair() {
     let deadline = Instant::now() + Duration::from_secs(60);
     while h.goal(&id).review_loops_used == 1 && Instant::now() < deadline { std::thread::sleep(Duration::from_millis(100)); }
     assert_eq!(h.goal(&id).review_loops_used, 2, "the existing goal starts another repair instead of rechecking unchanged files");
-    assert!(h.tasks(&id).iter().any(|task| task.title.starts_with(crate::delegation::REPAIR_PREFIX)));
+    assert!(h.tasks(&id).iter().any(Task::is_repair));
     assert!(h.tasks(&id).iter().any(|task| task.acceptance.iter().any(|text| text == STUCK)), "the original criterion remains");
     assert!(h.event_kinds(&id).contains(&"criteria_repair_requested".to_string()));
 }
