@@ -1,8 +1,15 @@
 import type { Agent, Approval, BlockKind, DeliverableReview, Event, Goal, GoalGuidance, Task } from './types';
 import { goalRecovery } from './goalRecovery';
 
-/** Repair tasks refine the original deliverables; the engine prefixes their titles (ADR-0038). */
+/** Legacy repair titles remain readable; new tasks carry a persisted round (ADR-0074). */
 export const REPAIR_PREFIX = '재작업 ';
+export function isRepairTask(task: Task): boolean {
+  if (task.repairRound !== undefined && task.repairRound !== null) return task.repairRound > 0;
+  return /^재작업 [1-9][0-9]*:/.test(task.title);
+}
+export function taskTitle(task: Task): string {
+  return task.repairRound && task.repairRound > 0 ? `재작업 ${task.repairRound}: ${task.title}` : task.title;
+}
 
 export type DeliverableRow = {
   task: Task;
@@ -15,7 +22,7 @@ export type DeliverableRow = {
 /** Original deliverable tasks of a goal with their latest per-criterion QA review, if any. */
 export function deliverableRows(goal: Goal, tasks: Task[], reviews: DeliverableReview[], agents: Agent[]): DeliverableRow[] {
   return tasks
-    .filter(task => task.goalId === goal.id && (task.acceptance?.length ?? 0) > 0 && !task.title.startsWith(REPAIR_PREFIX))
+    .filter(task => task.goalId === goal.id && (task.acceptance?.length ?? 0) > 0 && !isRepairTask(task))
     .map(task => {
       const latest = reviews.filter(item => item.goalId === goal.id && item.taskId === task.id).sort((a, b) => b.round - a.round || b.createdAt.localeCompare(a.createdAt))[0] ?? null;
       return { task, title: task.deliverable || task.title, owner: agents.find(agent => agent.id === task.assigneeId)?.name ?? task.assigneeId, reason: task.assignmentReason ?? '', review: latest };

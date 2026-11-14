@@ -22,6 +22,9 @@ describe('deliverable rows', () => {
     expect(rows[0].review?.round).toBe(1);
     expect(rows[1].review).toBeNull();
     expect(deliverableRows(goal, [{ ...base, acceptance: [] }], [], agents)).toEqual([]);
+    const namedLikeRepair = { ...base, id: 'named', title: '재작업 1: 사용자 제목', repairRound: 0 };
+    const newRepair = { ...base, id: 'new-repair', title: '일반 제목', repairRound: 1 };
+    expect(deliverableRows(goal, [namedLikeRepair, newRepair], [], agents).map(row => row.task.id)).toEqual(['named']);
   });
 });
 
