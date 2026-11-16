@@ -79,11 +79,20 @@ pub struct ExternalContract {
     pub imported_at: String,
     #[serde(default)]
     pub released_at: Option<String>,
+    /// `planner` for a freelancer the planning lead proposed for `goal_id` (ADR-0076); empty for a
+    /// character file the CEO imported.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub origin: String,
+    /// The planner's reason the team needed this freelancer (ADR-0076).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub reason: String,
 }
 
 impl Agent {
     /// External staff whose contract still restricts it (standby, contracted or released).
     pub fn is_external(&self) -> bool { self.external.as_ref().is_some_and(|item| item.status != "hired") }
+    /// A planner-proposed freelancer (ADR-0076), hired or not.
+    pub fn is_freelancer(&self) -> bool { self.external.as_ref().is_some_and(|item| item.origin == "planner") }
 }
 
 /// A goal's squad (ADR-0041): which roster members lead, write and review, and why.
@@ -110,6 +119,9 @@ pub struct Squad {
     /// Filled in snapshots only, so the approval card can send back the digest it showed.
     #[serde(default)]
     pub digest: String,
+    /// Planner freelancer proposals the engine ignored, each with its reason (ADR-0076).
+    #[serde(default)]
+    pub freelancer_notes: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

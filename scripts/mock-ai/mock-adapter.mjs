@@ -8,6 +8,7 @@
 //   plan-form-once   첫 PM 계획을 형식 위반(수용 기준 9개)으로 내고 앱의 재요청에 고쳐 냄(ADR-0048)
 //   needs-scope-once 재작업 계획이 README.md를 함께 요구함(같은 목표의 파일 추가 승인, ADR-0053)
 //   repair-no-change 재작업 담당이 "고칠 것 없음"으로 파일을 그대로 둠(ADR-0053)
+//   plan-freelancer  PM 계획이 마지막 업무를 맡을 프리랜서 페르소나를 제안함(ADR-0076)
 // 의존성 없음. 진단은 stderr로만 쓴다(앱은 stderr를 버린다).
 
 import { createHash } from 'node:crypto';
@@ -144,7 +145,9 @@ export function respond(prompt, cwd, options, scenario, allowed = []) {
       if (options.modes.has('plan-commands')) tasks[0] = { ...tasks[0], commands: ['node --test', 'npm install'] };
       // ADR-0060: a criterion the team can never meet (there is no earlier commit).
       if (STUCK_MODES.some(mode => options.modes.has(mode))) tasks[0] = { ...tasks[0], acceptance: [...tasks[0].acceptance, STUCK_CRITERION] };
-      return JSON.stringify({ tasks, reusedTaskIds: [], squad: { structure: 'standard', reason: '모의 AI: 독립된 파일 묶음 두 개라 기본 팀이면 충분해요' } });
+      // ADR-0076 plan-freelancer: the PM brings in a UI freelancer for the screen task.
+      const freelancers = options.modes.has('plan-freelancer') ? [{ name: '접근성 디자이너 해솔', title: 'UI·접근성 전문 프론트엔드 개발자', slot: 'writer', capabilities: ['code'], tasks: [tasks.length - 1], persona: '키보드와 화면 낭독기로 직접 확인하며 화면을 만듭니다. 대비와 초점 표시를 지킵니다.', reason: '모의 AI: 팀에 접근성 전문 화면 개발자가 없어요' }] : undefined;
+      return JSON.stringify({ tasks, reusedTaskIds: [], squad: { structure: 'standard', reason: '모의 AI: 독립된 파일 묶음 두 개라 기본 팀이면 충분해요' }, ...(freelancers ? { freelancers } : {}) });
     }
     case 'repair_plan': {
       const marker = ['Use these CEO-approved files (exact names): ', 'Use these CEO-approved files: '].find(item => prompt.includes(item));

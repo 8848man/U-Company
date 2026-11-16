@@ -56,6 +56,7 @@ impl Store {
         store.seed_agents()?;
         store.fill_blank_agent_instructions()?;
         store.ensure_curator()?;
+        store.upgrade_stock_personas()?;
         store.repair_saved_cli_paths()?;
         store.fill_missing_goal_limits()?;
         crate::technology_presets::ensure_builtins(&store)?;
@@ -431,14 +432,15 @@ impl Store {
     fn seed_agents(&self) -> Result<(), String> {
         let existing: Vec<Agent> = self.list("agent")?;
         if !existing.is_empty() { return Ok(()); }
-        for (id, name, role, reports_to, x, y) in [
-            ("cto", "CTO", "architecture and delegation", None, 14, 20),
-            ("pm", "PM", "planning and task decomposition", Some("cto"), 38, 20),
-            ("developer-a", "Developer A", "implementation", Some("pm"), 22, 55),
-            ("developer-b", "Developer B", "implementation", Some("pm"), 52, 55),
-            ("qa", "QA / Reviewer", "validation and independent review", Some("cto"), 76, 45),
-            ("curator", "Curator", "reference curation", Some("pm"), 64, 20),
+        for (id, role, reports_to, x, y) in [
+            ("cto", "architecture and delegation", None, 14, 20),
+            ("pm", "planning and task decomposition", Some("cto"), 38, 20),
+            ("developer-a", "implementation", Some("pm"), 22, 55),
+            ("developer-b", "implementation", Some("pm"), 52, 55),
+            ("qa", "validation and independent review", Some("cto"), 76, 45),
+            ("curator", "reference curation", Some("pm"), 64, 20),
         ] {
+            let name = crate::presets::seed_name(id).expect("seeded persona name");
             let agent = Agent { id: id.into(), name: name.into(), role: role.into(), instructions: crate::presets::for_seed_id(id).instructions, reports_to: reports_to.map(str::to_string), connection_id: String::new(), model_id: String::new(), x, y, enabled: true, external: None, appearance: None };
             self.put("agent", id, &agent, None)?;
         }
@@ -450,10 +452,24 @@ impl Store {
         if self.get::<bool>("setting", "curator_seeded")?.is_some() { return Ok(()); }
         let agents: Vec<Agent> = self.list("agent")?;
         if !agents.iter().any(crate::squad::is_curator) {
-            let agent = Agent { id: "curator".into(), name: "Curator".into(), role: "reference curation".into(), instructions: crate::presets::for_seed_id("curator").instructions, reports_to: Some("pm".into()), connection_id: String::new(), model_id: String::new(), x: 64, y: 20, enabled: true, external: None, appearance: None };
+            let agent = Agent { id: "curator".into(), name: crate::presets::seed_name("curator").unwrap_or("Curator").into(), role: "reference curation".into(), instructions: crate::presets::for_seed_id("curator").instructions, reports_to: Some("pm".into()), connection_id: String::new(), model_id: String::new(), x: 64, y: 20, enabled: true, external: None, appearance: None };
             if !agents.iter().any(|item| item.id == "curator") { self.put("agent", "curator", &agent, None)?; }
         }
         self.put("setting", "curator_seeded", &true, None)
+    }
+
+    /// ADR-0076: once, give seeded characters the named professional personas. A name or instruction
+    /// text is replaced only while it still equals the previous stock value; CEO edits stay.
+    pub fn upgrade_stock_personas(&self) -> Result<(), String> {
+        if self.get::<bool>("setting", "personas_v2")?.is_some() { return Ok(()); }
+        for mut agent in self.list::<Agent>("agent")? {
+            let Some((old_name, old_instructions)) = crate::presets::legacy(&agent.id) else { continue };
+            let mut changed = false;
+            if agent.instructions.trim() == old_instructions { agent.instructions = crate::presets::for_seed_id(&agent.id).instructions; changed = true; }
+            if agent.name == old_name { if let Some(name) = crate::presets::seed_name(&agent.id) { agent.name = name.into(); changed = true; } }
+            if changed { self.put("agent", &agent.id.clone(), &agent, None)?; }
+        }
+        self.put("setting", "personas_v2", &true, None)
     }
 
     pub fn fill_blank_agent_instructions(&self) -> Result<(), String> {
@@ -1154,6 +1170,39 @@ mod tests {
         assert_eq!(store.get::<Agent>("agent", "cto").unwrap().unwrap().connection_id, "claude");
         assert!(store.assign_connection_to_agents("http", &["cto".into(), "missing".into()]).is_err());
         assert_eq!(store.get::<Agent>("agent", "cto").unwrap().unwrap().connection_id, "claude");
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn stock_personas_upgrade_once_and_keep_ceo_edits() {
+        let dir = std::env::temp_dir().join(format!("utopia-personas-{}", crate::model::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("state.sqlite");
+        let store = Store::open(&path).unwrap();
+        assert_eq!(store.get::<Agent>("agent", "qa").unwrap().unwrap().name, "QA 지우", "new teams start with personas");
+        // An older team: stock CTO, a renamed PM, a developer with edited instructions.
+        let old = |id: &str, name: Option<&str>, instructions: Option<&str>| {
+            let (stock_name, stock_text) = crate::presets::legacy(id).unwrap();
+            let mut agent: Agent = store.get("agent", id).unwrap().unwrap();
+            agent.name = name.unwrap_or(stock_name).into();
+            agent.instructions = instructions.unwrap_or(stock_text).into();
+            store.put("agent", id, &agent, None).unwrap();
+        };
+        old("cto", None, None);
+        old("pm", Some("기획 반장"), None);
+        old("developer-a", None, Some("내가 쓴 지시"));
+        store.0.lock().unwrap().execute("DELETE FROM objects WHERE kind='setting' AND id='personas_v2'", []).unwrap();
+        store.upgrade_stock_personas().unwrap();
+        let get = |id: &str| store.get::<Agent>("agent", id).unwrap().unwrap();
+        assert_eq!((get("cto").name.as_str(), get("cto").instructions.clone()), ("CTO 서진", crate::presets::for_seed_id("cto").instructions));
+        assert_eq!(get("pm").name, "기획 반장");
+        assert_eq!(get("pm").instructions, crate::presets::for_seed_id("pm").instructions);
+        assert_eq!(get("developer-a").name, "개발자 도현");
+        assert_eq!(get("developer-a").instructions, "내가 쓴 지시");
+        old("cto", None, None);
+        store.upgrade_stock_personas().unwrap();
+        assert_eq!(get("cto").name, "CTO", "the upgrade runs once");
         drop(store);
         std::fs::remove_dir_all(dir).unwrap();
     }
