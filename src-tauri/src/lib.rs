@@ -18,6 +18,7 @@ mod platform;
 mod presets;
 mod provider;
 pub mod provider_harness;
+pub mod token_bench;
 mod runtime;
 mod run_control;
 mod spec_import;

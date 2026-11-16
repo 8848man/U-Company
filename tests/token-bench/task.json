@@ -1,0 +1,15 @@
+{
+  "intent": "헬프데스크 큐 규칙(우선순위 정렬, SLA 지연 판단, 요약)을 명세대로 구현해 줘",
+  "title": "큐 규칙 구현과 테스트",
+  "deliverable": "src/tickets.js의 sortQueue·isOverdue·summarize 구현과 test/tickets.test.js의 단위 테스트",
+  "instructions": "Implement sortQueue, isOverdue and summarize in src/tickets.js exactly as docs/spec.md §1-§4 specify, following AGENTS.md (pure functions, `now` passed in, no mutation). Use the ticket shape documented in src/store.js. Add test/tickets.test.js covering each rule, including the tie-breakers, the strict SLA boundary, unknown priorities and resolved tickets. Run `node --test` and report the result.",
+  "files": ["src/tickets.js", "test/tickets.test.js"],
+  "evidence": ["docs/spec.md", "src/store.js", "AGENTS.md"],
+  "capability": "code",
+  "acceptance": [
+    "sortQueue returns a new array of open/pending tickets ordered by overdue first, then priority, then createdAt, then id, without mutating its input (docs/spec.md §2).",
+    "isOverdue follows the SLA targets and the strict boundary of docs/spec.md §3; resolved tickets and tickets with firstResponseAt are never overdue.",
+    "summarize returns { open, pending, resolved, overdue } counts (docs/spec.md §4).",
+    "test/tickets.test.js covers every rule above and `node --test` passes."
+  ]
+}

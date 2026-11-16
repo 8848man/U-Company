@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CLI 에이전트 토큰 배수</title>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f4f4f1;--surface:#fcfcfb;--surface2:#f0efea;--border:#dddcd4;--grid:#e6e5df;
+  --text:#1d1d1b;--text2:#4a4a45;--muted:#6e6d66;
+  --codex:#2a78d6;--claude:#eb6834;--neutral:#8a8980;--accent:#2a78d6;
+  --note-bg:#eef4fc;--warn-bg:#fdf1e8;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#121211;--surface:#1a1a19;--surface2:#232321;--border:#3a3a36;--grid:#2c2c29;
+    --text:#f0efec;--text2:#c3c2b7;--muted:#9a998f;
+    --codex:#3987e5;--claude:#d95926;--neutral:#8f8e85;--accent:#5598e7;
+    --note-bg:#1b2533;--warn-bg:#2d2119;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#121211;--surface:#1a1a19;--surface2:#232321;--border:#3a3a36;--grid:#2c2c29;
+  --text:#f0efec;--text2:#c3c2b7;--muted:#9a998f;
+  --codex:#3987e5;--claude:#d95926;--neutral:#8f8e85;--accent:#5598e7;
+  --note-bg:#1b2533;--warn-bg:#2d2119;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif}
+main{max-width:1080px;margin:auto;padding:32px 16px 72px}
+h1{font-size:clamp(1.7rem,4.4vw,2.7rem);line-height:1.2;letter-spacing:-.03em;margin:.2em 0 .4em}
+h2{font-size:1.35rem;letter-spacing:-.02em;margin:0 0 6px}
+h3{font-size:1.02rem;margin:0 0 6px}
+p{margin:0 0 10px}
+.kicker{font-size:.78rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.lead{color:var(--text2);font-size:1.06rem;max-width:800px}
+.section{margin-top:36px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+.fine{color:var(--muted);font-size:.88rem}
+.grid{display:grid;gap:12px}
+.tiles{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.tile .label{color:var(--text2);font-size:.86rem}
+.tile .value{font-size:2rem;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.tile .sub{color:var(--muted);font-size:.8rem}
+.callout{border-left:3px solid var(--accent);background:var(--note-bg);padding:12px 16px;border-radius:0 10px 10px 0;margin-top:14px}
+.callout.warn{border-color:var(--claude);background:var(--warn-bg)}
+table{width:100%;border-collapse:collapse;font-size:.9rem;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;border-bottom:1px solid var(--grid);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--text2);font-weight:600}
+.scroll{overflow-x:auto}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.86rem;color:var(--text2);margin:4px 0 8px}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{fill:var(--text2);font-size:12px;font-family:inherit}
+svg .axis{stroke:var(--border)}
+svg .gridline{stroke:var(--grid)}
+svg .hit{fill:transparent;cursor:default}
+.two{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+.controls button{font:inherit;font-size:.86rem;padding:5px 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer}
+.controls button[aria-pressed="true"]{background:var(--text);color:var(--surface);border-color:var(--text)}
+#tip{position:fixed;pointer-events:none;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:.82rem;box-shadow:0 4px 14px rgba(0,0,0,.18);display:none;z-index:10;max-width:260px}
+ul.tight{margin:6px 0 0;padding-left:20px}ul.tight li{margin:3px 0}
+code{font-size:.86em;background:var(--surface2);padding:1px 5px;border-radius:5px}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div class="kicker">Utopia Company · WLG-091 · 2026-11-17</div>
+  <h1>uCompany 개발 업무의 CLI 에이전트 입력 토큰 배수:<br>10월 3.3~4.2배 → 11월 1.2~1.7배</h1>
+  <p class="lead">uCompany가 같은 개발 업무를 Claude Code(claude-opus-5-5)와 Codex CLI(gpt-6-sol)에 맡겼을 때, 각 CLI가 기록한 입력 토큰을 비교했다. 10월 레벨 4·5 기록과 11월 측정을 대조했고, 배수는 크게 줄었다. 다만 같은 과제로 지침만 바꾼 Before·After 측정에서는 집중 지침의 효과가 드러나지 않았다. 줄어든 주된 이유는 과제 크기와 Claude의 내부 응답 횟수로 보인다.</p>
+  <div class="callout"><strong>이 배수가 뜻하는 것:</strong> 이 앱에서 업무를 어느 CLI 에이전트에 맡길지 판단하는 자료다. 모델 효율 비교도, 비용 비교도 아니다. 두 회사는 토크나이저가 달라 같은 글도 토큰 수가 다르게 세어지고, CLI마다 매 응답에 붙는 기본 지침·도구 정의가 다르며, 구독 한도와 캐시 할인 계산도 다르다(아래 한계 참고).</div>
+</header>
+
+<section class="section" aria-labelledby="tiles-title">
+  <h2 id="tiles-title">CLI 에이전트 입력 토큰 배수 (Claude Code ÷ Codex CLI)</h2>
+  <div class="grid tiles" id="tiles"></div>
+  <p class="fine" style="margin-top:10px">입력은 각 CLI가 기록한 총 입력 토큰이다(각 회사 토크나이저 기준). Claude는 기본 입력 + 캐시 생성 + 캐시 읽기, Codex는 캐시를 포함한 입력이다. 앱과 CLI 측정 행은 개발 업무 한 건만 비교한다. CLI 측정은 중앙값.</p>
+</section>
+
+<section class="section" aria-labelledby="env-title">
+  <h2 id="env-title">실험에 쓰인 모델과 도구</h2>
+  <div class="panel scroll">
+    <table>
+      <thead><tr><th>측정</th><th>날짜</th><th>Claude 모델 · CLI</th><th>Codex 모델 · CLI</th><th>집중 지침</th><th>횟수</th></tr></thead>
+      <tbody>
+        <tr><td>레벨 4·5 (앱)</td><td>2026-10-21</td><td>claude-opus-5-5 · Claude Code 2.1.296</td><td>gpt-6-sol · codex-cli 0.159.3</td><td>없음 (도입 전)</td><td>레벨당 1쌍</td></tr>
+        <tr><td>할 일 앱 (앱)</td><td>2026-11-17</td><td>claude-opus-5-5 · Claude Code 2.1.325</td><td>gpt-6-sol · codex-cli 0.169.0</td><td>있음</td><td>1쌍</td></tr>
+        <tr><td>고정 과제 (CLI 실행기)</td><td>2026-11-17</td><td>claude-opus-5-5 · Claude Code 2.1.325</td><td>gpt-6-sol · codex-cli 0.169.0</td><td>끔 / 켬</td><td>AI마다 Before 3 · After 5</td></tr>
+      </tbody>
+    </table>
+    <p class="fine" style="margin-top:8px">모델 이름은 각 CLI의 세션 로그에 기록된 값이다(Claude <code>message.model</code>, Codex <code>turn_context.model</code>). 추론 강도는 둘 다 medium이다(Claude Code <code>effortLevel</code>, Codex <code>model_reasoning_effort</code>, 2026-11-17 설정 기준. 10월 실행 당시 값은 기록이 없다). 앱은 모델·추론 강도를 따로 지정하지 않고 각 CLI 기본 설정으로 호출한다. CTO·PM·QA는 모두 Claude 연결이며 이 비교에 넣지 않았다.</p>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="decomp-title">
+  <h2 id="decomp-title">배수 = 응답 횟수 비 × 응답당 입력 비</h2>
+  <p class="fine">총 입력은 내부 응답 횟수와 응답당 평균 입력의 곱이다. 두 요소를 따로 보면 무엇이 줄었는지 보인다.</p>
+  <div class="legend"><span><span class="sw" style="background:var(--codex)"></span>Codex</span><span><span class="sw" style="background:var(--claude)"></span>Claude</span></div>
+  <div class="grid two">
+    <div class="panel"><h3>내부 응답 횟수</h3><svg id="chart-responses" role="img"></svg></div>
+    <div class="panel"><h3>응답당 평균 입력 (천 토큰)</h3><svg id="chart-per" role="img"></svg></div>
+  </div>
+  <div class="callout">
+    <strong>10월:</strong> Claude가 응답을 1.7배 더 하고(28·25회 대 17·15회), 응답당 입력도 2.0~2.5배였다. 긴 작업에서 문맥이 쌓이며 응답당 입력이 10만~14만까지 커졌다.<br>
+    <strong>11월:</strong> Claude 응답 횟수가 Codex와 같거나 더 적다(0.6~0.8배). 응답당 입력 비는 약 1.8~2.1배로 남았다. Claude는 작은 과제에서도 응답마다 약 4만 토큰, Codex는 약 2.2만 토큰이 기본으로 들어간다. 이 기본량은 모델보다 각 CLI의 시스템 지침·도구 정의 크기와 토크나이저 차이에서 오는 것으로 보이며, 이번 측정으로는 둘을 나누지 못한다.
+  </div>
+</section>
+
+<section class="section" aria-labelledby="runs-title">
+  <h2 id="runs-title">고정 과제 Before·After: 실행별 입력</h2>
+  <p class="fine">같은 헬프데스크 과제와 같은 요청문에서 집중 지침 한 단락만 끄고 켰다. 점 하나가 실행 한 번, 세로 막대가 중앙값이다. 16회 모두 숨은 합격 시험 4/4를 통과했고 선언 밖 파일 변경은 없었다.</p>
+  <div class="controls" role="group" aria-label="지표 선택">
+    <button type="button" data-metric="input" aria-pressed="true">총 입력</button>
+    <button type="button" data-metric="responses" aria-pressed="false">응답 횟수</button>
+    <button type="button" data-metric="output" aria-pressed="false">출력</button>
+    <button type="button" data-metric="seconds" aria-pressed="false">시간(초)</button>
+  </div>
+  <div class="panel"><svg id="chart-runs" role="img"></svg></div>
+  <div class="callout warn">
+    <strong>지침 효과는 확인되지 않았다.</strong> 중앙값 배수는 Before 1.17배, After 1.41배다. 실행 간 편차(Claude 15.5만~29.8만, Codex 10.1만~22.8만)가 조건 간 차이보다 크다. 이 과제는 응답 4~10회로 끝나서, 탐색을 줄이는 지침이 작동할 여지가 거의 없다.
+  </div>
+</section>
+
+<section class="section" aria-labelledby="table-title">
+  <h2 id="table-title">측정 값 표</h2>
+  <div class="panel scroll"><table id="summary-table"></table></div>
+</section>
+
+<section class="section" aria-labelledby="limits-title">
+  <h2 id="limits-title">한계</h2>
+  <div class="panel">
+    <ul class="tight">
+      <li><strong>모델 효율 비교가 아니다.</strong> Claude Code와 Codex CLI라는 에이전트 전체(모델 + CLI 지침·도구 + 실행 방식)를 앱이 쓰는 그대로 비교했다. 같은 모델이라도 다른 CLI에서 돌리면 숫자가 달라진다.</li>
+      <li><strong>토큰 단위가 다르다.</strong> 두 회사의 토크나이저가 달라 같은 글자도 토큰 수가 다르다. 배수 일부는 처리량이 아니라 단위 차이일 수 있으며, 이번 측정으로 그 몫을 분리할 수 없다.</li>
+      <li><strong>토큰은 비용·한도와 같지 않다.</strong> 토큰 가격, 캐시 할인, 구독 한도 계산이 제공자마다 다르다. 원래 문제였던 한도 소모를 비교하려면 한도 사용률을 따로 재야 한다. Codex 로그에는 한도 사용률이 1% 단위로 남지만 작은 실행 한 번으로는 움직이지 않았고(63% 유지), Claude Code 로그에는 이 값이 없다.</li>
+      <li><strong>모델 급이 같은지 확인하지 않았다.</strong> Opus 5.5는 Anthropic의 상위 모델이다. gpt-6-sol이 OpenAI 라인업에서 어느 급인지는 이 측정에서 확인하지 않았다.</li>
+      <li><strong>과제가 다르다.</strong> 10월은 13~15개 파일의 레벨 4·5, 11월은 6개 파일의 할 일 앱과 2개 파일의 고정 과제다. 3.3~4.2배에서 1.7배로 준 것을 집중 지침의 효과라고 말할 수 없다.</li>
+      <li><strong>같은 과제 Before·After는 작은 과제 하나뿐이다.</strong> 레벨 4·5 크기 과제에서 지침을 끄고 켠 비교는 사용량이 커서 하지 않았다. 지침이 큰 과제의 탐색 횟수를 줄이는지는 아직 측정되지 않았다.</li>
+      <li><strong>CLI 버전이 바뀌었다.</strong> 모델은 같지만 Claude Code 2.1.296→2.1.325, codex-cli 0.159.3→0.169.0이다. CLI 자체의 시스템 지침·도구 변화가 섞여 있다.</li>
+      <li><strong>반복 횟수가 적다.</strong> 앱 측정은 각 1쌍, CLI 측정은 조건마다 3~5회다. 첫 라운드 Before 2회는 기록 없이 실패해 빠졌다. 중앙값의 신뢰구간은 넓다.</li>
+      <li><strong>개발 업무만 비교했다.</strong> 11월 앱 목표 전체에서는 CTO·PM·QA(모두 Claude)가 약 75만 토큰으로 개발 두 건(29만)보다 컸다.</li>
+      <li><strong>품질 비교는 얕다.</strong> 모든 실행이 합격 기준을 통과했지만, 합격 시험 4개와 QA 판정 외의 코드 품질은 평가하지 않았다. 속도(Claude 약 50초, Codex 약 100초)와 테스트 수(할 일 앱 11개 대 8개)도 달라, 토큰만으로 우열을 말할 수 없다.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="method-title">
+  <h2 id="method-title">방법과 재현</h2>
+  <div class="panel">
+    <ul class="tight">
+      <li>고정 과제: <code>tests/token-bench/</code> (헬프데스크 큐 규칙, 숨은 합격 시험 <code>check.test.mjs</code>).</li>
+      <li>실행기: <code>cargo run --bin token-bench -- run &lt;claude|codex&gt; &lt;before|after&gt; --out FILE</code>. 앱이 개발자에게 보내는 요청문과 CLI 호출 경로를 그대로 쓰고, 매번 새 Git 폴더에서 실행한다.</li>
+      <li>집계: <code>node scripts/token-bench/collect.mjs FILE</code>. 세션 ID로 각 CLI 로그(압축 로그 포함)를 찾아 응답 횟수·캐시·모델·CLI 버전을 센다. Claude 응답은 메시지 ID, Codex 응답은 response ID로 한 번씩만 센다.</li>
+      <li>원자료: <code>tests/token-bench/results/runs.collected.jsonl</code>(CLI 16회), <code>app-records.collected.jsonl</code>(앱 기록 6건).</li>
+    </ul>
+  </div>
+</section>
+</main>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const MEASURES = [
+  {key:'l4', name:'레벨 4 (10월)', codex:{n:17,input:870626,output:17102,cache:.883,sec:378,qa:'통과'}, claude:{n:28,input:2874251,output:95050,cache:.953,sec:990,qa:'실패'}},
+  {key:'l5', name:'레벨 5 (10월)', codex:{n:15,input:840393,output:19849,cache:.922,sec:414,qa:'통과'}, claude:{n:25,input:3556941,output:139023,cache:.945,sec:1326,qa:'통과'}},
+  {key:'app', name:'할 일 앱 (11월)', codex:{n:5,input:109050,output:4101,cache:.927,sec:105,qa:'통과'}, claude:{n:4,input:183875,output:6334,cache:.814,sec:55,qa:'통과'}},
+  {key:'before', name:'고정 과제 Before', median:true, codex:{n:8,input:170072,output:3776,cache:.939,sec:100.4,qa:'3/3'}, claude:{n:5,input:199038,output:5321,cache:.855,sec:51.5,qa:'3/3'}},
+  {key:'after', name:'고정 과제 After', median:true, codex:{n:8,input:171138,output:4596,cache:.933,sec:110.6,qa:'5/5'}, claude:{n:6,input:241581,output:5664,cache:.878,sec:57.4,qa:'5/5'}},
+];
+// CLI bench runs (tests/token-bench/results/runs.collected.jsonl)
+const RUNS = [
+  ['claude','after',159346,4,4724,44.1],['codex','after',177810,8,4596,117.6],
+  ['claude','after',200311,5,5664,57.4],['claude','after',241581,6,5518,52.2],['claude','before',243776,6,5321,51.5],
+  ['claude','before',199038,5,5403,60.4],['claude','after',243585,6,5817,59.8],['claude','after',298045,7,6799,64.7],
+  ['claude','before',154540,4,4993,47.3],['codex','after',171138,8,3556,94.9],['codex','after',227579,10,5862,152.3],
+  ['codex','before',100887,5,2604,77.1],['codex','before',170072,8,3776,100.4],['codex','after',129435,6,3060,82.3],
+  ['codex','after',133877,6,5133,110.6],['codex','before',173112,8,4500,115.5],
+].map(([provider,condition,input,responses,output,seconds])=>({provider,condition,input,responses,output,seconds}));
+
+const fmt = n => Math.round(n).toLocaleString('ko-KR');
+const k = n => (n/1000).toFixed(n>=100000?0:1)+'k';
+const NS = 'http://www.w3.org/2000/svg';
+const tip = document.getElementById('tip');
+function el(name, attrs={}, text){const e=document.createElementNS(NS,name);for(const [a,v] of Object.entries(attrs))e.setAttribute(a,v);if(text!=null)e.textContent=text;return e}
+function showTip(ev, html){tip.innerHTML=html;tip.style.display='block';const x=Math.min(ev.clientX+14,window.innerWidth-tip.offsetWidth-8);tip.style.left=x+'px';tip.style.top=(ev.clientY+14)+'px'}
+function hideTip(){tip.style.display='none'}
+function bindTip(node, html){node.addEventListener('pointermove',e=>showTip(e,html));node.addEventListener('pointerleave',hideTip)}
+
+// Tiles
+document.getElementById('tiles').innerHTML = MEASURES.map(m=>{
+  const r=m.claude.input/m.codex.input;
+  return `<div class="tile"><div class="label">${m.name}</div><div class="value">${r.toFixed(2)}배</div><div class="sub">Claude ${k(m.claude.input)} / Codex ${k(m.codex.input)}${m.median?' · 중앙값':''}</div></div>`;
+}).join('');
+
+// Grouped horizontal bars: one chart per measure (responses, per-response input)
+function grouped(svgId, value, label){
+  const svg=document.getElementById(svgId); svg.innerHTML='';
+  const W=460, left=118, right=44, rowH=40, barH=12, top=6, H=top+MEASURES.length*rowH+18;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const max=Math.max(...MEASURES.flatMap(m=>[value(m.codex),value(m.claude)]))*1.05;
+  const x=v=>left+(W-left-right)*v/max;
+  for(let i=0;i<=4;i++){const v=max*i/4;svg.append(el('line',{x1:x(v),x2:x(v),y1:top,y2:H-16,class:'gridline'}));svg.append(el('text',{x:x(v),y:H-2,'text-anchor':'middle','font-size':10},label(v)))}
+  MEASURES.forEach((m,i)=>{
+    const y0=top+i*rowH+6;
+    svg.append(el('text',{x:0,y:y0+barH+3,'dominant-baseline':'middle'},m.name));
+    [['codex',0],['claude',1]].forEach(([p,j])=>{
+      const v=value(m[p]), y=y0+j*(barH+2), w=Math.max(2,x(v)-left);
+      svg.append(el('path',{d:`M${left},${y} h${w-4} a4,4 0 0 1 4,4 v${barH-8} a4,4 0 0 1 -4,4 h${-(w-4)} z`,fill:`var(--${p})`}));
+      svg.append(el('text',{x:left+w+4,y:y+barH/2+1,'dominant-baseline':'middle','font-size':11},label(v)));
+      const hit=el('rect',{x:left,y:y-1,width:W-left,height:barH+2,class:'hit'});
+      bindTip(hit,`<strong>${m.name} · ${p==='codex'?'Codex':'Claude'}</strong><br>${svgId==='chart-responses'?'응답 '+v+'회':'응답당 '+fmt(v)+' 토큰'}`);
+      svg.append(hit);
+    });
+  });
+  svg.setAttribute('aria-label', MEASURES.map(m=>`${m.name}: Codex ${label(value(m.codex))}, Claude ${label(value(m.claude))}`).join('; '));
+}
+grouped('chart-responses', d=>d.n, v=>String(Math.round(v)));
+grouped('chart-per', d=>d.input/d.n, v=>Math.round(v/1000)+'k');
+
+// Dot plot of bench runs
+const METRICS={input:{label:'총 입력',f:v=>Math.round(v/1000)+'k'},responses:{label:'응답 횟수',f:v=>String(Math.round(v))},output:{label:'출력',f:v=>(v/1000).toFixed(1)+'k'},seconds:{label:'시간(초)',f:v=>String(Math.round(v))}};
+const ROWS=[['claude','before','Claude · Before'],['claude','after','Claude · After'],['codex','before','Codex · Before'],['codex','after','Codex · After']];
+const median=a=>{const s=[...a].sort((x,y)=>x-y),m=Math.floor(s.length/2);return s.length%2?s[m]:(s[m-1]+s[m])/2};
+function dots(metric){
+  const svg=document.getElementById('chart-runs'); svg.innerHTML='';
+  const W=900,left=120,right=24,rowH=44,top=8,H=top+ROWS.length*rowH+22;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const vals=RUNS.map(r=>r[metric]);const max=Math.max(...vals)*1.08;
+  const x=v=>left+(W-left-right)*v/max;
+  for(let i=0;i<=5;i++){const v=max*i/5;svg.append(el('line',{x1:x(v),x2:x(v),y1:top,y2:H-18,class:'gridline'}));svg.append(el('text',{x:x(v),y:H-4,'text-anchor':'middle','font-size':11},METRICS[metric].f(v)))}
+  const parts=[];
+  ROWS.forEach(([p,c,name],i)=>{
+    const cy=top+i*rowH+rowH/2;
+    svg.append(el('text',{x:0,y:cy,'dominant-baseline':'middle'},name));
+    svg.append(el('line',{x1:left,x2:W-right,y1:cy,y2:cy,class:'axis'}));
+    const runs=RUNS.filter(r=>r.provider===p&&r.condition===c);
+    const md=median(runs.map(r=>r[metric]));
+    svg.append(el('line',{x1:x(md),x2:x(md),y1:cy-14,y2:cy+14,stroke:'var(--text)','stroke-width':2}));
+    svg.append(el('text',{x:x(md)+5,y:cy-12,'font-size':11},'중앙값 '+METRICS[metric].f(md)));
+    runs.forEach((r,j)=>{
+      const dot=el('circle',{cx:x(r[metric]),cy,r:6,fill:`var(--${p})`,stroke:'var(--surface)','stroke-width':2});
+      svg.append(dot);
+      const hit=el('circle',{cx:x(r[metric]),cy,r:12,class:'hit'});
+      bindTip(hit,`<strong>${name}</strong><br>입력 ${fmt(r.input)} · 응답 ${r.responses}회<br>출력 ${fmt(r.output)} · ${r.seconds}초`);
+      svg.append(hit);
+    });
+    parts.push(`${name} 중앙값 ${METRICS[metric].f(md)}`);
+  });
+  svg.setAttribute('aria-label',`고정 과제 실행별 ${METRICS[metric].label}. ${parts.join(', ')}`);
+}
+document.querySelectorAll('.controls button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.controls button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));dots(b.dataset.metric);
+}));
+dots('input');
+
+// Summary table
+const mins=s=>s>=120?(s/60).toFixed(1)+'분':Math.round(s)+'초';
+document.getElementById('summary-table').innerHTML = `<thead><tr><th>측정 · AI</th><th>총 입력</th><th>출력</th><th>응답</th><th>응답당 입력</th><th>캐시 읽기 비율</th><th>시간</th><th>판정</th><th>입력 배수</th></tr></thead><tbody>`+
+  MEASURES.flatMap(m=>['codex','claude'].map(p=>{const d=m[p];return `<tr><td>${m.name} · ${p==='codex'?'Codex':'Claude'}</td><td>${fmt(d.input)}</td><td>${fmt(d.output)}</td><td>${d.n}</td><td>${fmt(d.input/d.n)}</td><td>${Math.round(d.cache*100)}%</td><td>${mins(d.sec)}</td><td>${d.qa}</td><td>${p==='claude'?(m.claude.input/m.codex.input).toFixed(2)+'배':''}</td></tr>`})).join('')+
+  `</tbody>`;
+</script>
+</body>
+</html>
