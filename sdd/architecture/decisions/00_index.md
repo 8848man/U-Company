@@ -78,4 +78,4 @@ Rows are in ID order. Each ADR starts with its title, a `Status:` line, and a `D
 | [ADR-0072](ADR-0072.md) | Verify unchanged task evidence, keep partial integration, and stop repeated fix revisions | Accepted; implemented, Windows QA pending |
 | [ADR-0073](ADR-0073.md) | CEO pauses running goals and meetings, cancels in-flight calls, then resumes or cancels | Accepted decision; implementation status in WLG-085 |
 | [ADR-0074](ADR-0074.md) | Check defect evidence before a repeated modification plan and store QA repair round separately from its title | Accepted; implementation verification in WLG-086 |
-| [ADR-0075](ADR-0075.md) | Connect U-Company to the Obsidian vault as an MCP client: CEO-clicked task import and CEO-approved summary submission | Proposed; access scope decided by CEO, implementation pending (vault task U2) |
+| [ADR-0075](ADR-0075.md) | Connect U-Company to the Obsidian vault as an MCP client: CEO-clicked task import and CEO-approved summary submission | Accepted 2026-11-16 (decision 5, separate librarian-request button, approved by CEO); implementation pending (vault task U2) |
