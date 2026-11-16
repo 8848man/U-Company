@@ -1,4 +1,4 @@
-use crate::model::{Agent, AiConnection, Approval, ContinuationDecision, FileDigest, Goal, GoalGuidance, GoalTurn, NoChangeObservation, Project, Snapshot, Squad, Task, TaskIntegrationProof, TaskNoChangeProof, TokenUsageRecord};
+use crate::model::{Agent, AiConnection, Approval, ContinuationDecision, FileDigest, Goal, GoalGuidance, GoalTurn, NoChangeObservation, Project, Snapshot, Squad, SquadMember, Task, TaskIntegrationProof, TaskNoChangeProof, TokenUsageRecord};
 use crate::squad;
 use crate::delegation;
 use crate::platform;
@@ -21,6 +21,9 @@ struct ProposedPlan {
     reused_task_ids: Vec<String>,
     #[serde(default)]
     squad: Option<ProposedSquad>,
+    /// ADR-0076: freelancer personas the planner proposes; untrusted, screened by `squad::screen_freelancers`.
+    #[serde(default)]
+    freelancers: Option<serde_json::Value>,
     /// ADR-0049: requirement sections the PM deliberately leaves out, each with a reason.
     #[serde(default, rename = "requirementExclusions")]
     requirement_exclusions: Vec<RequirementExclusion>,
@@ -118,6 +121,18 @@ const FOCUSED_PLAN_GUIDANCE: &str = concat!(
     "mandatory project guidance still applies even if not listed as evidence. Keep the full deliverable, ",
     "acceptance criteria, and declared output files; do not narrow them to save tokens. ",
     "Avoid recommending repeated whole-project scans or long unfiltered command output."
+);
+/// ADR-0076: the planner may bring in at most two goal-only freelancers when the team truly lacks a skill.
+const FREELANCER_GUIDANCE: &str = concat!(
+    "Staffing: compare the skills the tasks need with the team listed below. Prefer existing teammates. ",
+    "Only when a task genuinely needs expertise the team lacks (for example security review, copywriting, data analysis, ",
+    "accessibility, a specific framework), add top-level `freelancers` (at most 2, otherwise omit it or use []): ",
+    r#"[{"name":"Korean given name + specialty, max 40 chars","title":"professional title, max 60","slot":"writer|reviewer","#,
+    r#""capabilities":["document|code"],"tasks":[zero-based task indices this writer owns],"persona":"max 2000 chars: who they are, "#,
+    r#"seniority, working method, quality bar, what they check before finishing","reason":"max 300 chars: what the team lacks"}]. "#,
+    "Never add freelancers only for parallelism. A writer freelancer owns the listed tasks and must declare their capabilities; ",
+    "keep at least one task for the regular writers unless every task needs the freelancer. A reviewer freelancer fills only a ",
+    "review place the regular QA cannot. The engine binds them to an existing connection and the CEO approves them on the plan card."
 );
 const FOCUSED_WORKER_GUIDANCE: &str = concat!(
     "Execution approach: follow mandatory project instructions and read the task's declared evidence first. ",
@@ -270,7 +285,7 @@ pub fn start<R: tauri::Runtime>(app: tauri::AppHandle<R>, goal_id: String) -> Re
         let agents: Vec<Agent> = crate::storage::tx_list(tx, "agent")?;
         let connections: Vec<AiConnection> = crate::storage::tx_list(tx, "connection")?;
         let lead = squad::pick_lead("analysis", &agents, &connections, &busy).map_err(|error| format!("{error}. 지금은 목표를 시작하지 않았습니다"))?;
-        let draft = Squad { goal_id: goal.id.clone(), structure: "standard".into(), structure_reason: String::new(), members: vec![lead.clone()], status: "draft".into(), shortfall: vec![], approval_id: None, changes: vec![], created_at: crate::model::now(), locked_at: None, released_at: None, digest: String::new() };
+        let draft = Squad { goal_id: goal.id.clone(), structure: "standard".into(), structure_reason: String::new(), members: vec![lead.clone()], status: "draft".into(), shortfall: vec![], approval_id: None, changes: vec![], created_at: crate::model::now(), locked_at: None, released_at: None, digest: String::new(), freelancer_notes: vec![] };
         crate::storage::tx_put(tx, "squad", &goal.id, &draft)?;
         crate::storage::tx_put(tx, "goal", &goal.id, &goal)?;
         crate::storage::tx_event(tx, "goal_started", &goal.id, &format!("Analysis started by squad lead {}", lead.agent_id))
@@ -901,8 +916,9 @@ fn run<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<()
     let pm = &snapshot.agents.iter().find(|agent| agent.id == planner_id).cloned().ok_or("계획 리드를 찾을 수 없습니다")?;
     let pm_connection = connection(&snapshot.connections, pm)?;
     record_handoff(app, goal_id, &cto.id, &pm.id);
-    let plan_prompt = format!("You are {} ({}) in an AI company. Decompose the CEO goal into remaining FILE-CHANGING implementation tasks. If the CEO requests one standalone file, propose exactly one task owning that file; do not invent extra artifacts merely for parallelism. Split independent tasks only for genuinely separate changes. The engine runs separate QA, so NEVER include QA, testing-only, review-only, or reporting-only tasks. Every new task must change explicitly named files. For a linked revision you may nominate only engine-verified completed task IDs in reusedTaskIds; QA will review the whole revised outcome. Return ONLY JSON: {{\"tasks\":[{TASK_SCHEMA}],\"reusedTaskIds\":[],\"squad\":{{\"structure\":\"standard|launch_prep\",\"reason\":\"why this team structure fits\"}}}}. Propose the squad structure for the CEO to approve: `standard` (up to 2 writers, 1 reviewer) for ordinary work, or `launch_prep` (출시 준비 팀: up to 3 writers, 2 reviewers) for a multi-document launch package. Do not name members; the engine fills them with checked, free teammates. List in `commands` the exact shell commands the teammate must run for the task (focused tests, builds, checks), or []; the CEO approves them with the plan, and commands that delete files, install packages, publish or use the network are asked about separately. Every task needs a one-line deliverable, 1-8 checkable acceptance criteria (each at most 300 characters), the existing project files it must be based on as evidence (read-only, may be empty), and capability `document` for documents/plans/research write-ups or `code` for software changes. Do not name an assignee; the engine assigns capable, free teammates. Claims that cannot be verified from local evidence must be marked as assumptions or unverified inside the deliverable, never stated as fact. A no-write revision may have zero tasks only if it reuses verified work. Use forward-slash relative paths and zero-based dependency indices. Tasks own distinct files; include focused tests with code implementation. Do not modify files.\nRole instructions:\n{}\nCEO goal: {}\nCTO analysis:\n{}\nProject context:\n{}\nRevision context:\n{}", pm.name, pm.role, pm.instructions, goal.intent, analysis, format_args!("{context}{sdd_context}{pm_refs}"), change_context);
-    let plan_prompt = format!("{plan_prompt}\n{FOCUSED_PLAN_GUIDANCE}\nFor a linked revision after a no-change block, any new task that again changes the blocked task's file must include `defectEvidence` for each such file: an exact quote from the current file showing the defect, or a saved failed QA review ID and zero-based criterion index. This observation does not grant write approval.\n{}{}", planner_facts(&project), preset_plan.prompt_context());
+    let plan_prompt = format!("You are {} ({}) in an AI company. Decompose the CEO goal into remaining FILE-CHANGING implementation tasks. If the CEO requests one standalone file, propose exactly one task owning that file; do not invent extra artifacts merely for parallelism. Split independent tasks only for genuinely separate changes. The engine runs separate QA, so NEVER include QA, testing-only, review-only, or reporting-only tasks. Every new task must change explicitly named files. For a linked revision you may nominate only engine-verified completed task IDs in reusedTaskIds; QA will review the whole revised outcome. Return ONLY JSON: {{\"tasks\":[{TASK_SCHEMA}],\"reusedTaskIds\":[],\"squad\":{{\"structure\":\"standard|launch_prep\",\"reason\":\"why this team structure fits\"}},\"freelancers\":[]}}. Propose the squad structure for the CEO to approve: `standard` (up to 2 writers, 1 reviewer) for ordinary work, or `launch_prep` (출시 준비 팀: up to 3 writers, 2 reviewers) for a multi-document launch package. Do not name members; the engine fills them with checked, free teammates. List in `commands` the exact shell commands the teammate must run for the task (focused tests, builds, checks), or []; the CEO approves them with the plan, and commands that delete files, install packages, publish or use the network are asked about separately. Every task needs a one-line deliverable, 1-8 checkable acceptance criteria (each at most 300 characters), the existing project files it must be based on as evidence (read-only, may be empty), and capability `document` for documents/plans/research write-ups or `code` for software changes. Do not name an assignee; the engine assigns capable, free teammates. Claims that cannot be verified from local evidence must be marked as assumptions or unverified inside the deliverable, never stated as fact. A no-write revision may have zero tasks only if it reuses verified work. Use forward-slash relative paths and zero-based dependency indices. Tasks own distinct files; include focused tests with code implementation. Do not modify files.\nRole instructions:\n{}\nCEO goal: {}\nCTO analysis:\n{}\nProject context:\n{}\nRevision context:\n{}", pm.name, pm.role, pm.instructions, goal.intent, analysis, format_args!("{context}{sdd_context}{pm_refs}"), change_context);
+    let team = snapshot.agents.iter().filter(|agent| agent.enabled && !agent.is_external()).map(|agent| format!("- {} ({})", agent.name, agent.role)).collect::<Vec<_>>().join("\n");
+    let plan_prompt = format!("{plan_prompt}\n{FREELANCER_GUIDANCE}\nTeam:\n{team}\n{FOCUSED_PLAN_GUIDANCE}\nFor a linked revision after a no-change block, any new task that again changes the blocked task's file must include `defectEvidence` for each such file: an exact quote from the current file showing the defect, or a saved failed QA review ID and zero-based criterion index. This observation does not grant write approval.\n{}{}", planner_facts(&project), preset_plan.prompt_context());
     record_progress(app, goal_id, None, &pm.id, "PM이 파일별 작업과 완료 기준을 계획하고 있습니다");
     let mut proposed = plan_with_retry(app, &project.id, goal_id, pm, &pm_connection, &plan_prompt, &root, "PM 계획 후", |plan| {
         if plan.tasks.len() > 12 || (plan.tasks.is_empty() && plan.reused_task_ids.is_empty()) { return Err("PM must propose remaining tasks or verified reused work".into()); }
@@ -934,17 +950,45 @@ fn run<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<()
     let structure_reason = if proposal.structure.trim() == structure { proposal.reason.trim().chars().take(300).collect::<String>() } else { "계획자가 알려진 구조를 제안하지 않아 기본 팀으로 정했습니다".to_string() };
     let busy = delegation::busy_for_goal(&store, goal_id)?;
     let owned: Vec<String> = proposed.tasks.iter().map(task_capability).collect();
-    let capabilities: Vec<&str> = owned.iter().map(String::as_str).collect();
-    let filled = squad::fill(&structure, &capabilities, &snapshot.agents, &snapshot.connections, &busy).map_err(|error| delegation::mark("precall", error))?;
+    // ADR-0076: a revised plan starts without the previous pass's unused freelancers. The planner's
+    // new proposals are screened against this plan and seated first; the regular team fills the rest.
+    store.transact(|tx| squad::discard_freelancers_in_tx(tx, goal_id, &[]))?;
+    let freelancers = squad::screen_freelancers(proposed.freelancers.as_ref(), &owned, &structure, goal_id, pm, &snapshot.agents, &snapshot.connections);
+    let claimed = freelancers.claimed();
+    let capabilities: Vec<&str> = owned.iter().enumerate().filter(|(index, _)| !claimed.contains(index)).map(|(_, capability)| capability.as_str()).collect();
+    let filled = squad::fill_around(&structure, &capabilities, &snapshot.agents, &snapshot.connections, &busy, freelancers.writers.len(), !freelancers.reviewers.is_empty()).map_err(|error| delegation::mark("precall", error))?;
+    let reviewer_places = squad::reviewer_places(&structure).saturating_sub(filled.members.iter().filter(|item| item.slot == "reviewer").count());
+    let mut freelancer_notes = freelancers.notes;
+    let mut freelance_reviewers = Vec::new();
+    for agent in freelancers.reviewers {
+        if freelance_reviewers.len() < reviewer_places { freelance_reviewers.push(agent); } else { freelancer_notes.push(format!("무시한 프리랜서 제안 '{}': 정규 검토자로 검토 자리가 이미 찼습니다", agent.name)); }
+    }
+    let mut regular = filled.assignees.into_iter();
+    let assignees: Vec<(String, String)> = (0..owned.len()).map(|index| match freelancers.writers.iter().find(|pick| pick.tasks.contains(&index)) {
+        Some(pick) => Ok((pick.agent.id.clone(), format!("PM이 제안한 프리랜서 · {} 업무 · 연결은 엔진이 기존 연결에서 지정 · 승인 카드에서 CEO 확인", owned[index]))),
+        None => regular.next().ok_or_else(|| delegation::mark("precall", "업무를 맡을 작성자를 정하지 못했습니다")),
+    }).collect::<Result<_, String>>()?;
+    let hired: Vec<(Agent, &str)> = freelancers.writers.iter().map(|pick| (pick.agent.clone(), "writer")).chain(freelance_reviewers.iter().map(|agent| (agent.clone(), "reviewer"))).collect();
+    if !hired.is_empty() {
+        store.transact(|tx| {
+            for (agent, slot) in &hired {
+                crate::storage::tx_put(tx, "agent", &agent.id, agent)?;
+                crate::storage::tx_event(tx, "freelancer_proposed", goal_id, &format!("{} proposed freelancer {} ({slot}) for this goal; it waits for the CEO's plan approval", pm.name, agent.name))?;
+            }
+            Ok(())
+        })?;
+    }
     let mut proposed_squad: Squad = store.get("squad", goal_id)?.ok_or("스쿼드 기록이 사라졌습니다")?;
     proposed_squad.structure = structure;
     proposed_squad.structure_reason = structure_reason;
     proposed_squad.members.retain(|item| item.slot == "lead");
+    proposed_squad.members.extend(freelancers.writers.iter().map(|pick| SquadMember { agent_id: pick.agent.id.clone(), slot: "writer".into(), duty: String::new(), reason: format!("PM이 제안한 프리랜서 · 지정 업무 {}개", pick.tasks.len()) }));
     proposed_squad.members.extend(filled.members);
-    proposed_squad.shortfall = filled.shortfall;
+    proposed_squad.members.extend(freelance_reviewers.iter().map(|agent| SquadMember { agent_id: agent.id.clone(), slot: "reviewer".into(), duty: String::new(), reason: "PM이 제안한 프리랜서 · 정규 검토자로 채우지 못한 자리".into() }));
+    proposed_squad.shortfall = squad::shortfall_of(&proposed_squad, owned.len());
+    proposed_squad.freelancer_notes = freelancer_notes;
     proposed_squad.status = "proposed".into();
     store.put("squad", goal_id, &proposed_squad, Some(NewEvent { kind: "squad_proposed".into(), goal_id: Some(goal_id.into()), task_id: None, agent_id: Some(pm.id.clone()), message: format!("Planner proposed {}; engine filled members", squad::structure_label(&proposed_squad.structure)) }))?;
-    let assignees = filled.assignees;
     let ids: Vec<String> = (0..proposed.tasks.len()).map(|_| crate::model::id()).collect();
     let proposed_commands: Vec<Vec<String>> = proposed.tasks.iter().map(|task| task.commands.clone()).collect();
     for (index, proposal) in proposed.tasks.into_iter().enumerate() {
@@ -965,9 +1009,11 @@ fn run<R: tauri::Runtime>(app: &tauri::AppHandle<R>, goal_id: &str) -> Result<()
     let planned_files = planned.iter().map(|task| format!("{} [{}]", task.title, task.files.join(", "))).collect::<Vec<_>>().join("; ");
     let overlaps = source_tasks.iter().flat_map(|old| old.files.iter().filter_map(|file| planned.iter().find(|new| new.files.iter().any(|path| path.eq_ignore_ascii_case(file))).map(|new| format!("{file}: 이전 {} ({}), 새 {} ({})", old.title, old.id, new.title, new.id)))).collect::<Vec<_>>();
     let workspace_label = if project.kind == "git" { "격리된 Git worktree" } else { "격리된 폴더 복사본" };
-    let approval = Approval { id: crate::model::id(), goal_id: Some(goal_id.into()), operation: "project_write".into(), reason: format!("AI 팀이 {}에서 계획된 {}개 작업을 {}에 구현하고, 승인된 파일 변경만 원래 폴더에 적용합니다. 대상: {}\n{}{}", project.path, ids.len(), workspace_label, planned_files, delegation::approval_lines(&planned, &snapshot.agents), if overlaps.is_empty() { String::new() } else { format!("\n재사용 파일과 새 업무 중복 (이전 재사용 판정은 통합 후 파일별로 전환): {}", overlaps.join("; ")) }), status: "pending".into(), created_at: crate::model::now() };
+    // Re-read: freelancers proposed above are not in the planning snapshot.
+    let roster: Vec<Agent> = store.list("agent")?;
+    let approval = Approval { id: crate::model::id(), goal_id: Some(goal_id.into()), operation: "project_write".into(), reason: format!("AI 팀이 {}에서 계획된 {}개 작업을 {}에 구현하고, 승인된 파일 변경만 원래 폴더에 적용합니다. 대상: {}\n{}{}", project.path, ids.len(), workspace_label, planned_files, delegation::approval_lines(&planned, &roster), if overlaps.is_empty() { String::new() } else { format!("\n재사용 파일과 새 업무 중복 (이전 재사용 판정은 통합 후 파일별로 전환): {}", overlaps.join("; ")) }), status: "pending".into(), created_at: crate::model::now() };
     let sdd_note = if crate::sdd_origin::exists(&root) { format!("\nSDD: 승인하면 PM({})이 `{}/`를 함께 관리합니다(작업 전 기능·요구사항·계획·작업 목록, QA 통과 뒤 작업 체크·결정·handoff·색인). AGENTS.md의 U 컴퍼니 구간 문구도 최신으로 맞춥니다.", pm.name, crate::sdd_origin::SDD_DIR) } else { String::new() };
-    let approval = Approval { reason: format!("{}\n{}{requirement_note}{sdd_note}", approval.reason, squad::approval_lines(&proposed_squad, &snapshot.agents)), ..approval };
+    let approval = Approval { reason: format!("{}\n{}{requirement_note}{sdd_note}", approval.reason, squad::approval_lines(&proposed_squad, &roster)), ..approval };
     // ADR-0058: the commands the plan says it will run are shown on the plan card and approved with it.
     let plan_commands: Vec<String> = proposed_commands.iter().flatten().cloned().collect();
     let command_note = crate::permissions_flow::plan_request(&store, goal_id, &approval.id, &plan_commands)?;

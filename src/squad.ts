@@ -15,9 +15,20 @@ export function isExternal(agent: Agent | undefined): boolean {
   return Boolean(agent?.external && agent.external.status !== 'hired');
 }
 
+/** A freelancer the PM proposed for one goal (ADR-0076). */
+export function isFreelancer(agent: Agent | undefined): boolean {
+  return agent?.external?.origin === 'planner';
+}
+
+/** Suffix that tells the CEO where a non-regular character came from. */
+export function externalSuffix(agent: Agent | undefined): string {
+  if (!isExternal(agent)) return '';
+  return isFreelancer(agent) ? '(프리랜서)' : '(외부)';
+}
+
 export function displayName(agent: Agent | undefined, id: string): string {
   if (!agent) return id;
-  return isExternal(agent) ? `${agent.name}(외부)` : agent.name;
+  return `${agent.name}${externalSuffix(agent)}`;
 }
 
 export function memberLabel(member: SquadMember, agents: Agent[]): string {
@@ -48,7 +59,7 @@ export function swapCandidates(squad: Squad, slot: SquadSlot, agents: Agent[], c
     const connection = connections.find(item => item.id === agent.connectionId);
     if (!connection || unusable.includes(connection.status)) return false;
     if (slot === 'writer' && connection.kind === 'http') return false;
-    if (agent.external && agent.external.status !== 'hired') return agent.external.status === 'standby' && agent.external.slot === slot;
+    if (agent.external && agent.external.status !== 'hired') return agent.external.status === 'standby' && agent.external.slot === slot && (!isFreelancer(agent) || agent.external.goalId === squad.goalId);
     return slot === 'writer' ? isWriterRole(agent) : isReviewerRole(agent);
   });
 }
@@ -69,7 +80,8 @@ export function officeBadges(squads: Squad[] | undefined, goals: Goal[], agents:
   for (const agent of agents) {
     if (!isExternal(agent)) continue;
     const status = agent.external!.status;
-    const prefix = status === 'standby' ? '외부 · 대기' : status === 'contracted' ? '외부 · 계약' : '외부 · 종료';
+    const kind = isFreelancer(agent) ? '프리랜서' : '외부';
+    const prefix = status === 'standby' ? `${kind} · 대기` : status === 'contracted' ? `${kind} · 계약` : `${kind} · 종료`;
     badges[agent.id] = badges[agent.id] ? `${prefix} · ${badges[agent.id]}` : prefix;
   }
   return badges;

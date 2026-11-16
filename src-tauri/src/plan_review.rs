@@ -62,6 +62,7 @@ pub fn cancel(store: &Store, goal_id: &str, approval_id: &str) -> Result<(), Str
         goal.status = "cancelled".into();
         goal.report = "CEO가 계획을 거부해 목표를 취소했습니다. 프로젝트 파일은 바뀌지 않았습니다.".into();
         tx_put(tx, "goal", goal_id, &goal)?;
+        crate::squad::discard_freelancers_in_tx(tx, goal_id, &[])?;
         tx_event(tx, "approval_decided", goal_id, "project_write: denied")?;
         tx_event(tx, "goal_cancelled", goal_id, "CEO rejected the plan; the goal is cancelled and no file changed")
     })

@@ -27,6 +27,17 @@ describe('goal squads (ADR-0041)', () => {
   });
 });
 
+describe('planner freelancers (ADR-0076)', () => {
+  const freelancer = (id: string, goalId: string) => { const base = external(id, 'writer'); return { ...base, name: '보안가 윤', external: { ...base.external!, goalId, origin: 'planner' as const, reason: '보안 전문가가 없음' } }; };
+  it('labels freelancers and offers them only on their own goal card', () => {
+    const roster = [...agents, freelancer('ext-mine', 'g1'), freelancer('ext-other', 'g2')];
+    expect(swapCandidates(squad, 'writer', roster, connections).map(item => item.id)).toEqual(['developer-b', 'ext-w', 'ext-mine']);
+    const withFreelancer = { ...squad, members: [...squad.members, { agentId: 'ext-mine', slot: 'writer' as const, duty: '' as const, reason: '' }] };
+    expect(squadSummary(withFreelancer, roster)).toContain('보안가 윤(프리랜서)');
+    expect(officeBadges([], [goal], roster)['ext-mine']).toBe('프리랜서 · 대기');
+  });
+});
+
 describe('open squad slots', () => {
   it('counts empty places and only offers tasks from writers holding two or more', () => {
     const task = (id: string, assigneeId: string) => ({ id, goalId: 'g1', title: id, instructions: '', files: [], assigneeId, status: 'pending', dependsOn: [], worktree: null, result: '', sessionId: null });

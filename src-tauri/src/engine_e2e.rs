@@ -257,6 +257,30 @@ fn a_sample_app_goal_runs_from_analysis_to_a_qa_passed_report() {
 }
 
 #[test]
+fn a_planner_freelancer_is_approved_on_the_card_does_its_task_and_leaves() {
+    let Some(h) = harness(&["plan-freelancer"]) else { return };
+    let id = h.submit(GOAL);
+    h.wait(&id, &["awaiting_approval"]);
+    let agents: Vec<crate::model::Agent> = h.store().list("agent").unwrap();
+    let freelancer = agents.iter().find(|agent| agent.is_freelancer()).expect("the PM's freelancer is created");
+    let contract = freelancer.external.as_ref().unwrap();
+    assert_eq!((contract.status.as_str(), contract.goal_id.as_deref()), ("standby", Some(id.as_str())));
+    let screen = h.tasks(&id).into_iter().find(|task| task.files.contains(&"index.html".to_string())).unwrap();
+    assert_eq!(screen.assignee_id, freelancer.id, "the freelancer owns the task the PM named");
+    assert!(h.tasks(&id).iter().any(|task| task.assignee_id != freelancer.id), "a regular writer keeps the other task");
+    let card = h.pending_approval(&id).reason;
+    assert!(card.contains("접근성 디자이너 해솔(프리랜서)") && card.contains("PM 제안 이유"), "{card}");
+    h.approve(&id);
+    h.wait(&id, &["completed"]);
+    assert!(h.root.join("index.html").is_file());
+    let after: crate::model::Agent = h.store().get("agent", &freelancer.id).unwrap().unwrap();
+    assert_eq!(after.external.unwrap().status, "released", "the contract ends with the goal");
+    assert!(!after.enabled);
+    let kinds = h.event_kinds(&id);
+    assert!(kinds.contains(&"freelancer_proposed".to_string()) && kinds.contains(&"external_staff_contracted".to_string()));
+}
+
+#[test]
 fn a_qa_failure_is_reworked_inside_the_approved_files_and_then_passes() {
     let Some(h) = harness(&["qa-fail-once"]) else { return };
     let id = h.submit(GOAL);
