@@ -46,6 +46,9 @@ pub(crate) fn harness(modes: &[&str]) -> Option<Harness> {
     git(&root, &["config", "user.name", "e2e"]);
     git(&root, &["config", "core.autocrlf", "false"]);
     std::fs::write(root.join("README.md"), "# 샘플 프로젝트\n").unwrap();
+    // The sample's generated tests use require(). Isolate their module mode from a parent
+    // package.json when the harness temp directory lives inside this repository.
+    std::fs::write(root.join("package.json"), "{\"type\":\"commonjs\"}\n").unwrap();
     git(&root, &["add", "."]);
     git(&root, &["commit", "-q", "-m", "init"]);
     let store = Store::open(&data.join("organization.sqlite")).unwrap();
@@ -127,7 +130,11 @@ impl Harness {
 
     /// The generated app's own tests, run in the project after integration.
     pub fn project_tests_pass(&self) -> bool {
-        Command::new(crate::discovery::find_executable("node").unwrap()).arg("--test").current_dir(&self.root).output().is_ok_and(|out| out.status.success())
+        let out = Command::new(crate::discovery::find_executable("node").unwrap()).arg("--test").current_dir(&self.root).output().expect("run the integrated app's node tests");
+        if !out.status.success() {
+            eprintln!("integrated node --test failed ({}):\nstdout:\n{}\nstderr:\n{}", out.status, String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        }
+        out.status.success()
     }
 }
 
@@ -410,13 +417,22 @@ fn an_ai_preset_draft_reaches_the_provider_only_once_after_exact_approval() {
 fn wait_scope_approval(h: &Harness, id: &str) -> Approval { wait_operation(h, id, crate::engine::SCOPE_OPERATION) }
 
 fn wait_operation(h: &Harness, id: &str, operation: &str) -> Approval {
-    let deadline = Instant::now() + Duration::from_secs(60);
+    // Whole-goal tests spawn several Node and Git processes. Parallel Rust tests can delay an
+    // otherwise healthy approval, so this test-only wait allows for host contention.
+    let deadline = Instant::now() + Duration::from_secs(180);
     loop {
         let found = h.store().list::<Approval>("approval").unwrap().into_iter().find(|item| item.goal_id.as_deref() == Some(id) && item.status == "pending" && item.operation == operation);
         if let Some(approval) = found { h.wait(id, &["awaiting_approval"]); return approval; }
         let goal = h.goal(id);
-        assert!(!["completed", "blocked"].contains(&goal.status.as_str()), "goal ended as {} before asking for scope: {}", goal.status, goal.report);
-        assert!(Instant::now() < deadline, "no {operation} approval");
+        assert!(!["completed", "blocked"].contains(&goal.status.as_str()), "goal ended as {} before asking for {operation}: {}", goal.status, goal.report);
+        assert!(
+            Instant::now() < deadline,
+            "no {operation} approval; goal={} ({}); report={}; last events={:?}",
+            goal.status,
+            goal.block_kind,
+            goal.report,
+            h.event_kinds(id).into_iter().rev().take(12).collect::<Vec<_>>()
+        );
         std::thread::sleep(Duration::from_millis(100));
     }
 }
