@@ -215,7 +215,9 @@ fn run_plugin_with_timeout(connection: &AiConnection, prompt: &str, cwd: &Path, 
     let stop = |child: &mut std::process::Child| { let _ = child.kill(); let _ = child.wait(); };
     let init = json!({"id": 1, "method": "initialize", "params": {"protocolVersion": 1}});
     writeln!(stdin, "{init}").map_err(|e| e.to_string())?;
-    let init_deadline = Instant::now() + Duration::from_secs(10);
+    // Parallel whole-goal tests can saturate the host while starting many mock Node adapters.
+    // Keep the production timeout short; allow the test binary more scheduling time.
+    let init_deadline = Instant::now() + if cfg!(test) { Duration::from_secs(30) } else { Duration::from_secs(10) };
     let init_result = loop {
         match rx.recv_timeout(init_deadline.saturating_duration_since(Instant::now())) {
             Ok(Ok(value)) if value.get("id").and_then(Value::as_u64) == Some(1) => break value,
